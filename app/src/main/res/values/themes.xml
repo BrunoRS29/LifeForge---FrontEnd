@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Tema XML mínimo apenas para satisfazer o AndroidManifest.
+        O tema visual real (Material 3 com cores LifeForge) é declarado
+        em código Compose dentro de presentation/theme/ na Fase 4.2.
+    -->
+    <style name="Theme.LifeForge" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

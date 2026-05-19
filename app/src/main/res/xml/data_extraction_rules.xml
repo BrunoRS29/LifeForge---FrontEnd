@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <!-- Não exportar credenciais nem o banco local em backup automático -->
+    <cloud-backup>
+        <exclude domain="sharedpref" path="auth_prefs.xml" />
+        <exclude domain="sharedpref" path="datastore" />
+        <exclude domain="database" path="lifeforge.db" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="auth_prefs.xml" />
+        <exclude domain="sharedpref" path="datastore" />
+        <exclude domain="database" path="lifeforge.db" />
+    </device-transfer>
+</data-extraction-rules>
