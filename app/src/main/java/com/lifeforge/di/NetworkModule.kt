@@ -22,6 +22,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.lifeforge.data.api.PredictionApi
 
 /**
  * Configura o stack de rede:
@@ -116,4 +117,8 @@ object NetworkModule {
     @Provides @Singleton
     fun provideOptimizationApi(retrofit: Retrofit): OptimizationApi =
         retrofit.create(OptimizationApi::class.java)
+
+    @Provides @Singleton
+    fun providePredictionApi(retrofit: Retrofit): PredictionApi =
+        retrofit.create(PredictionApi::class.java)
 }

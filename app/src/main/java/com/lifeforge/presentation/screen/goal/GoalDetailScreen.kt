@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoGraph
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -49,7 +51,7 @@ import com.lifeforge.presentation.common.label
 
 /**
  * Tela de detalhe da meta. Mostra todos os campos em cards, e oferece
- * 3 ações: Simular (botão principal), Editar e Apagar (botões secundários).
+ * 4 ações: Simular clássico, Simular com IA, Editar e Apagar.
  *
  * Delete usa dialog de confirmação — operação destrutiva merece o
  * extra tap. Após sucesso, navega de volta automaticamente via
@@ -61,6 +63,7 @@ fun GoalDetailScreen(
     onNavigateBack: () -> Unit,
     onEdit: () -> Unit,
     onSimulate: () -> Unit,
+    onSimulateWithAi: () -> Unit = {},   // <-- NOVO, default vazio
     viewModel: GoalDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -95,6 +98,7 @@ fun GoalDetailScreen(
                     onErrorDismiss = viewModel::onErrorBannerDismiss,
                     onEdit = onEdit,
                     onSimulate = onSimulate,
+                    onSimulateWithAi = onSimulateWithAi,
                     onDeleteClick = { showDeleteDialog = true },
                 )
                 else -> LoadingIndicator()
@@ -122,6 +126,7 @@ private fun GoalDetailContent(
     onErrorDismiss: () -> Unit,
     onEdit: () -> Unit,
     onSimulate: () -> Unit,
+    onSimulateWithAi: () -> Unit,  // <-- NOVO
     onDeleteClick: () -> Unit,
 ) {
     Column(
@@ -161,14 +166,31 @@ private fun GoalDetailContent(
         InfoRow(label = "Criada em", value = formatDate(goal.createdAt))
 
         Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = onSimulate,
+
+        // BONUS: Substituído o botão único pela Row com "Simular" e "Simular com IA"
+        Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Outlined.AutoGraph, contentDescription = null)
-            Spacer(Modifier.size(8.dp))
-            Text("Simular Monte Carlo")
+            OutlinedButton(
+                onClick = onSimulate,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(Icons.Outlined.AutoGraph, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("Simular")
+            }
+
+            Button(
+                onClick = onSimulateWithAi,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("Simular com IA")
+            }
         }
+
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(
                 onClick = onEdit,
@@ -243,4 +265,3 @@ private fun DeleteConfirmDialog(
         },
     )
 }
-

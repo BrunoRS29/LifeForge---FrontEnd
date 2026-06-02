@@ -73,6 +73,27 @@ data class GoalEdit(val goalId: Long? = null)
 @Serializable
 data class Simulation(val goalId: Long)
 
+/**
+ * Tela de Simulacao Calibrada por IA (Sprint 5).
+ *
+ * Acessada via "Simular com IA" no GoalDetail ou direto via:
+ *   navController.navigate(SimulationCalibrated(goalId = 42))
+ *
+ * Reutiliza `goalId` como referencia da meta a calibrar - mesmo modelo
+ * da `Simulation` da Sprint 2.
+ */
+@Serializable
+data class SimulationCalibrated(val goalId: Long)
+
+/**
+ * Tela de Predicoes standalone (Sprint 5).
+ *
+ * Sem argumentos - sempre opera no usuario autenticado (JWT). Acessivel
+ * via Profile > "Ver predicoes" ou via deep link.
+ */
+@Serializable
+data object Predictions
+
 // ============================================================================
 // Metadata para o bottom bar
 // ============================================================================

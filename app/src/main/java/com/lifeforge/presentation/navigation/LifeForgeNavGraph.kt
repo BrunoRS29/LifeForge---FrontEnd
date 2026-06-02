@@ -30,6 +30,10 @@ import com.lifeforge.presentation.screen.goal.GoalsListScreen
 import com.lifeforge.presentation.screen.optimization.OptimizationScreen
 import com.lifeforge.presentation.screen.profile.ProfileScreen
 import com.lifeforge.presentation.screen.simulation.SimulationScreen
+import com.lifeforge.presentation.navigation.Predictions
+import com.lifeforge.presentation.navigation.SimulationCalibrated
+import com.lifeforge.presentation.screen.prediction.PredictionScreen
+import com.lifeforge.presentation.screen.simulation.SimulationCalibratedScreen
 
 /**
  * Grafo de navegação raiz do LifeForge.
@@ -122,6 +126,19 @@ fun LifeForgeNavGraph(
                     onNavigateToRegister = { navController.navigate(Register) },
                 )
             }
+
+            composable<SimulationCalibrated> {
+                SimulationCalibratedScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<Predictions> {
+                PredictionScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
             composable<Register> {
                 RegisterScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -157,6 +174,7 @@ fun LifeForgeNavGraph(
                     onNavigateBack = { navController.popBackStack() },
                     onEdit = { navController.navigate(GoalEdit(args.goalId)) },
                     onSimulate = { navController.navigate(Simulation(args.goalId)) },
+                    onSimulateWithAi = { navController.navigate(SimulationCalibrated(args.goalId)) },  // <-- NOVO
                 )
             }
             composable<GoalEdit> {

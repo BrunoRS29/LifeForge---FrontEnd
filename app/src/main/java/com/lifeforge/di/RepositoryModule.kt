@@ -16,6 +16,8 @@ import com.lifeforge.domain.repository.IncomeRepository
 import com.lifeforge.domain.repository.OptimizationRepository
 import com.lifeforge.domain.repository.SimulationRepository
 import com.lifeforge.domain.repository.UserRepository
+import com.lifeforge.data.repository.PredictionRepositoryImpl
+import com.lifeforge.domain.repository.PredictionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -66,4 +68,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindOptimizationRepository(impl: OptimizationRepositoryImpl): OptimizationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPredictionRepository(impl: PredictionRepositoryImpl): PredictionRepository
 }
