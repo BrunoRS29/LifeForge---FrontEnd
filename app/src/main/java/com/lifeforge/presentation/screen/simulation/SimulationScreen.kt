@@ -306,7 +306,7 @@ private fun IntField(
 // ============================================================================
 
 @Composable
-private fun ResultSection(result: SimulationResult) {
+internal fun ResultSection(result: SimulationResult) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Card destaque: probabilidade de sucesso.
         Card(
