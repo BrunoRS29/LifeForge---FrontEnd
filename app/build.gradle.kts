@@ -132,6 +132,7 @@ dependencies {
     // Testes unitários (JVM)
     testImplementation(libs.bundles.unit.test)
     testImplementation(libs.androidx.room.testing)
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     // Testes instrumentados (device/emulator)
     androidTestImplementation(platform(libs.androidx.compose.bom))
