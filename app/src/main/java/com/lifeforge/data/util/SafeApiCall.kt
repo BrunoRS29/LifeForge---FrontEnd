@@ -87,7 +87,13 @@ internal fun parseHttpError(response: Response<*>, json: Json): AppError {
     val errorCode = parsed?.error
 
     return when (response.code()) {
-        400 -> AppError.Validation(field = errorCode, message = message)
+        // 400 = sintaxe / validação de campo. 422 = "Unprocessable Entity":
+        // o pedido é válido mas os dados do usuário são insuficientes —
+        // usado pelos endpoints de IA (ex.: histórico < 6 receitas, < 12
+        // despesas). Ambos trazem ErrorResponse com mensagem acionável que
+        // queremos surfaçar; sem este case, 422 caía no else → Unknown →
+        // "Algo deu errado", escondendo a causa real do usuário.
+        400, 422 -> AppError.Validation(field = errorCode, message = message)
         401 -> AppError.Unauthorized(message)
         403 -> AppError.Unauthorized(message)
         404 -> AppError.NotFound(message)

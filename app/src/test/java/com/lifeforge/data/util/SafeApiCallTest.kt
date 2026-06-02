@@ -60,6 +60,26 @@ class SafeApiCallTest {
     }
 
     @Test
+    fun `422 com ErrorResponseDto retorna Validation com a mensagem`() = runTest {
+        // O backend usa 422 (Unprocessable Entity) quando os dados do usuário
+        // são insuficientes para a IA — ex.: histórico de renda < 6 registros.
+        // Antes do fix, 422 caía no else -> Unknown -> "Algo deu errado",
+        // escondendo a mensagem acionável que o backend já mandava.
+        val errorJson =
+            """{"error":"INSUFFICIENT_DATA","message":"Historico de renda precisa de >= 6 registros (atualmente 3)."}"""
+        val response = errorResponse<String>(code = 422, body = errorJson)
+
+        val result = safeApiCall(json) { response }
+
+        assertThat(result).isInstanceOf(DataResult.Failure::class.java)
+        val error = (result as DataResult.Failure).error
+        assertThat(error).isInstanceOf(AppError.Validation::class.java)
+        assertThat(error.message)
+            .isEqualTo("Historico de renda precisa de >= 6 registros (atualmente 3).")
+        assertThat((error as AppError.Validation).field).isEqualTo("INSUFFICIENT_DATA")
+    }
+
+    @Test
     fun `401 retorna Unauthorized`() = runTest {
         val response = errorResponse<String>(code = 401, body = """{"error":"UNAUTH","message":"token expirou"}""")
         val result = safeApiCall(json) { response }
