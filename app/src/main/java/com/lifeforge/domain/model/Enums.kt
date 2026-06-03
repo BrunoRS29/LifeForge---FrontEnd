@@ -31,3 +31,9 @@ enum class ExpenseCategory {
 enum class AssetType {
     FIXED_INCOME, STOCKS, REAL_ESTATE_FUND, CRYPTO, REAL_ESTATE, OTHER,
 }
+
+/** Recorrência de um schedule de receita/despesa. Espelha o backend. */
+enum class RecurrenceType { ONE_TIME, MONTHLY, INSTALLMENTS }
+
+/** Escopo de uma edição/remoção de schedule: só futuros ou todos. */
+enum class ScheduleAffect { FUTURE_ONLY, ALL }

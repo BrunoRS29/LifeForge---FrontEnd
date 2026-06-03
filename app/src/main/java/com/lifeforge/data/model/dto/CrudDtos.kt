@@ -78,6 +78,66 @@ data class ExpenseDto(
 )
 
 // ============================================================================
+// Income schedules (Sprint 6)
+// ============================================================================
+
+@Serializable
+data class IncomeScheduleRequestDto(
+    val source: String,
+    val amountPerOccurrence: String,
+    val incomeType: String,
+    val recurrence: String,             // ONE_TIME | MONTHLY | INSTALLMENTS
+    val startDate: String,              // ISO-8601
+    val endDate: String? = null,
+    val installmentsTotal: Int? = null,
+)
+
+@Serializable
+data class IncomeScheduleDto(
+    val id: Long,
+    val userId: Long,
+    val source: String,
+    val amountPerOccurrence: String,
+    val incomeType: String,
+    val recurrence: String,
+    val startDate: String,
+    val endDate: String?,
+    val installmentsTotal: Int?,
+    val createdAt: String,
+    val generatedCount: Int,
+)
+
+// ============================================================================
+// Expense schedules (Sprint 6)
+// ============================================================================
+
+@Serializable
+data class ExpenseScheduleRequestDto(
+    val description: String,
+    val amountPerOccurrence: String,
+    val category: String,
+    val recurrence: String,
+    val startDate: String,
+    val endDate: String? = null,
+    val installmentsTotal: Int? = null,
+)
+
+@Serializable
+data class ExpenseScheduleDto(
+    val id: Long,
+    val userId: Long,
+    val description: String,
+    val amountPerOccurrence: String,
+    val category: String,
+    val recurrence: String,
+    val startDate: String,
+    val endDate: String?,
+    val installmentsTotal: Int?,
+    val createdAt: String,
+    val generatedCount: Int,
+)
+
+// ============================================================================
 // Assets
 // ============================================================================
 
