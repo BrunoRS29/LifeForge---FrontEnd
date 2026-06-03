@@ -3,16 +3,20 @@ package com.lifeforge.di
 import com.lifeforge.data.repository.AssetRepositoryImpl
 import com.lifeforge.data.repository.AuthRepositoryImpl
 import com.lifeforge.data.repository.ExpenseRepositoryImpl
+import com.lifeforge.data.repository.ExpenseScheduleRepositoryImpl
 import com.lifeforge.data.repository.GoalRepositoryImpl
 import com.lifeforge.data.repository.IncomeRepositoryImpl
+import com.lifeforge.data.repository.IncomeScheduleRepositoryImpl
 import com.lifeforge.data.repository.OptimizationRepositoryImpl
 import com.lifeforge.data.repository.SimulationRepositoryImpl
 import com.lifeforge.data.repository.UserRepositoryImpl
 import com.lifeforge.domain.repository.AssetRepository
 import com.lifeforge.domain.repository.AuthRepository
 import com.lifeforge.domain.repository.ExpenseRepository
+import com.lifeforge.domain.repository.ExpenseScheduleRepository
 import com.lifeforge.domain.repository.GoalRepository
 import com.lifeforge.domain.repository.IncomeRepository
+import com.lifeforge.domain.repository.IncomeScheduleRepository
 import com.lifeforge.domain.repository.OptimizationRepository
 import com.lifeforge.domain.repository.SimulationRepository
 import com.lifeforge.domain.repository.UserRepository
@@ -56,6 +60,14 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindExpenseRepository(impl: ExpenseRepositoryImpl): ExpenseRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindIncomeScheduleRepository(impl: IncomeScheduleRepositoryImpl): IncomeScheduleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindExpenseScheduleRepository(impl: ExpenseScheduleRepositoryImpl): ExpenseScheduleRepository
 
     @Binds
     @Singleton

@@ -6,11 +6,19 @@ import com.lifeforge.domain.model.AssetType
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.Expense
 import com.lifeforge.domain.model.ExpenseCategory
+import com.lifeforge.domain.model.ExpenseSchedule
+import com.lifeforge.domain.model.ExpenseScheduleParams
 import com.lifeforge.domain.model.Income
+import com.lifeforge.domain.model.IncomeSchedule
+import com.lifeforge.domain.model.IncomeScheduleParams
 import com.lifeforge.domain.model.IncomeType
+import com.lifeforge.domain.model.RecurrenceType
+import com.lifeforge.domain.model.ScheduleAffect
 import com.lifeforge.domain.repository.AssetRepository
 import com.lifeforge.domain.repository.ExpenseRepository
+import com.lifeforge.domain.repository.ExpenseScheduleRepository
 import com.lifeforge.domain.repository.IncomeRepository
+import com.lifeforge.domain.repository.IncomeScheduleRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.math.BigDecimal
@@ -106,6 +114,91 @@ class DeleteExpenseUseCase @Inject constructor(
     private val repository: ExpenseRepository,
 ) {
     suspend operator fun invoke(id: Long): DataResult<Unit> = repository.delete(id)
+}
+
+// ============================================================================
+// Income / Expense schedules (Sprint 6)
+// ============================================================================
+
+class CreateIncomeScheduleUseCase @Inject constructor(
+    private val repository: IncomeScheduleRepository,
+) {
+    suspend operator fun invoke(params: IncomeScheduleParams): DataResult<IncomeSchedule> {
+        validateSchedule(params.source, params.amountPerOccurrence, params.recurrence, params.installmentsTotal)
+            ?.let { return it }
+        return repository.create(params.copy(source = params.source.trim()))
+    }
+}
+
+class UpdateIncomeScheduleUseCase @Inject constructor(
+    private val repository: IncomeScheduleRepository,
+) {
+    suspend operator fun invoke(
+        id: Long,
+        params: IncomeScheduleParams,
+        affect: ScheduleAffect,
+    ): DataResult<IncomeSchedule> {
+        validateSchedule(params.source, params.amountPerOccurrence, params.recurrence, params.installmentsTotal)
+            ?.let { return it }
+        return repository.update(id, params.copy(source = params.source.trim()), affect)
+    }
+}
+
+class DeleteIncomeScheduleUseCase @Inject constructor(
+    private val repository: IncomeScheduleRepository,
+) {
+    suspend operator fun invoke(id: Long, affect: ScheduleAffect): DataResult<Unit> =
+        repository.delete(id, affect)
+}
+
+class CreateExpenseScheduleUseCase @Inject constructor(
+    private val repository: ExpenseScheduleRepository,
+) {
+    suspend operator fun invoke(params: ExpenseScheduleParams): DataResult<ExpenseSchedule> {
+        validateSchedule(params.description, params.amountPerOccurrence, params.recurrence, params.installmentsTotal)
+            ?.let { return it }
+        return repository.create(params.copy(description = params.description.trim()))
+    }
+}
+
+class UpdateExpenseScheduleUseCase @Inject constructor(
+    private val repository: ExpenseScheduleRepository,
+) {
+    suspend operator fun invoke(
+        id: Long,
+        params: ExpenseScheduleParams,
+        affect: ScheduleAffect,
+    ): DataResult<ExpenseSchedule> {
+        validateSchedule(params.description, params.amountPerOccurrence, params.recurrence, params.installmentsTotal)
+            ?.let { return it }
+        return repository.update(id, params.copy(description = params.description.trim()), affect)
+    }
+}
+
+class DeleteExpenseScheduleUseCase @Inject constructor(
+    private val repository: ExpenseScheduleRepository,
+) {
+    suspend operator fun invoke(id: Long, affect: ScheduleAffect): DataResult<Unit> =
+        repository.delete(id, affect)
+}
+
+/** Validação comum aos schedules (label = source/description). */
+private fun validateSchedule(
+    label: String,
+    amount: BigDecimal,
+    recurrence: RecurrenceType,
+    installmentsTotal: Int?,
+): DataResult.Failure? {
+    if (label.isBlank()) {
+        return DataResult.Failure(AppError.Validation(null, "campo de texto é obrigatório"))
+    }
+    if (amount <= BigDecimal.ZERO) {
+        return DataResult.Failure(AppError.Validation("amount", "valor deve ser positivo"))
+    }
+    if (recurrence == RecurrenceType.INSTALLMENTS && (installmentsTotal == null || installmentsTotal <= 0)) {
+        return DataResult.Failure(AppError.Validation("installmentsTotal", "informe o número de parcelas"))
+    }
+    return null
 }
 
 // ============================================================================

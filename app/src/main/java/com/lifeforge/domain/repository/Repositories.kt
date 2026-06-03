@@ -8,8 +8,13 @@ import com.lifeforge.domain.model.Expense
 import com.lifeforge.domain.model.ExpenseCategory
 import com.lifeforge.domain.model.Goal
 import com.lifeforge.domain.model.GoalCategory
+import com.lifeforge.domain.model.ExpenseSchedule
+import com.lifeforge.domain.model.ExpenseScheduleParams
 import com.lifeforge.domain.model.Income
+import com.lifeforge.domain.model.IncomeSchedule
+import com.lifeforge.domain.model.IncomeScheduleParams
 import com.lifeforge.domain.model.IncomeType
+import com.lifeforge.domain.model.ScheduleAffect
 import com.lifeforge.domain.model.OptimizationResult
 import com.lifeforge.domain.model.RebalanceResult
 import com.lifeforge.domain.model.RiskProfile
@@ -131,6 +136,24 @@ interface ExpenseRepository {
     ): DataResult<Expense>
 
     suspend fun delete(id: Long): DataResult<Unit>
+}
+
+// ===========================================================================
+// Income / Expense schedules (Sprint 6) — network-only (sem cache Room)
+// ===========================================================================
+
+interface IncomeScheduleRepository {
+    suspend fun list(): DataResult<List<IncomeSchedule>>
+    suspend fun create(params: IncomeScheduleParams): DataResult<IncomeSchedule>
+    suspend fun update(id: Long, params: IncomeScheduleParams, affect: ScheduleAffect): DataResult<IncomeSchedule>
+    suspend fun delete(id: Long, affect: ScheduleAffect): DataResult<Unit>
+}
+
+interface ExpenseScheduleRepository {
+    suspend fun list(): DataResult<List<ExpenseSchedule>>
+    suspend fun create(params: ExpenseScheduleParams): DataResult<ExpenseSchedule>
+    suspend fun update(id: Long, params: ExpenseScheduleParams, affect: ScheduleAffect): DataResult<ExpenseSchedule>
+    suspend fun delete(id: Long, affect: ScheduleAffect): DataResult<Unit>
 }
 
 // ===========================================================================
