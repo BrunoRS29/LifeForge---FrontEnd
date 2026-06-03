@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.lifeforge.domain.model.AppError
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.Income
+import com.lifeforge.domain.model.IncomeScheduleParams
 import com.lifeforge.domain.model.IncomeType
+import com.lifeforge.domain.model.RecurrenceType
 import com.lifeforge.domain.model.onFailure
+import com.lifeforge.domain.usecase.CreateIncomeScheduleUseCase
 import com.lifeforge.domain.usecase.CreateIncomeUseCase
 import com.lifeforge.domain.usecase.DeleteIncomeUseCase
 import com.lifeforge.domain.usecase.ObserveIncomesUseCase
@@ -28,17 +31,17 @@ import javax.inject.Inject
 /**
  * ViewModel da sub-aba de Receitas.
  *
- * Combina o Flow de incomes do Room com o estado local de UI
- * (form modal aberto, refresh, erros). O form de criação fica dentro
- * desta ViewModel — para Income/Expense o form é simples o bastante
- * (sem datepicker, sem categorias hierárquicas) para não justificar
- * uma tela dedicada com ViewModel separada.
+ * O form de criação tem dois modos:
+ *  - **Lançamento único** (default): cria UMA receita (comportamento legado).
+ *  - **Recorrente**: cria um SCHEDULE (mensal ou parcelado); o backend
+ *    materializa os recebimentos e a lista é refrescada para exibi-los.
  */
 @HiltViewModel
 class IncomeViewModel @Inject constructor(
     observeIncomes: ObserveIncomesUseCase,
     private val refreshIncomes: RefreshIncomesUseCase,
     private val createIncome: CreateIncomeUseCase,
+    private val createIncomeSchedule: CreateIncomeScheduleUseCase,
     private val deleteIncome: DeleteIncomeUseCase,
 ) : ViewModel() {
 
@@ -86,38 +89,33 @@ class IncomeViewModel @Inject constructor(
         localState.update { it.copy(form = null) }
     }
 
-    fun onFormSourceChange(source: String) {
+    private inline fun updateForm(crossinline mutate: (IncomeFormState) -> IncomeFormState) {
         localState.update { local ->
-            local.form?.let { form ->
-                local.copy(form = form.copy(source = source, sourceError = null))
-            } ?: local
+            local.form?.let { local.copy(form = mutate(it)) } ?: local
         }
     }
 
-    fun onFormAmountChange(amount: String) {
-        val sanitized = sanitizeCurrencyInput(amount)
-        localState.update { local ->
-            local.form?.let { form ->
-                local.copy(form = form.copy(amountInput = sanitized, amountError = null))
-            } ?: local
-        }
-    }
+    fun onFormSourceChange(source: String) = updateForm { it.copy(source = source, sourceError = null) }
 
-    fun onFormTypeChange(type: IncomeType) {
-        localState.update { local ->
-            local.form?.let { form ->
-                local.copy(form = form.copy(incomeType = type))
-            } ?: local
-        }
-    }
+    fun onFormAmountChange(amount: String) =
+        updateForm { it.copy(amountInput = sanitizeCurrencyInput(amount), amountError = null) }
 
-    fun onFormRecurringChange(recurring: Boolean) {
-        localState.update { local ->
-            local.form?.let { form ->
-                local.copy(form = form.copy(recurring = recurring))
-            } ?: local
-        }
-    }
+    fun onFormTypeChange(type: IncomeType) = updateForm { it.copy(incomeType = type) }
+
+    fun onFormRecurringChange(recurring: Boolean) = updateForm { it.copy(recurring = recurring) }
+
+    // --- Recorrência (schedule) ---
+
+    fun onFormIsRecurrentChange(isRecurrent: Boolean) = updateForm { it.copy(isRecurrent = isRecurrent) }
+
+    fun onFormRecurrenceTypeChange(type: RecurrenceType) = updateForm { it.copy(recurrenceType = type) }
+
+    fun onFormStartDateChange(date: Instant) = updateForm { it.copy(startDate = date) }
+
+    fun onFormEndDateChange(date: Instant?) = updateForm { it.copy(endDate = date) }
+
+    fun onFormInstallmentsChange(value: String) =
+        updateForm { it.copy(installmentsInput = value.filter { ch -> ch.isDigit() }.take(3)) }
 
     fun submitForm() {
         val form = localState.value.form ?: return
@@ -125,30 +123,41 @@ class IncomeViewModel @Inject constructor(
 
         val amount = parseCurrencyInput(form.amountInput)
         if (amount == null) {
-            localState.update { local ->
-                local.form?.let { f ->
-                    local.copy(form = f.copy(amountError = "Valor inválido"))
-                } ?: local
-            }
+            updateForm { it.copy(amountError = "Valor inválido") }
             return
         }
 
         viewModelScope.launch {
             localState.update { it.copy(isSubmitting = true, errorBanner = null) }
-            val result = createIncome(
-                source = form.source,
-                amount = amount,
-                incomeType = form.incomeType,
-                recurring = form.recurring,
-                // Sem datepicker pra Income — assume recebimento "agora"
-                // como simplificação. Edição da data fica em sprint futura
-                // se for necessário no escopo do TCC.
-                receivedAt = Instant.now(),
-            )
-            when (result) {
-                is DataResult.Success -> localState.update {
-                    it.copy(form = null, isSubmitting = false)
+
+            val result: DataResult<*> = if (form.isRecurrent) {
+                val params = IncomeScheduleParams(
+                    source = form.source,
+                    amountPerOccurrence = amount,
+                    incomeType = form.incomeType,
+                    recurrence = form.recurrenceType,
+                    startDate = form.startDate,
+                    endDate = if (form.recurrenceType == RecurrenceType.MONTHLY) form.endDate else null,
+                    installmentsTotal = if (form.recurrenceType == RecurrenceType.INSTALLMENTS) {
+                        form.installmentsInput.toIntOrNull()
+                    } else null,
+                )
+                createIncomeSchedule(params).also {
+                    // Puxa os recebimentos gerados pelo backend para a lista local.
+                    if (it is DataResult.Success) refreshIncomes()
                 }
+            } else {
+                createIncome(
+                    source = form.source,
+                    amount = amount,
+                    incomeType = form.incomeType,
+                    recurring = form.recurring,
+                    receivedAt = form.startDate,
+                )
+            }
+
+            when (result) {
+                is DataResult.Success -> localState.update { it.copy(form = null, isSubmitting = false) }
                 is DataResult.Failure -> {
                     handleFormError(result.error)
                     localState.update { it.copy(isSubmitting = false) }
@@ -160,19 +169,9 @@ class IncomeViewModel @Inject constructor(
     private fun handleFormError(error: AppError) {
         when (error) {
             is AppError.Validation -> when (error.field) {
-                "source" -> localState.update { local ->
-                    local.form?.let { f ->
-                        local.copy(form = f.copy(sourceError = error.message))
-                    } ?: local
-                }
-                "amount" -> localState.update { local ->
-                    local.form?.let { f ->
-                        local.copy(form = f.copy(amountError = error.message))
-                    } ?: local
-                }
-                else -> localState.update {
-                    it.copy(errorBanner = error.message ?: "Dados inválidos")
-                }
+                "source" -> updateForm { it.copy(sourceError = error.message) }
+                "amount" -> updateForm { it.copy(amountError = error.message) }
+                else -> localState.update { it.copy(errorBanner = error.message ?: "Dados inválidos") }
             }
             else -> localState.update { it.copy(errorBanner = error.toUserMessage()) }
         }
@@ -214,10 +213,23 @@ data class IncomeFormState(
     val source: String = "",
     val amountInput: String = "",
     val incomeType: IncomeType = IncomeType.SALARY,
+    /** Flag do dashboard (single): conta como recorrente mensal. */
     val recurring: Boolean = true,
+    // --- Recorrência (schedule) ---
+    /** Toggle "Recorrente?" — default OFF mantém o modo lançamento único. */
+    val isRecurrent: Boolean = false,
+    val recurrenceType: RecurrenceType = RecurrenceType.MONTHLY,
+    val startDate: Instant = Instant.now(),
+    val endDate: Instant? = null,
+    val installmentsInput: String = "12",
     val sourceError: String? = null,
     val amountError: String? = null,
 ) {
+    /** Nº de parcelas válido (>0) quando em modo INSTALLMENTS. */
+    val installmentsValid: Boolean
+        get() = (installmentsInput.toIntOrNull() ?: 0) > 0
+
     val canSubmit: Boolean
-        get() = source.isNotBlank() && amountInput.isNotBlank()
+        get() = source.isNotBlank() && amountInput.isNotBlank() &&
+            (!isRecurrent || recurrenceType != RecurrenceType.INSTALLMENTS || installmentsValid)
 }

@@ -4,6 +4,7 @@ import com.lifeforge.domain.model.AssetType
 import com.lifeforge.domain.model.ExpenseCategory
 import com.lifeforge.domain.model.GoalCategory
 import com.lifeforge.domain.model.IncomeType
+import com.lifeforge.domain.model.RecurrenceType
 import com.lifeforge.domain.model.RiskProfile
 
 /**
@@ -55,4 +56,10 @@ fun RiskProfile.label(): String = when (this) {
     RiskProfile.CONSERVATIVE -> "Conservador"
     RiskProfile.MODERATE -> "Moderado"
     RiskProfile.AGGRESSIVE -> "Arrojado"
+}
+
+fun RecurrenceType.label(): String = when (this) {
+    RecurrenceType.ONE_TIME -> "Único"
+    RecurrenceType.MONTHLY -> "Mensal"
+    RecurrenceType.INSTALLMENTS -> "Parcelado"
 }

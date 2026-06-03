@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.TrendingDown
@@ -19,31 +22,38 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.Expense
 import com.lifeforge.domain.model.ExpenseCategory
+import com.lifeforge.domain.model.RecurrenceType
 import com.lifeforge.presentation.common.CurrencyField
+import com.lifeforge.presentation.common.DateField
+import com.lifeforge.presentation.common.DatePickerDialogField
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.label
+import java.time.Instant
 
 /**
- * Sub-aba de Despesas. Estruturalmente espelha [IncomeTab] — diferenças
- * estão no label ("descrição" em vez de "fonte"), categoria em vez de
- * tipo, e ícone/cor de destaque (tertiary para despesas).
+ * Sub-aba de Despesas. Espelha [IncomeTab]; o form suporta recorrência,
+ * incluindo INSTALLMENTS para compras parceladas.
  */
 @Composable
 fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
@@ -78,6 +88,11 @@ fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
             onAmountChange = viewModel::onFormAmountChange,
             onCategoryChange = viewModel::onFormCategoryChange,
             onRecurringChange = viewModel::onFormRecurringChange,
+            onIsRecurrentChange = viewModel::onFormIsRecurrentChange,
+            onRecurrenceTypeChange = viewModel::onFormRecurrenceTypeChange,
+            onStartDateChange = viewModel::onFormStartDateChange,
+            onEndDateChange = viewModel::onFormEndDateChange,
+            onInstallmentsChange = viewModel::onFormInstallmentsChange,
             onSubmit = viewModel::submitForm,
             onDismiss = viewModel::closeForm,
         )
@@ -135,17 +150,23 @@ private fun ExpenseFormSheet(
     onAmountChange: (String) -> Unit,
     onCategoryChange: (ExpenseCategory) -> Unit,
     onRecurringChange: (Boolean) -> Unit,
+    onIsRecurrentChange: (Boolean) -> Unit,
+    onRecurrenceTypeChange: (RecurrenceType) -> Unit,
+    onStartDateChange: (Instant) -> Unit,
+    onEndDateChange: (Instant?) -> Unit,
+    onInstallmentsChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var activePicker by remember { mutableStateOf<SchedulePickerTarget?>(null) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Nova despesa", style = MaterialTheme.typography.titleLarge)
@@ -161,7 +182,7 @@ private fun ExpenseFormSheet(
             CurrencyField(
                 value = form.amountInput,
                 onValueChange = onAmountChange,
-                label = "Valor (R$)",
+                label = if (form.isRecurrent) "Valor por ocorrência (R$)" else "Valor (R$)",
                 error = form.amountError,
                 enabled = !isSubmitting,
             )
@@ -173,23 +194,74 @@ private fun ExpenseFormSheet(
                 labelOf = ExpenseCategory::label,
                 enabled = !isSubmitting,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Recorrente", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Despesas recorrentes entram na taxa de poupança",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
+
+            ScheduleToggleRow(
+                title = "Recorrente?",
+                subtitle = "Gera os lançamentos mensais (ou parcelas) automaticamente.",
+                checked = form.isRecurrent,
+                onCheckedChange = onIsRecurrentChange,
+                enabled = !isSubmitting,
+            )
+
+            if (!form.isRecurrent) {
+                ScheduleToggleRow(
+                    title = "Conta na despesa mensal",
+                    subtitle = "Entra na taxa de poupança do dashboard.",
                     checked = form.recurring,
                     onCheckedChange = onRecurringChange,
                     enabled = !isSubmitting,
+                )
+            } else {
+                EnumDropdown(
+                    label = "Repetição",
+                    options = listOf(RecurrenceType.MONTHLY, RecurrenceType.INSTALLMENTS),
+                    selected = form.recurrenceType,
+                    onSelect = onRecurrenceTypeChange,
+                    labelOf = RecurrenceType::label,
+                    enabled = !isSubmitting,
+                )
+                DateField(
+                    label = "Início",
+                    date = form.startDate,
+                    onClick = { activePicker = SchedulePickerTarget.START },
+                    enabled = !isSubmitting,
+                )
+                if (form.recurrenceType == RecurrenceType.MONTHLY) {
+                    DateField(
+                        label = "Fim (opcional)",
+                        date = form.endDate,
+                        onClick = { activePicker = SchedulePickerTarget.END },
+                        enabled = !isSubmitting,
+                        placeholder = "Indefinido (+12 meses)",
+                    )
+                    if (form.endDate != null) {
+                        TextButton(
+                            onClick = { onEndDateChange(null) },
+                            enabled = !isSubmitting,
+                        ) { Text("Limpar data final") }
+                    }
+                }
+                if (form.recurrenceType == RecurrenceType.INSTALLMENTS) {
+                    OutlinedTextField(
+                        value = form.installmentsInput,
+                        onValueChange = onInstallmentsChange,
+                        label = { Text("Número de parcelas") },
+                        isError = !form.installmentsValid,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done,
+                        ),
+                        singleLine = true,
+                        enabled = !isSubmitting,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                SchedulePreview(
+                    recurrenceType = form.recurrenceType,
+                    startDate = form.startDate,
+                    endDate = form.endDate,
+                    installmentsInput = form.installmentsInput,
+                    noun = "despesa",
                 )
             }
 
@@ -210,10 +282,24 @@ private fun ExpenseFormSheet(
                     enabled = !isSubmitting && form.canSubmit,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Adicionar")
+                    Text(if (form.isRecurrent) "Criar recorrência" else "Adicionar")
                 }
             }
         }
         LoadingOverlay(visible = isSubmitting)
+    }
+
+    when (activePicker) {
+        SchedulePickerTarget.START -> DatePickerDialogField(
+            initial = form.startDate,
+            onSelect = { onStartDateChange(it); activePicker = null },
+            onDismiss = { activePicker = null },
+        )
+        SchedulePickerTarget.END -> DatePickerDialogField(
+            initial = form.endDate ?: form.startDate,
+            onSelect = { onEndDateChange(it); activePicker = null },
+            onDismiss = { activePicker = null },
+        )
+        null -> Unit
     }
 }
