@@ -39,6 +39,12 @@ interface IncomeApi {
     @POST("incomes")
     suspend fun create(@Body body: IncomeRequestDto): Response<IncomeDto>
 
+    @PUT("incomes/{id}")
+    suspend fun update(
+        @Path("id") id: Long,
+        @Body body: IncomeRequestDto,
+    ): Response<IncomeDto>
+
     @DELETE("incomes/{id}")
     suspend fun delete(@Path("id") id: Long): Response<Unit>
 
@@ -74,6 +80,12 @@ interface ExpenseApi {
 
     @POST("expenses")
     suspend fun create(@Body body: ExpenseRequestDto): Response<ExpenseDto>
+
+    @PUT("expenses/{id}")
+    suspend fun update(
+        @Path("id") id: Long,
+        @Body body: ExpenseRequestDto,
+    ): Response<ExpenseDto>
 
     @DELETE("expenses/{id}")
     suspend fun delete(@Path("id") id: Long): Response<Unit>

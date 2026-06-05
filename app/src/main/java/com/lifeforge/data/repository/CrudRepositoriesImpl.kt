@@ -68,6 +68,21 @@ class IncomeRepositoryImpl @Inject constructor(
         entity.toDomain()
     }
 
+    override suspend fun update(
+        id: Long,
+        source: String,
+        amount: BigDecimal,
+        incomeType: IncomeType,
+        recurring: Boolean,
+        receivedAt: Instant,
+    ): DataResult<Income> = safeApiCall(json) {
+        api.update(id, incomeRequestDto(source, amount, incomeType, recurring, receivedAt))
+    }.mapCatching { dto ->
+        val entity = dto.toEntity()
+        dao.upsert(entity)
+        entity.toDomain()
+    }
+
     override suspend fun delete(id: Long): DataResult<Unit> =
         safeApiCall(json) { api.delete(id) }
             .mapCatching { dao.deleteById(id) }
@@ -99,6 +114,21 @@ class ExpenseRepositoryImpl @Inject constructor(
         spentAt: Instant,
     ): DataResult<Expense> = safeApiCall(json) {
         api.create(expenseRequestDto(description, amount, category, recurring, spentAt))
+    }.mapCatching { dto ->
+        val entity = dto.toEntity()
+        dao.upsert(entity)
+        entity.toDomain()
+    }
+
+    override suspend fun update(
+        id: Long,
+        description: String,
+        amount: BigDecimal,
+        category: ExpenseCategory,
+        recurring: Boolean,
+        spentAt: Instant,
+    ): DataResult<Expense> = safeApiCall(json) {
+        api.update(id, expenseRequestDto(description, amount, category, recurring, spentAt))
     }.mapCatching { dto ->
         val entity = dto.toEntity()
         dao.upsert(entity)

@@ -116,6 +116,15 @@ interface IncomeRepository {
         receivedAt: Instant,
     ): DataResult<Income>
 
+    suspend fun update(
+        id: Long,
+        source: String,
+        amount: BigDecimal,
+        incomeType: IncomeType,
+        recurring: Boolean,
+        receivedAt: Instant,
+    ): DataResult<Income>
+
     suspend fun delete(id: Long): DataResult<Unit>
 }
 
@@ -128,6 +137,15 @@ interface ExpenseRepository {
     suspend fun refresh(): DataResult<Unit>
 
     suspend fun create(
+        description: String,
+        amount: BigDecimal,
+        category: ExpenseCategory,
+        recurring: Boolean,
+        spentAt: Instant,
+    ): DataResult<Expense>
+
+    suspend fun update(
+        id: Long,
         description: String,
         amount: BigDecimal,
         category: ExpenseCategory,

@@ -68,6 +68,27 @@ class CreateIncomeUseCase @Inject constructor(
     }
 }
 
+class UpdateIncomeUseCase @Inject constructor(
+    private val repository: IncomeRepository,
+) {
+    suspend operator fun invoke(
+        id: Long,
+        source: String,
+        amount: BigDecimal,
+        incomeType: IncomeType,
+        recurring: Boolean,
+        receivedAt: Instant,
+    ): DataResult<Income> {
+        if (source.isBlank()) {
+            return DataResult.Failure(AppError.Validation("source", "fonte é obrigatória"))
+        }
+        if (amount <= BigDecimal.ZERO) {
+            return DataResult.Failure(AppError.Validation("amount", "valor deve ser positivo"))
+        }
+        return repository.update(id, source.trim(), amount, incomeType, recurring, receivedAt)
+    }
+}
+
 class DeleteIncomeUseCase @Inject constructor(
     private val repository: IncomeRepository,
 ) {
@@ -107,6 +128,27 @@ class CreateExpenseUseCase @Inject constructor(
             return DataResult.Failure(AppError.Validation("amount", "valor deve ser positivo"))
         }
         return repository.create(description.trim(), amount, category, recurring, spentAt)
+    }
+}
+
+class UpdateExpenseUseCase @Inject constructor(
+    private val repository: ExpenseRepository,
+) {
+    suspend operator fun invoke(
+        id: Long,
+        description: String,
+        amount: BigDecimal,
+        category: ExpenseCategory,
+        recurring: Boolean,
+        spentAt: Instant,
+    ): DataResult<Expense> {
+        if (description.isBlank()) {
+            return DataResult.Failure(AppError.Validation("description", "descrição é obrigatória"))
+        }
+        if (amount <= BigDecimal.ZERO) {
+            return DataResult.Failure(AppError.Validation("amount", "valor deve ser positivo"))
+        }
+        return repository.update(id, description.trim(), amount, category, recurring, spentAt)
     }
 }
 
