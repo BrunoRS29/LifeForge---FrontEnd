@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -47,37 +48,77 @@ import com.lifeforge.presentation.common.DatePickerDialogField
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
+import com.lifeforge.presentation.common.firstInstantOfMonth
 import com.lifeforge.presentation.common.formatBrl
+import com.lifeforge.presentation.common.formatDate
+import com.lifeforge.presentation.common.formatMonthYear
 import com.lifeforge.presentation.common.label
+import com.lifeforge.presentation.common.yearMonthOf
+import java.math.BigDecimal
 import java.time.Instant
 
 /**
- * Sub-aba de Receitas. O form de criação (ModalBottomSheet) suporta tanto
- * lançamento único quanto recorrência (schedule mensal ou parcelado) — ver
- * [IncomeFormSheet].
+ * Sub-aba de Receitas com navegação por mês: o cabeçalho mostra o mês
+ * selecionado + total, a lista filtra os lançamentos daquele mês, cada card
+ * exibe a data e permite editar/excluir, e o form cria/edita (ver
+ * [IncomeFormSheet]).
  */
 @Composable
 fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
+    var selectedMonth by remember { mutableStateOf(yearMonthOf(Instant.now())) }
+
+    val monthIncomes = remember(state.incomes, selectedMonth) {
+        state.incomes
+            .filter { yearMonthOf(it.receivedAt) == selectedMonth }
+            .sortedByDescending { it.receivedAt }
+    }
+    val monthTotal = remember(monthIncomes) {
+        monthIncomes.fold(BigDecimal.ZERO) { acc, i -> acc + i.amount }
+    }
 
     FinanceListScaffold(
         isRefreshing = state.isRefreshing,
         errorBanner = state.errorBanner,
         onErrorDismiss = viewModel::onErrorBannerDismiss,
         onRefresh = viewModel::refresh,
-        onAddClick = viewModel::openForm,
+        onAddClick = {
+            val now = Instant.now()
+            val default = if (selectedMonth == yearMonthOf(now)) now else firstInstantOfMonth(selectedMonth)
+            viewModel.openForm(defaultDate = default)
+        },
         addLabel = "Nova receita",
         isEmpty = state.incomes.isEmpty(),
         emptyTitle = "Sem receitas cadastradas",
         emptyDescription = "Adicione suas fontes de renda para o dashboard refletir sua taxa de poupança.",
         emptyIcon = Icons.Outlined.TrendingUp,
-    ) {
-        items(items = state.incomes, key = { it.id }) { income ->
-            IncomeCard(
-                income = income,
-                onDelete = { viewModel.delete(income.id) },
-                modifier = Modifier.padding(bottom = 12.dp),
+        header = {
+            MonthNavigator(
+                monthLabel = formatMonthYear(selectedMonth),
+                total = monthTotal,
+                onPrev = { selectedMonth = selectedMonth.minusMonths(1) },
+                onNext = { selectedMonth = selectedMonth.plusMonths(1) },
             )
+        },
+    ) {
+        if (monthIncomes.isEmpty()) {
+            item {
+                Text(
+                    "Nenhuma receita em ${formatMonthYear(selectedMonth)}.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                )
+            }
+        } else {
+            items(items = monthIncomes, key = { it.id }) { income ->
+                IncomeCard(
+                    income = income,
+                    onEdit = { viewModel.openEditForm(income) },
+                    onDelete = { viewModel.delete(income.id) },
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
         }
     }
 
@@ -103,6 +144,7 @@ fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
 @Composable
 private fun IncomeCard(
     income: Income,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -113,14 +155,18 @@ private fun IncomeCard(
         ),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(income.source, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    income.incomeType.label() +
-                        if (income.recurring) " · Recorrente" else "",
+                    income.incomeType.label() + if (income.recurring) " · Recorrente" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "Recebido em ${formatDate(income.receivedAt)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -130,6 +176,9 @@ private fun IncomeCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Outlined.Edit, contentDescription = "Editar receita")
             }
             IconButton(onClick = onDelete) {
                 Icon(
@@ -170,7 +219,10 @@ private fun IncomeFormSheet(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Nova receita", style = MaterialTheme.typography.titleLarge)
+            Text(
+                if (form.isEditing) "Editar receita" else "Nova receita",
+                style = MaterialTheme.typography.titleLarge,
+            )
 
             LifeForgeTextField(
                 value = form.source,
@@ -196,15 +248,25 @@ private fun IncomeFormSheet(
                 enabled = !isSubmitting,
             )
 
-            ScheduleToggleRow(
-                title = "Recorrente?",
-                subtitle = "Gera os lançamentos mensais (passados e futuros) automaticamente.",
-                checked = form.isRecurrent,
-                onCheckedChange = onIsRecurrentChange,
-                enabled = !isSubmitting,
-            )
+            // Recorrência só faz sentido ao CRIAR (não ao editar um lançamento).
+            if (!form.isEditing) {
+                ScheduleToggleRow(
+                    title = "Recorrente?",
+                    subtitle = "Gera os lançamentos mensais (passados e futuros) automaticamente.",
+                    checked = form.isRecurrent,
+                    onCheckedChange = onIsRecurrentChange,
+                    enabled = !isSubmitting,
+                )
+            }
 
             if (!form.isRecurrent) {
+                // Modo único / edição: data de ocorrência + flag do dashboard.
+                DateField(
+                    label = "Data",
+                    date = form.startDate,
+                    onClick = { activePicker = SchedulePickerTarget.START },
+                    enabled = !isSubmitting,
+                )
                 ScheduleToggleRow(
                     title = "Conta na renda mensal",
                     subtitle = "Entra na taxa de poupança do dashboard.",
@@ -283,7 +345,13 @@ private fun IncomeFormSheet(
                     enabled = !isSubmitting && form.canSubmit,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (form.isRecurrent) "Criar recorrência" else "Adicionar")
+                    Text(
+                        when {
+                            form.isEditing -> "Salvar"
+                            form.isRecurrent -> "Criar recorrência"
+                            else -> "Adicionar"
+                        },
+                    )
                 }
             }
         }

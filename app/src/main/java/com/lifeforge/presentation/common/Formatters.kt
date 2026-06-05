@@ -4,8 +4,10 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
 import java.time.Instant
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 
 /**
@@ -81,3 +83,18 @@ fun formatDate(instant: Instant): String =
 /** `dd/MM/yyyy às HH:mm` — usado em históricos/timestamps de simulação. */
 fun formatDateTime(instant: Instant): String =
     dateTimeFormatter.format(instant.atZone(zoneBR))
+
+/** [YearMonth] (no fuso de SP) de um instante — para agrupar/filtrar por mês. */
+fun yearMonthOf(instant: Instant): YearMonth =
+    YearMonth.from(instant.atZone(zoneBR))
+
+/** Rótulo do mês: `Junho 2026` (primeira letra maiúscula). */
+fun formatMonthYear(yearMonth: YearMonth): String {
+    val month = yearMonth.month.getDisplayName(TextStyle.FULL, ptBR)
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(ptBR) else it.toString() }
+    return "$month ${yearMonth.year}"
+}
+
+/** Instante representando o dia 1 do mês (meio-dia SP) — default de data ao criar no mês. */
+fun firstInstantOfMonth(yearMonth: YearMonth): Instant =
+    yearMonth.atDay(1).atTime(12, 0).atZone(zoneBR).toInstant()

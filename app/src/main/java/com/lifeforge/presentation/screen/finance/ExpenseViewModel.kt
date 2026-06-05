@@ -14,6 +14,7 @@ import com.lifeforge.domain.usecase.CreateExpenseUseCase
 import com.lifeforge.domain.usecase.DeleteExpenseUseCase
 import com.lifeforge.domain.usecase.ObserveExpensesUseCase
 import com.lifeforge.domain.usecase.RefreshExpensesUseCase
+import com.lifeforge.domain.usecase.UpdateExpenseUseCase
 import com.lifeforge.presentation.common.parseCurrencyInput
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
 import com.lifeforge.presentation.common.toUserMessage
@@ -29,9 +30,8 @@ import java.time.Instant
 import javax.inject.Inject
 
 /**
- * ViewModel da sub-aba de Despesas. Espelha o [IncomeViewModel]; o form
- * suporta lançamento único e recorrência (mensal ou parcelado — útil para
- * compras parceladas, ex.: 12x no cartão).
+ * ViewModel da sub-aba de Despesas. Espelha o [IncomeViewModel]: criação
+ * única, criação recorrente (mensal/parcelada) e edição de um lançamento.
  */
 @HiltViewModel
 class ExpenseViewModel @Inject constructor(
@@ -39,6 +39,7 @@ class ExpenseViewModel @Inject constructor(
     private val refreshExpenses: RefreshExpensesUseCase,
     private val createExpense: CreateExpenseUseCase,
     private val createExpenseSchedule: CreateExpenseScheduleUseCase,
+    private val updateExpense: UpdateExpenseUseCase,
     private val deleteExpense: DeleteExpenseUseCase,
 ) : ViewModel() {
 
@@ -74,8 +75,24 @@ class ExpenseViewModel @Inject constructor(
         }
     }
 
-    fun openForm() {
-        localState.update { it.copy(form = ExpenseFormState()) }
+    fun openForm(defaultDate: Instant = Instant.now()) {
+        localState.update { it.copy(form = ExpenseFormState(startDate = defaultDate)) }
+    }
+
+    fun openEditForm(expense: Expense) {
+        localState.update {
+            it.copy(
+                form = ExpenseFormState(
+                    editingId = expense.id,
+                    description = expense.description,
+                    amountInput = expense.amount.toPlainString(),
+                    category = expense.category,
+                    recurring = expense.recurring,
+                    isRecurrent = false,
+                    startDate = expense.spentAt,
+                ),
+            )
+        }
     }
 
     fun closeForm() {
@@ -97,8 +114,6 @@ class ExpenseViewModel @Inject constructor(
     fun onFormCategoryChange(category: ExpenseCategory) = updateForm { it.copy(category = category) }
 
     fun onFormRecurringChange(recurring: Boolean) = updateForm { it.copy(recurring = recurring) }
-
-    // --- Recorrência (schedule) ---
 
     fun onFormIsRecurrentChange(isRecurrent: Boolean) = updateForm { it.copy(isRecurrent = isRecurrent) }
 
@@ -124,23 +139,32 @@ class ExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             localState.update { it.copy(isSubmitting = true, errorBanner = null) }
 
-            val result: DataResult<*> = if (form.isRecurrent) {
-                val params = ExpenseScheduleParams(
+            val result: DataResult<*> = when {
+                form.editingId != null -> updateExpense(
+                    id = form.editingId,
                     description = form.description,
-                    amountPerOccurrence = amount,
+                    amount = amount,
                     category = form.category,
-                    recurrence = form.recurrenceType,
-                    startDate = form.startDate,
-                    endDate = if (form.recurrenceType == RecurrenceType.MONTHLY) form.endDate else null,
-                    installmentsTotal = if (form.recurrenceType == RecurrenceType.INSTALLMENTS) {
-                        form.installmentsInput.toIntOrNull()
-                    } else null,
+                    recurring = form.recurring,
+                    spentAt = form.startDate,
                 )
-                createExpenseSchedule(params).also {
-                    if (it is DataResult.Success) refreshExpenses()
+                form.isRecurrent -> {
+                    val params = ExpenseScheduleParams(
+                        description = form.description,
+                        amountPerOccurrence = amount,
+                        category = form.category,
+                        recurrence = form.recurrenceType,
+                        startDate = form.startDate,
+                        endDate = if (form.recurrenceType == RecurrenceType.MONTHLY) form.endDate else null,
+                        installmentsTotal = if (form.recurrenceType == RecurrenceType.INSTALLMENTS) {
+                            form.installmentsInput.toIntOrNull()
+                        } else null,
+                    )
+                    createExpenseSchedule(params).also {
+                        if (it is DataResult.Success) refreshExpenses()
+                    }
                 }
-            } else {
-                createExpense(
+                else -> createExpense(
                     description = form.description,
                     amount = amount,
                     category = form.category,
@@ -199,11 +223,12 @@ data class ExpenseUiState(
 )
 
 data class ExpenseFormState(
+    val editingId: Long? = null,
     val description: String = "",
     val amountInput: String = "",
     val category: ExpenseCategory = ExpenseCategory.HOUSING,
     val recurring: Boolean = true,
-    // --- Recorrência (schedule) ---
+    // --- Recorrência (schedule) — só no modo criação ---
     val isRecurrent: Boolean = false,
     val recurrenceType: RecurrenceType = RecurrenceType.MONTHLY,
     val startDate: Instant = Instant.now(),
@@ -212,6 +237,8 @@ data class ExpenseFormState(
     val descriptionError: String? = null,
     val amountError: String? = null,
 ) {
+    val isEditing: Boolean get() = editingId != null
+
     val installmentsValid: Boolean
         get() = (installmentsInput.toIntOrNull() ?: 0) > 0
 

@@ -14,6 +14,7 @@ import com.lifeforge.domain.usecase.CreateIncomeUseCase
 import com.lifeforge.domain.usecase.DeleteIncomeUseCase
 import com.lifeforge.domain.usecase.ObserveIncomesUseCase
 import com.lifeforge.domain.usecase.RefreshIncomesUseCase
+import com.lifeforge.domain.usecase.UpdateIncomeUseCase
 import com.lifeforge.presentation.common.parseCurrencyInput
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
 import com.lifeforge.presentation.common.toUserMessage
@@ -31,10 +32,11 @@ import javax.inject.Inject
 /**
  * ViewModel da sub-aba de Receitas.
  *
- * O form de criação tem dois modos:
- *  - **Lançamento único** (default): cria UMA receita (comportamento legado).
- *  - **Recorrente**: cria um SCHEDULE (mensal ou parcelado); o backend
- *    materializa os recebimentos e a lista é refrescada para exibi-los.
+ * O form de criação/edição (ModalBottomSheet) tem três modos:
+ *  - **Criar único** (default): cria UMA receita.
+ *  - **Criar recorrente**: cria um SCHEDULE (mensal/parcelado) e refresca a lista.
+ *  - **Editar** (`editingId != null`): atualiza um registro existente; sem
+ *    opções de recorrência (edita-se um lançamento, não um schedule).
  */
 @HiltViewModel
 class IncomeViewModel @Inject constructor(
@@ -42,6 +44,7 @@ class IncomeViewModel @Inject constructor(
     private val refreshIncomes: RefreshIncomesUseCase,
     private val createIncome: CreateIncomeUseCase,
     private val createIncomeSchedule: CreateIncomeScheduleUseCase,
+    private val updateIncome: UpdateIncomeUseCase,
     private val deleteIncome: DeleteIncomeUseCase,
 ) : ViewModel() {
 
@@ -81,8 +84,26 @@ class IncomeViewModel @Inject constructor(
     // Form modal — open/close/edit/submit
     // ------------------------------------------------------------------------
 
-    fun openForm() {
-        localState.update { it.copy(form = IncomeFormState()) }
+    /** Abre o form em modo criação, com a data inicial sugerida (mês selecionado). */
+    fun openForm(defaultDate: Instant = Instant.now()) {
+        localState.update { it.copy(form = IncomeFormState(startDate = defaultDate)) }
+    }
+
+    /** Abre o form em modo edição, pré-preenchido com o registro. */
+    fun openEditForm(income: Income) {
+        localState.update {
+            it.copy(
+                form = IncomeFormState(
+                    editingId = income.id,
+                    source = income.source,
+                    amountInput = income.amount.toPlainString(),
+                    incomeType = income.incomeType,
+                    recurring = income.recurring,
+                    isRecurrent = false,
+                    startDate = income.receivedAt,
+                ),
+            )
+        }
     }
 
     fun closeForm() {
@@ -103,8 +124,6 @@ class IncomeViewModel @Inject constructor(
     fun onFormTypeChange(type: IncomeType) = updateForm { it.copy(incomeType = type) }
 
     fun onFormRecurringChange(recurring: Boolean) = updateForm { it.copy(recurring = recurring) }
-
-    // --- Recorrência (schedule) ---
 
     fun onFormIsRecurrentChange(isRecurrent: Boolean) = updateForm { it.copy(isRecurrent = isRecurrent) }
 
@@ -130,24 +149,32 @@ class IncomeViewModel @Inject constructor(
         viewModelScope.launch {
             localState.update { it.copy(isSubmitting = true, errorBanner = null) }
 
-            val result: DataResult<*> = if (form.isRecurrent) {
-                val params = IncomeScheduleParams(
+            val result: DataResult<*> = when {
+                form.editingId != null -> updateIncome(
+                    id = form.editingId,
                     source = form.source,
-                    amountPerOccurrence = amount,
+                    amount = amount,
                     incomeType = form.incomeType,
-                    recurrence = form.recurrenceType,
-                    startDate = form.startDate,
-                    endDate = if (form.recurrenceType == RecurrenceType.MONTHLY) form.endDate else null,
-                    installmentsTotal = if (form.recurrenceType == RecurrenceType.INSTALLMENTS) {
-                        form.installmentsInput.toIntOrNull()
-                    } else null,
+                    recurring = form.recurring,
+                    receivedAt = form.startDate,
                 )
-                createIncomeSchedule(params).also {
-                    // Puxa os recebimentos gerados pelo backend para a lista local.
-                    if (it is DataResult.Success) refreshIncomes()
+                form.isRecurrent -> {
+                    val params = IncomeScheduleParams(
+                        source = form.source,
+                        amountPerOccurrence = amount,
+                        incomeType = form.incomeType,
+                        recurrence = form.recurrenceType,
+                        startDate = form.startDate,
+                        endDate = if (form.recurrenceType == RecurrenceType.MONTHLY) form.endDate else null,
+                        installmentsTotal = if (form.recurrenceType == RecurrenceType.INSTALLMENTS) {
+                            form.installmentsInput.toIntOrNull()
+                        } else null,
+                    )
+                    createIncomeSchedule(params).also {
+                        if (it is DataResult.Success) refreshIncomes()
+                    }
                 }
-            } else {
-                createIncome(
+                else -> createIncome(
                     source = form.source,
                     amount = amount,
                     incomeType = form.incomeType,
@@ -210,13 +237,14 @@ data class IncomeUiState(
 )
 
 data class IncomeFormState(
+    /** null = criação; != null = editando este registro. */
+    val editingId: Long? = null,
     val source: String = "",
     val amountInput: String = "",
     val incomeType: IncomeType = IncomeType.SALARY,
     /** Flag do dashboard (single): conta como recorrente mensal. */
     val recurring: Boolean = true,
-    // --- Recorrência (schedule) ---
-    /** Toggle "Recorrente?" — default OFF mantém o modo lançamento único. */
+    // --- Recorrência (schedule) — só no modo criação ---
     val isRecurrent: Boolean = false,
     val recurrenceType: RecurrenceType = RecurrenceType.MONTHLY,
     val startDate: Instant = Instant.now(),
@@ -225,7 +253,8 @@ data class IncomeFormState(
     val sourceError: String? = null,
     val amountError: String? = null,
 ) {
-    /** Nº de parcelas válido (>0) quando em modo INSTALLMENTS. */
+    val isEditing: Boolean get() = editingId != null
+
     val installmentsValid: Boolean
         get() = (installmentsInput.toIntOrNull() ?: 0) > 0
 

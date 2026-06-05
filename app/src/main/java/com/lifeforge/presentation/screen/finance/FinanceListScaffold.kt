@@ -49,6 +49,7 @@ fun FinanceListScaffold(
     emptyTitle: String,
     emptyDescription: String,
     emptyIcon: ImageVector,
+    header: (@Composable () -> Unit)? = null,
     listContent: LazyListScope.() -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -83,13 +84,16 @@ fun FinanceListScaffold(
                         icon = emptyIcon,
                     )
                 }
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp,
-                    ),
-                    content = listContent,
-                )
+                else -> {
+                    header?.invoke()
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentPadding = PaddingValues(
+                            start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp,
+                        ),
+                        content = listContent,
+                    )
+                }
             }
         }
 

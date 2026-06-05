@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TrendingDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -47,36 +48,75 @@ import com.lifeforge.presentation.common.DatePickerDialogField
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
+import com.lifeforge.presentation.common.firstInstantOfMonth
 import com.lifeforge.presentation.common.formatBrl
+import com.lifeforge.presentation.common.formatDate
+import com.lifeforge.presentation.common.formatMonthYear
 import com.lifeforge.presentation.common.label
+import com.lifeforge.presentation.common.yearMonthOf
+import java.math.BigDecimal
 import java.time.Instant
 
 /**
- * Sub-aba de Despesas. Espelha [IncomeTab]; o form suporta recorrência,
- * incluindo INSTALLMENTS para compras parceladas.
+ * Sub-aba de Despesas. Espelha [IncomeTab]: navegação por mês, data e
+ * editar/excluir nos cards, e form que cria (único/recorrente) ou edita.
  */
 @Composable
 fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
+    var selectedMonth by remember { mutableStateOf(yearMonthOf(Instant.now())) }
+
+    val monthExpenses = remember(state.expenses, selectedMonth) {
+        state.expenses
+            .filter { yearMonthOf(it.spentAt) == selectedMonth }
+            .sortedByDescending { it.spentAt }
+    }
+    val monthTotal = remember(monthExpenses) {
+        monthExpenses.fold(BigDecimal.ZERO) { acc, e -> acc + e.amount }
+    }
 
     FinanceListScaffold(
         isRefreshing = state.isRefreshing,
         errorBanner = state.errorBanner,
         onErrorDismiss = viewModel::onErrorBannerDismiss,
         onRefresh = viewModel::refresh,
-        onAddClick = viewModel::openForm,
+        onAddClick = {
+            val now = Instant.now()
+            val default = if (selectedMonth == yearMonthOf(now)) now else firstInstantOfMonth(selectedMonth)
+            viewModel.openForm(defaultDate = default)
+        },
         addLabel = "Nova despesa",
         isEmpty = state.expenses.isEmpty(),
         emptyTitle = "Sem despesas cadastradas",
         emptyDescription = "Acompanhar despesas recorrentes ajuda a calcular sua taxa de poupança real.",
         emptyIcon = Icons.Outlined.TrendingDown,
-    ) {
-        items(items = state.expenses, key = { it.id }) { expense ->
-            ExpenseCard(
-                expense = expense,
-                onDelete = { viewModel.delete(expense.id) },
-                modifier = Modifier.padding(bottom = 12.dp),
+        header = {
+            MonthNavigator(
+                monthLabel = formatMonthYear(selectedMonth),
+                total = monthTotal,
+                onPrev = { selectedMonth = selectedMonth.minusMonths(1) },
+                onNext = { selectedMonth = selectedMonth.plusMonths(1) },
             )
+        },
+    ) {
+        if (monthExpenses.isEmpty()) {
+            item {
+                Text(
+                    "Nenhuma despesa em ${formatMonthYear(selectedMonth)}.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                )
+            }
+        } else {
+            items(items = monthExpenses, key = { it.id }) { expense ->
+                ExpenseCard(
+                    expense = expense,
+                    onEdit = { viewModel.openEditForm(expense) },
+                    onDelete = { viewModel.delete(expense.id) },
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
         }
     }
 
@@ -102,6 +142,7 @@ fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
 @Composable
 private fun ExpenseCard(
     expense: Expense,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -112,14 +153,18 @@ private fun ExpenseCard(
         ),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(expense.description, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    expense.category.label() +
-                        if (expense.recurring) " · Recorrente" else "",
+                    expense.category.label() + if (expense.recurring) " · Recorrente" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "Gasto em ${formatDate(expense.spentAt)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -129,6 +174,9 @@ private fun ExpenseCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.tertiary,
                 )
+            }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Outlined.Edit, contentDescription = "Editar despesa")
             }
             IconButton(onClick = onDelete) {
                 Icon(
@@ -169,7 +217,10 @@ private fun ExpenseFormSheet(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Nova despesa", style = MaterialTheme.typography.titleLarge)
+            Text(
+                if (form.isEditing) "Editar despesa" else "Nova despesa",
+                style = MaterialTheme.typography.titleLarge,
+            )
 
             LifeForgeTextField(
                 value = form.description,
@@ -195,15 +246,23 @@ private fun ExpenseFormSheet(
                 enabled = !isSubmitting,
             )
 
-            ScheduleToggleRow(
-                title = "Recorrente?",
-                subtitle = "Gera os lançamentos mensais (ou parcelas) automaticamente.",
-                checked = form.isRecurrent,
-                onCheckedChange = onIsRecurrentChange,
-                enabled = !isSubmitting,
-            )
+            if (!form.isEditing) {
+                ScheduleToggleRow(
+                    title = "Recorrente?",
+                    subtitle = "Gera os lançamentos mensais (ou parcelas) automaticamente.",
+                    checked = form.isRecurrent,
+                    onCheckedChange = onIsRecurrentChange,
+                    enabled = !isSubmitting,
+                )
+            }
 
             if (!form.isRecurrent) {
+                DateField(
+                    label = "Data",
+                    date = form.startDate,
+                    onClick = { activePicker = SchedulePickerTarget.START },
+                    enabled = !isSubmitting,
+                )
                 ScheduleToggleRow(
                     title = "Conta na despesa mensal",
                     subtitle = "Entra na taxa de poupança do dashboard.",
@@ -282,7 +341,13 @@ private fun ExpenseFormSheet(
                     enabled = !isSubmitting && form.canSubmit,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (form.isRecurrent) "Criar recorrência" else "Adicionar")
+                    Text(
+                        when {
+                            form.isEditing -> "Salvar"
+                            form.isRecurrent -> "Criar recorrência"
+                            else -> "Adicionar"
+                        },
+                    )
                 }
             }
         }
