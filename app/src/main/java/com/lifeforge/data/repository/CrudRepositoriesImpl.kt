@@ -86,6 +86,10 @@ class IncomeRepositoryImpl @Inject constructor(
     override suspend fun delete(id: Long): DataResult<Unit> =
         safeApiCall(json) { api.delete(id) }
             .mapCatching { dao.deleteById(id) }
+
+    override suspend fun deleteAll(): DataResult<Unit> =
+        safeApiCall(json) { api.deleteAll() }
+            .mapCatching { dao.deleteAll() }
 }
 
 // ============================================================================
@@ -138,6 +142,10 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun delete(id: Long): DataResult<Unit> =
         safeApiCall(json) { api.delete(id) }
             .mapCatching { dao.deleteById(id) }
+
+    override suspend fun deleteAll(): DataResult<Unit> =
+        safeApiCall(json) { api.deleteAll() }
+            .mapCatching { dao.deleteAll() }
 }
 
 // ============================================================================

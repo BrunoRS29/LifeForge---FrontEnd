@@ -48,6 +48,9 @@ interface IncomeApi {
     @DELETE("incomes/{id}")
     suspend fun delete(@Path("id") id: Long): Response<Unit>
 
+    @DELETE("incomes")
+    suspend fun deleteAll(): Response<Unit>
+
     // ---- Schedules recorrentes ----
 
     @GET("incomes/schedules")
@@ -89,6 +92,9 @@ interface ExpenseApi {
 
     @DELETE("expenses/{id}")
     suspend fun delete(@Path("id") id: Long): Response<Unit>
+
+    @DELETE("expenses")
+    suspend fun deleteAll(): Response<Unit>
 
     // ---- Schedules recorrentes ----
 

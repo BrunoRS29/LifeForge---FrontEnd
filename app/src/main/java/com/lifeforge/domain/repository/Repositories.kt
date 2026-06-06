@@ -126,6 +126,9 @@ interface IncomeRepository {
     ): DataResult<Income>
 
     suspend fun delete(id: Long): DataResult<Unit>
+
+    /** Remove TODAS as receitas do usuário (backend + cache local). */
+    suspend fun deleteAll(): DataResult<Unit>
 }
 
 // ===========================================================================
@@ -154,6 +157,9 @@ interface ExpenseRepository {
     ): DataResult<Expense>
 
     suspend fun delete(id: Long): DataResult<Unit>
+
+    /** Remove TODAS as despesas do usuário (backend + cache local). */
+    suspend fun deleteAll(): DataResult<Unit>
 }
 
 // ===========================================================================

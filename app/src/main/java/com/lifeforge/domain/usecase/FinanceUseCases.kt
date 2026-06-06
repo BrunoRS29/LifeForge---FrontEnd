@@ -411,3 +411,19 @@ class GetFinancialSnapshotUseCase @Inject constructor(
         val ZONE: ZoneId = ZoneId.of("America/Sao_Paulo")
     }
 }
+
+// ============================================================================
+// Limpeza em massa — útil ao reimportar extratos (substituir o histórico)
+// ============================================================================
+
+class DeleteAllIncomesUseCase @Inject constructor(
+    private val repository: IncomeRepository,
+) {
+    suspend operator fun invoke(): DataResult<Unit> = repository.deleteAll()
+}
+
+class DeleteAllExpensesUseCase @Inject constructor(
+    private val repository: ExpenseRepository,
+) {
+    suspend operator fun invoke(): DataResult<Unit> = repository.deleteAll()
+}
