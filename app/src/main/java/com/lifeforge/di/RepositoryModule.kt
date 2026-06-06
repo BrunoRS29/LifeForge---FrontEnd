@@ -22,6 +22,8 @@ import com.lifeforge.domain.repository.SimulationRepository
 import com.lifeforge.domain.repository.UserRepository
 import com.lifeforge.data.repository.PredictionRepositoryImpl
 import com.lifeforge.domain.repository.PredictionRepository
+import com.lifeforge.data.repository.StatementImportRepositoryImpl
+import com.lifeforge.domain.repository.StatementImportRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -84,4 +86,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPredictionRepository(impl: PredictionRepositoryImpl): PredictionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindStatementImportRepository(
+        impl: StatementImportRepositoryImpl,
+    ): StatementImportRepository
 }

@@ -94,6 +94,13 @@ data class SimulationCalibrated(val goalId: Long)
 @Serializable
 data object Predictions
 
+/**
+ * Importador de extratos bancários (full-screen, sem bottom bar).
+ * Acessível pelo ícone de upload na tela de Finanças.
+ */
+@Serializable
+data object StatementImport
+
 // ============================================================================
 // Metadata para o bottom bar
 // ============================================================================

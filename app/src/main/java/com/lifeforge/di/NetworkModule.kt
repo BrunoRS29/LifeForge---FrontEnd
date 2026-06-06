@@ -5,6 +5,7 @@ import com.lifeforge.BuildConfig
 import com.lifeforge.data.api.AssetApi
 import com.lifeforge.data.api.AuthApi
 import com.lifeforge.data.api.ExpenseApi
+import com.lifeforge.data.api.FinanceImportApi
 import com.lifeforge.data.api.GoalApi
 import com.lifeforge.data.api.IncomeApi
 import com.lifeforge.data.api.OptimizationApi
@@ -121,4 +122,8 @@ object NetworkModule {
     @Provides @Singleton
     fun providePredictionApi(retrofit: Retrofit): PredictionApi =
         retrofit.create(PredictionApi::class.java)
+
+    @Provides @Singleton
+    fun provideFinanceImportApi(retrofit: Retrofit): FinanceImportApi =
+        retrofit.create(FinanceImportApi::class.java)
 }

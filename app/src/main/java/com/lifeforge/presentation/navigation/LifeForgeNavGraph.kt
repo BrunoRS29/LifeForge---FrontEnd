@@ -27,6 +27,7 @@ import com.lifeforge.presentation.screen.finance.FinanceScreen
 import com.lifeforge.presentation.screen.goal.GoalDetailScreen
 import com.lifeforge.presentation.screen.goal.GoalEditScreen
 import com.lifeforge.presentation.screen.goal.GoalsListScreen
+import com.lifeforge.presentation.screen.imports.ImportScreen
 import com.lifeforge.presentation.screen.optimization.OptimizationScreen
 import com.lifeforge.presentation.screen.profile.ProfileScreen
 import com.lifeforge.presentation.screen.simulation.SimulationScreen
@@ -156,7 +157,9 @@ fun LifeForgeNavGraph(
                 )
             }
             composable<Finance> {
-                FinanceScreen()
+                FinanceScreen(
+                    onNavigateToImport = { navController.navigate(StatementImport) },
+                )
             }
             composable<Optimization> {
                 OptimizationScreen()
@@ -184,6 +187,11 @@ fun LifeForgeNavGraph(
             }
             composable<Simulation> {
                 SimulationScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+            composable<StatementImport> {
+                ImportScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }

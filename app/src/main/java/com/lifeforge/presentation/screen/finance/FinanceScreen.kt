@@ -3,7 +3,11 @@ package com.lifeforge.presentation.screen.finance
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -27,12 +31,24 @@ import androidx.compose.ui.Modifier
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FinanceScreen() {
+fun FinanceScreen(
+    onNavigateToImport: () -> Unit = {},
+) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Finanças") })
+            TopAppBar(
+                title = { Text("Finanças") },
+                actions = {
+                    IconButton(onClick = onNavigateToImport) {
+                        Icon(
+                            Icons.Outlined.UploadFile,
+                            contentDescription = "Importar extrato",
+                        )
+                    }
+                },
+            )
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
