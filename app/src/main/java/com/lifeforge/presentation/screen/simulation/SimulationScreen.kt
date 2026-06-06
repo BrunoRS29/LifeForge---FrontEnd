@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -308,31 +309,24 @@ private fun IntField(
 @Composable
 internal fun ResultSection(result: SimulationResult) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Card destaque: probabilidade de sucesso.
+        // Card destaque: gauge de probabilidade de sucesso (TCC 8.3 / 12.2).
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = if (result.successProbability >= 0.70)
-                    MaterialTheme.colorScheme.primaryContainer
-                else if (result.successProbability >= 0.50)
-                    MaterialTheme.colorScheme.secondaryContainer
-                else MaterialTheme.colorScheme.errorContainer,
+                containerColor = MaterialTheme.colorScheme.surface,
             ),
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    "Probabilidade de sucesso",
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Text(
-                    formatProbability(result.successProbability),
-                    style = MaterialTheme.typography.headlineLarge,
-                )
-                Spacer(Modifier.height(4.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ProbabilityGauge(probability = result.successProbability)
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "${result.numSimulations} cenários · " +
                         "executado em ${result.executionTimeMs} ms",
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -365,6 +359,7 @@ internal fun ResultSection(result: SimulationResult) {
             )
         }
 
+        FanChart(trajectory = result.trajectory)
         HistogramChart(buckets = result.histogram, targetAmount = result.targetAmount)
         PercentilesChart(percentiles = result.percentiles)
     }

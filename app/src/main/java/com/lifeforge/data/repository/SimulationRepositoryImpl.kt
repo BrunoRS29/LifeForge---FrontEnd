@@ -44,9 +44,10 @@ class SimulationRepositoryImpl @Inject constructor(
     override suspend fun run(parameters: SimulationParameters): DataResult<SimulationResult> =
         safeApiCall(json) { api.run(parameters.toRequestDto()) }
             .mapCatching { response ->
-                val entity = response.toEntity()
-                dao.upsert(entity)
-                entity.toDomain()
+                // Cacheia a entity (histórico), mas retorna o domínio mapeado
+                // DIRETO do DTO: a entity não guarda a trajectory do fan chart.
+                dao.upsert(response.toEntity())
+                response.toDomain()
             }
 
     override suspend fun getById(id: Long): DataResult<SimulationResult> {

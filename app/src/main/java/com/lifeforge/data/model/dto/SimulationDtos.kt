@@ -34,6 +34,16 @@ data class HistogramBucketDto(
 )
 
 @Serializable
+data class TrajectoryBandDto(
+    val monthIndex: Int,
+    val p10: Double,
+    val p25: Double,
+    val p50: Double,
+    val p75: Double,
+    val p90: Double,
+)
+
+@Serializable
 data class SimulationResultResponseDto(
     val id: String,
     val goalId: String,
@@ -49,6 +59,8 @@ data class SimulationResultResponseDto(
     val bestCase: Double,
     val meanReal: Double,
     val histogram: List<HistogramBucketDto>,
+    // Default vazio: compat. com simulações persistidas antes do fan chart.
+    val trajectory: List<TrajectoryBandDto> = emptyList(),
     val executionTimeMs: Long,
     val createdAt: String,
 )

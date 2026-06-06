@@ -36,6 +36,21 @@ data class HistogramBucket(
 )
 
 /**
+ * Banda de percentis do patrimônio em um mês da simulação. Usada pelo
+ * fan chart (gráfico de faixa P10–P90 ao longo do tempo).
+ *
+ * `monthIndex` 0 = início (capital inicial); 1..horizonte = meses seguintes.
+ */
+data class TrajectoryBand(
+    val monthIndex: Int,
+    val p10: Double,
+    val p25: Double,
+    val p50: Double,
+    val p75: Double,
+    val p90: Double,
+)
+
+/**
  * Resultado completo de uma simulação Monte Carlo.
  *
  * - `percentiles` usa chaves "P5", "P10", ..., "P95" (decisão wire-format
@@ -59,6 +74,10 @@ data class SimulationResult(
     val bestCase: Double,
     val meanReal: Double,
     val histogram: List<HistogramBucket>,
+    // Trajetória mês a mês para o fan chart. Default vazio: simulações
+    // recuperadas do cache (Room) não guardam a trajetória, só a rodada
+    // fresca vinda da rede a traz.
+    val trajectory: List<TrajectoryBand> = emptyList(),
     val executionTimeMs: Long,
     val createdAt: Instant,
 )

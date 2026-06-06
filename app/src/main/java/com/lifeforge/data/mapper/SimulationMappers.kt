@@ -5,10 +5,12 @@ import com.lifeforge.data.model.dto.HistogramBucketDto
 import com.lifeforge.data.model.dto.RunSimulationRequestDto
 import com.lifeforge.data.model.dto.SimulationResultResponseDto
 import com.lifeforge.data.model.dto.SimulationSummaryResponseDto
+import com.lifeforge.data.model.dto.TrajectoryBandDto
 import com.lifeforge.domain.model.HistogramBucket
 import com.lifeforge.domain.model.SimulationParameters
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.SimulationSummary
+import com.lifeforge.domain.model.TrajectoryBand
 import java.time.Instant
 
 /**
@@ -41,6 +43,34 @@ fun SimulationResultResponseDto.toEntity(): SimulationEntity = SimulationEntity(
     executionTimeMs = executionTimeMs,
     createdAt = Instant.parse(createdAt),
 )
+
+// ============================================================================
+// DTO → Domain (direto) — preserva a `trajectory` do fan chart, que NÃO é
+// persistida na entity. Usado pela rodada fresca (/run, /run-calibrated).
+// ============================================================================
+
+fun SimulationResultResponseDto.toDomain(): SimulationResult = SimulationResult(
+    id = id.toLong(),
+    goalId = goalId.toLong(),
+    numSimulations = numSimulations,
+    seed = seed,
+    targetAmount = targetAmount,
+    successProbability = successProbability,
+    mean = mean,
+    median = median,
+    standardDeviation = standardDeviation,
+    percentiles = percentiles,
+    worstCase = worstCase,
+    bestCase = bestCase,
+    meanReal = meanReal,
+    histogram = histogram.map { it.toDomain() },
+    trajectory = trajectory.map { it.toDomain() },
+    executionTimeMs = executionTimeMs,
+    createdAt = Instant.parse(createdAt),
+)
+
+fun TrajectoryBandDto.toDomain(): TrajectoryBand =
+    TrajectoryBand(monthIndex, p10, p25, p50, p75, p90)
 
 // ============================================================================
 // Entity → Domain
