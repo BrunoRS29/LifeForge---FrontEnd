@@ -53,9 +53,9 @@ object StatementClassifier {
         if (containsAny(d, INVESTMENT_KEYWORDS)) {
             return internal(txn, InternalReason.INVESTMENT)
         }
-        if (d.contains("fatura")) {
-            return internal(txn, InternalReason.CARD_BILL)
-        }
+        // NB: "Pagamento de fatura" NÃO é filtrado — como o extrato não traz as
+        // compras unitárias do cartão, o pagamento da fatura representa o gasto
+        // do mês e deve contar como despesa.
         if (nameTokens.isNotEmpty() && isTransferLike(d) && nameTokens.any { d.contains(it) }) {
             return internal(txn, InternalReason.SELF_TRANSFER)
         }

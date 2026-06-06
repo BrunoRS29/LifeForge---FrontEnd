@@ -35,7 +35,6 @@ enum class TxnKind { INCOME, EXPENSE, INTERNAL }
 /** Por que uma transação foi marcada como movimento interno (não é renda/despesa). */
 enum class InternalReason(val label: String) {
     INVESTMENT("Investimento (RDB/aplicação)"),
-    CARD_BILL("Fatura de cartão"),
     SELF_TRANSFER("Transferência sua"),
     CROSS_ACCOUNT("Transferência entre suas contas"),
 }

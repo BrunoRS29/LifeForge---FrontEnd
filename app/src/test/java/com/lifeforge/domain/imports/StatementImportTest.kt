@@ -73,7 +73,7 @@ class StatementImportTest {
     ) = BankTransaction(date, BigDecimal(amount), desc, null, bank, "f")
 
     @Test
-    fun `RDB e fatura viram interno e ficam desmarcados`() {
+    fun `RDB vira interno desmarcado e fatura vira despesa`() {
         val res = StatementClassifier.classify(
             listOf(
                 txn("100.00", "Resgate RDB"),
@@ -81,8 +81,11 @@ class StatementImportTest {
                 txn("-4707.54", "Pagamento de fatura"),
             )
         )
-        assertThat(res.all { it.kind == TxnKind.INTERNAL }).isTrue()
-        assertThat(res.none { it.includedByDefault }).isTrue()
+        assertThat(res[0].kind).isEqualTo(TxnKind.INTERNAL)   // Resgate RDB
+        assertThat(res[1].kind).isEqualTo(TxnKind.INTERNAL)   // Aplicação RDB
+        // Fatura de cartão conta como despesa (extrato não tem compras unitárias).
+        assertThat(res[2].kind).isEqualTo(TxnKind.EXPENSE)
+        assertThat(res[2].includedByDefault).isTrue()
     }
 
     @Test
