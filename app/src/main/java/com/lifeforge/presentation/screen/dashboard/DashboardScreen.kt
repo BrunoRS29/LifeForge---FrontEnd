@@ -34,8 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lifeforge.domain.model.RecurringPattern
 import com.lifeforge.domain.usecase.FinancialSnapshot
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
@@ -102,6 +104,15 @@ fun DashboardScreen(
                 // Evolução patrimonial real (hoje) × projetada — Seção 8.4 do TCC.
                 state.snapshot?.let { snapshot ->
                     WealthProjectionCard(snapshot = snapshot)
+                }
+
+                // Recorrências detectadas automaticamente no histórico.
+                state.snapshot?.let { snapshot ->
+                    if (snapshot.recurringIncomes.isNotEmpty() ||
+                        snapshot.recurringExpenses.isNotEmpty()
+                    ) {
+                        RecurringPatternsCard(snapshot = snapshot)
+                    }
                 }
             }
         }
@@ -207,5 +218,74 @@ private fun MetricCard(
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
+    }
+}
+
+@Composable
+private fun RecurringPatternsCard(snapshot: FinancialSnapshot) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Recorrências detectadas", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Identificadas no seu histórico (itens que aparecem em 3+ meses).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (snapshot.recurringIncomes.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Receitas",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                snapshot.recurringIncomes.take(5).forEach { RecurringRow(it, isIncome = true) }
+            }
+            if (snapshot.recurringExpenses.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Despesas",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+                snapshot.recurringExpenses.take(5).forEach { RecurringRow(it, isIncome = false) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecurringRow(pattern: RecurringPattern, isIncome: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                pattern.label,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "${pattern.months} meses",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = formatBrl(pattern.monthlyAmount) + "/mês",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isIncome) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.error,
+        )
     }
 }

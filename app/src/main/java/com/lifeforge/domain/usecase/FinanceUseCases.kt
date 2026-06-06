@@ -12,7 +12,9 @@ import com.lifeforge.domain.model.Income
 import com.lifeforge.domain.model.IncomeSchedule
 import com.lifeforge.domain.model.IncomeScheduleParams
 import com.lifeforge.domain.model.IncomeType
+import com.lifeforge.domain.model.RecurrenceDetector
 import com.lifeforge.domain.model.RecurrenceType
+import com.lifeforge.domain.model.RecurringPattern
 import com.lifeforge.domain.model.ScheduleAffect
 import com.lifeforge.domain.repository.AssetRepository
 import com.lifeforge.domain.repository.ExpenseRepository
@@ -24,6 +26,8 @@ import kotlinx.coroutines.flow.combine
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneId
 import javax.inject.Inject
 
 /**
@@ -323,17 +327,22 @@ private fun validateAssetFields(
  * Snapshot consolidado para a tela inicial.
  *
  * - [totalAssets]: soma de `currentValue` de todos os ativos.
- * - [monthlyIncome] / [monthlyExpenses]: soma dos lançamentos
- *   marcados como `recurring`. Lançamentos pontuais ficam fora —
- *   o dashboard mostra ritmo mensal estável, não picos.
+ * - [monthlyIncome] / [monthlyExpenses]: comprometimentos marcados como
+ *   `recurring` MAIS a média dos últimos meses dos lançamentos pontuais.
+ *   Assim, históricos importados (que vêm como não-recorrentes) deixam de
+ *   zerar o ritmo mensal — usa a média real dos meses recentes.
  * - [savingsRate]: (income − expenses) / income, em percentual.
  *   Indefinido quando income é zero (retorna 0.0).
+ * - [recurringIncomes] / [recurringExpenses]: padrões recorrentes detectados
+ *   automaticamente no histórico (ver [RecurrenceDetector]).
  */
 data class FinancialSnapshot(
     val totalAssets: BigDecimal,
     val monthlyIncome: BigDecimal,
     val monthlyExpenses: BigDecimal,
     val savingsRate: BigDecimal,
+    val recurringIncomes: List<RecurringPattern> = emptyList(),
+    val recurringExpenses: List<RecurringPattern> = emptyList(),
 )
 
 class GetFinancialSnapshotUseCase @Inject constructor(
@@ -348,10 +357,15 @@ class GetFinancialSnapshotUseCase @Inject constructor(
         assetRepository.observeAll(),
     ) { incomes, expenses, assets ->
         val totalAssets = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
-        val monthlyIncome = incomes.filter { it.recurring }
-            .fold(BigDecimal.ZERO) { acc, i -> acc + i.amount }
-        val monthlyExpenses = expenses.filter { it.recurring }
-            .fold(BigDecimal.ZERO) { acc, e -> acc + e.amount }
+
+        // Recorrentes (marcados) + média dos últimos meses dos pontuais.
+        // Os dois conjuntos são disjuntos, então não há dupla contagem.
+        val monthlyIncome =
+            sumOf(incomes.filter { it.recurring }.map { it.amount }) +
+                recentMonthlyAverage(incomes.filterNot { it.recurring }.map { it.amount to it.receivedAt })
+        val monthlyExpenses =
+            sumOf(expenses.filter { it.recurring }.map { it.amount }) +
+                recentMonthlyAverage(expenses.filterNot { it.recurring }.map { it.amount to it.spentAt })
 
         val savingsRate = if (monthlyIncome > BigDecimal.ZERO) {
             (monthlyIncome - monthlyExpenses)
@@ -361,6 +375,39 @@ class GetFinancialSnapshotUseCase @Inject constructor(
             BigDecimal.ZERO
         }
 
-        FinancialSnapshot(totalAssets, monthlyIncome, monthlyExpenses, savingsRate)
+        FinancialSnapshot(
+            totalAssets = totalAssets,
+            monthlyIncome = monthlyIncome,
+            monthlyExpenses = monthlyExpenses,
+            savingsRate = savingsRate,
+            recurringIncomes = RecurrenceDetector.detectIncome(incomes),
+            recurringExpenses = RecurrenceDetector.detectExpense(expenses),
+        )
+    }
+
+    private fun sumOf(amounts: List<BigDecimal>): BigDecimal =
+        amounts.fold(BigDecimal.ZERO) { acc, a -> acc + a }
+
+    /**
+     * Média mensal sobre os [months] meses mais recentes COM dados. Ignora
+     * meses vazios e os buracos entre anos, então um histórico com lacunas
+     * (ex.: importou 2023 e 2026) não dilui o valor — usa só os recentes.
+     */
+    private fun recentMonthlyAverage(
+        dated: List<Pair<BigDecimal, Instant>>,
+        months: Int = 3,
+    ): BigDecimal {
+        if (dated.isEmpty()) return BigDecimal.ZERO
+        val byMonth = dated
+            .groupBy { YearMonth.from(it.second.atZone(ZONE)) }
+            .mapValues { (_, list) -> list.fold(BigDecimal.ZERO) { acc, p -> acc + p.first } }
+        val recent = byMonth.keys.sortedDescending().take(months)
+        if (recent.isEmpty()) return BigDecimal.ZERO
+        val total = recent.fold(BigDecimal.ZERO) { acc, m -> acc + byMonth.getValue(m) }
+        return total.divide(BigDecimal(recent.size), 2, RoundingMode.HALF_UP)
+    }
+
+    private companion object {
+        val ZONE: ZoneId = ZoneId.of("America/Sao_Paulo")
     }
 }
