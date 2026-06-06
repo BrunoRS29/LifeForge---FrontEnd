@@ -4,6 +4,8 @@ import com.lifeforge.data.model.dto.PredictExpensesRequestDto
 import com.lifeforge.data.model.dto.PredictExpensesResponseDto
 import com.lifeforge.data.model.dto.PredictIncomeRequestDto
 import com.lifeforge.data.model.dto.PredictIncomeResponseDto
+import com.lifeforge.data.model.dto.PredictWealthRequestDto
+import com.lifeforge.data.model.dto.PredictWealthResponseDto
 import com.lifeforge.data.model.dto.PredictionSummaryResponseDto
 import com.lifeforge.data.model.dto.RunCalibratedSimulationRequestDto
 import com.lifeforge.data.model.dto.RunCalibratedSimulationResponseDto
@@ -44,6 +46,15 @@ interface PredictionApi {
     suspend fun predictExpenses(
         @Body body: PredictExpensesRequestDto,
     ): Response<PredictExpensesResponseDto>
+
+    /**
+     * Serie temporal de patrimonio (ARIMA). O backend reconstroi a serie
+     * mensal a partir do fluxo de caixa e devolve historico + projecao.
+     */
+    @POST("predictions/wealth")
+    suspend fun predictWealth(
+        @Body body: PredictWealthRequestDto,
+    ): Response<PredictWealthResponseDto>
 
     /**
      * Lista predicoes recentes do usuario (auditoria).

@@ -6,6 +6,7 @@ import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.ExpensePrediction
 import com.lifeforge.domain.model.IncomePrediction
 import com.lifeforge.domain.model.PredictionSummary
+import com.lifeforge.domain.model.WealthPrediction
 
 /**
  * Contrato do repositorio de IA preditiva (Sprint 5).
@@ -36,6 +37,12 @@ interface PredictionRepository {
      * (1..12 meses). Custo similar a [predictIncome].
      */
     suspend fun predictExpenses(horizonMonths: Int = 1): DataResult<ExpensePrediction>
+
+    /**
+     * Gera predicao de patrimonio (serie temporal ARIMA) para o horizonte
+     * solicitado (1..60 meses). O backend reconstroi a serie historica.
+     */
+    suspend fun predictWealth(horizonMonths: Int = 12): DataResult<WealthPrediction>
 
     /**
      * Lista predicoes recentes do usuario (auditoria). Default 50.

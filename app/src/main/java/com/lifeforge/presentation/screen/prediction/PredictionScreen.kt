@@ -30,8 +30,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -43,10 +45,21 @@ import com.lifeforge.domain.model.ExpensePrediction
 import com.lifeforge.domain.model.IncomePrediction
 import com.lifeforge.domain.model.IncomePredictionPoint
 import com.lifeforge.domain.model.PredictionMetrics
+import com.lifeforge.domain.model.WealthPrediction
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
+import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatPercent
 import com.lifeforge.presentation.common.label
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -88,6 +101,8 @@ fun PredictionScreen(
             onExpenseHorizonChange = viewModel::onExpenseHorizonChange,
             onRunIncome = viewModel::runPredictIncome,
             onRunExpenses = viewModel::runPredictExpenses,
+            onWealthHorizonChange = viewModel::onWealthHorizonChange,
+            onRunWealth = viewModel::runPredictWealth,
             onDismissError = viewModel::onErrorBannerDismiss,
         )
     }
@@ -101,6 +116,8 @@ private fun PredictionContent(
     onExpenseHorizonChange: (Int) -> Unit,
     onRunIncome: () -> Unit,
     onRunExpenses: () -> Unit,
+    onWealthHorizonChange: (Int) -> Unit,
+    onRunWealth: () -> Unit,
     onDismissError: () -> Unit,
 ) {
     LazyColumn(
@@ -138,6 +155,16 @@ private fun PredictionContent(
                 prediction = state.expensePrediction,
                 onHorizonChange = onExpenseHorizonChange,
                 onRun = onRunExpenses,
+            )
+        }
+
+        item {
+            WealthPredictionCard(
+                horizonMonths = state.wealthHorizonMonths,
+                isLoading = state.isPredictingWealth,
+                prediction = state.wealthPrediction,
+                onHorizonChange = onWealthHorizonChange,
+                onRun = onRunWealth,
             )
         }
     }
@@ -397,6 +424,133 @@ private fun CategoryRow(item: ExpenseCategoryPrediction) {
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+// ============================================================================
+// Wealth card (serie temporal de patrimonio)
+// ============================================================================
+
+@Composable
+fun WealthPredictionCard(
+    horizonMonths: Int,
+    isLoading: Boolean,
+    prediction: WealthPrediction?,
+    onHorizonChange: (Int) -> Unit,
+    onRun: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Predicao de patrimonio",
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                text = "Serie temporal (ARIMA) sobre o patrimonio acumulado " +
+                    "reconstruido do seu historico de receitas e despesas.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            HorizonField(
+                label = "Horizonte (1-60 meses)",
+                value = horizonMonths,
+                onChange = onHorizonChange,
+                enabled = !isLoading,
+            )
+
+            Button(
+                onClick = onRun,
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.height(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text("Prever patrimonio")
+                }
+            }
+
+            if (isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            prediction?.let { WealthResultBlock(it) }
+        }
+    }
+}
+
+@Composable
+private fun WealthResultBlock(prediction: WealthPrediction) {
+    HorizontalDivider()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SummaryRow(
+            label = "Patrimonio projetado (fim do horizonte)",
+            value = formatBrl(prediction.expectedFinalWealth),
+            highlight = true,
+        )
+        SummaryRow(
+            label = "Crescimento mensal medio",
+            value = formatGrowthRate(prediction.monthlyGrowthRate),
+        )
+
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Patrimonio: realizado (azul) x projetado",
+            style = MaterialTheme.typography.titleSmall,
+        )
+        WealthChart(prediction)
+
+        MetricsRow(prediction.metrics)
+    }
+}
+
+/**
+ * Gráfico realizado × projetado: a série histórica (real) e a projeção
+ * futura, posicionada logo após o último ponto real via eixo x explícito.
+ */
+@Composable
+private fun WealthChart(prediction: WealthPrediction) {
+    val history = prediction.history
+    val projection = prediction.projection
+    if (history.size < 2) return
+
+    val modelProducer = remember { CartesianChartModelProducer() }
+    LaunchedEffect(prediction.predictionId) {
+        val realX = history.map { it.monthIndex }
+        val realY = history.map { it.amount }
+        val lastX = history.last().monthIndex
+        val lastY = history.last().amount
+        // A projeção continua a partir do último ponto real (continuidade visual).
+        val projX = listOf(lastX) + projection.map { lastX + it.monthIndex }
+        val projY = listOf(lastY) + projection.map { it.predictedAmount }
+
+        modelProducer.runTransaction {
+            lineSeries {
+                series(x = realX, y = realY)
+                series(x = projX, y = projY)
+            }
+        }
+    }
+
+    CartesianChartHost(
+        chart = rememberCartesianChart(
+            rememberLineCartesianLayer(),
+            startAxis = VerticalAxis.rememberStart(),
+            bottomAxis = HorizontalAxis.rememberBottom(),
+        ),
+        modelProducer = modelProducer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+    )
 }
 
 // ============================================================================

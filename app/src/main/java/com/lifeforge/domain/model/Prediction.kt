@@ -71,6 +71,35 @@ data class ExpenseCategoryPrediction(
 )
 
 // ============================================================================
+// Predicao de patrimonio (serie temporal)
+// ============================================================================
+
+data class WealthPrediction(
+    val predictionId: Long,
+    val modelName: String,
+    val horizonMonths: Int,
+    /** Serie historica reconstruida (parte "real" do grafico). */
+    val history: List<WealthHistoryPoint>,
+    /** Projecao futura mes a mes (parte "projetada" do grafico). */
+    val projection: List<WealthPredictionPoint>,
+    val expectedFinalWealth: Double,
+    /** Crescimento mensal medio (inclinacao / nivel medio). */
+    val monthlyGrowthRate: Double,
+    val metrics: PredictionMetrics,
+    val createdAt: Instant,
+)
+
+data class WealthHistoryPoint(
+    val monthIndex: Int,
+    val amount: Double,
+)
+
+data class WealthPredictionPoint(
+    val monthIndex: Int,
+    val predictedAmount: Double,
+)
+
+// ============================================================================
 // Metricas compartilhadas
 // ============================================================================
 

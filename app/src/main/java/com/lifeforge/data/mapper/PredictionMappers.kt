@@ -5,6 +5,7 @@ import com.lifeforge.data.model.dto.PredictExpensesCategoryDto
 import com.lifeforge.data.model.dto.PredictExpensesResponseDto
 import com.lifeforge.data.model.dto.PredictIncomePointDto
 import com.lifeforge.data.model.dto.PredictIncomeResponseDto
+import com.lifeforge.data.model.dto.PredictWealthResponseDto
 import com.lifeforge.data.model.dto.PredictionSummaryResponseDto
 import com.lifeforge.data.model.dto.RunCalibratedSimulationRequestDto
 import com.lifeforge.data.model.dto.RunCalibratedSimulationResponseDto
@@ -18,6 +19,9 @@ import com.lifeforge.domain.model.IncomePrediction
 import com.lifeforge.domain.model.IncomePredictionPoint
 import com.lifeforge.domain.model.PredictionMetrics
 import com.lifeforge.domain.model.PredictionSummary
+import com.lifeforge.domain.model.WealthHistoryPoint
+import com.lifeforge.domain.model.WealthPrediction
+import com.lifeforge.domain.model.WealthPredictionPoint
 import java.time.Instant
 
 /**
@@ -73,6 +77,22 @@ private fun PredictExpensesCategoryDto.toDomain(): ExpenseCategoryPrediction =
     )
 
 // ============================================================================
+// DTO -> Domain (Wealth)
+// ============================================================================
+
+fun PredictWealthResponseDto.toDomain(): WealthPrediction = WealthPrediction(
+    predictionId = predictionId,
+    modelName = modelName,
+    horizonMonths = horizonMonths,
+    history = history.map { WealthHistoryPoint(it.monthIndex, it.amount) },
+    projection = projection.map { WealthPredictionPoint(it.monthIndex, it.predictedAmount) },
+    expectedFinalWealth = expectedFinalWealth,
+    monthlyGrowthRate = monthlyGrowthRate,
+    metrics = PredictionMetrics(mae = mae, rmse = rmse, r2 = r2),
+    createdAt = parseInstantOrNow(createdAt),
+)
+
+// ============================================================================
 // DTO -> Domain (Summary)
 // ============================================================================
 
@@ -88,15 +108,10 @@ fun PredictionSummaryResponseDto.toDomain(): PredictionSummary = PredictionSumma
 // ============================================================================
 
 fun RunCalibratedSimulationResponseDto.toDomain(): CalibratedSimulation = CalibratedSimulation(
-    // O contrato da Sprint 2 nao tem `SimulationResultResponseDto.toDomain()`
-    // direto - o pipeline original eh DTO -> Entity -> Domain. Encadeamos
-    // aqui mesmo: o `toEntity()` ja existe (SimulationMappers.kt) e o
-    // `SimulationEntity.toDomain()` tambem. Nao precisamos persistir em
-    // Room - eh apenas uso transit{ento das funcoes ja prontas.
-    //
-    // Alternativa seria duplicar o mapper DTO->Domain para SimulationResult,
-    // mas isso introduziria divergencia silenciosa caso a Sprint 2 mude.
-    simulation = simulation.toEntity().toDomain(),
+    // Usa o mapper DTO->Domain direto (SimulationMappers.kt) para preservar a
+    // `trajectory` do fan chart, que o caminho DTO->Entity->Domain descartaria
+    // (a entity nao guarda a trajetoria).
+    simulation = simulation.toDomain(),
     calibration = calibration.toDomain(),
 )
 

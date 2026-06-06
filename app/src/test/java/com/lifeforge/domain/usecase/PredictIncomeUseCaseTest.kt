@@ -9,6 +9,7 @@ import com.lifeforge.domain.model.ExpensePrediction
 import com.lifeforge.domain.model.IncomePrediction
 import com.lifeforge.domain.model.PredictionMetrics
 import com.lifeforge.domain.model.PredictionSummary
+import com.lifeforge.domain.model.WealthPrediction
 import com.lifeforge.domain.repository.PredictionRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -54,6 +55,9 @@ class PredictIncomeUseCaseTest {
             lastExpenseHorizon = horizonMonths
             return expenseResult
         }
+
+        override suspend fun predictWealth(horizonMonths: Int): DataResult<WealthPrediction> =
+            DataResult.Success(stubWealthPrediction())
 
         override suspend fun listRecent(limit: Int): DataResult<List<PredictionSummary>> =
             DataResult.Success(emptyList())
@@ -232,6 +236,8 @@ class PredictIncomeUseCaseTest {
                 DataResult.Success(stubIncomePrediction())
             override suspend fun predictExpenses(horizonMonths: Int): DataResult<ExpensePrediction> =
                 DataResult.Success(stubExpensePrediction())
+            override suspend fun predictWealth(horizonMonths: Int): DataResult<WealthPrediction> =
+                DataResult.Success(stubWealthPrediction())
             override suspend fun listRecent(limit: Int): DataResult<List<PredictionSummary>> {
                 observedLimit = limit
                 return DataResult.Success(emptyList())
@@ -255,6 +261,8 @@ class PredictIncomeUseCaseTest {
                 DataResult.Success(stubIncomePrediction())
             override suspend fun predictExpenses(horizonMonths: Int): DataResult<ExpensePrediction> =
                 DataResult.Success(stubExpensePrediction())
+            override suspend fun predictWealth(horizonMonths: Int): DataResult<WealthPrediction> =
+                DataResult.Success(stubWealthPrediction())
             override suspend fun listRecent(limit: Int): DataResult<List<PredictionSummary>> {
                 observedLimit = limit
                 return DataResult.Success(emptyList())
@@ -305,5 +313,17 @@ private fun stubExpensePrediction() = ExpensePrediction(
     byCategory = emptyList(),
     expectedMonthlyExpense = 3000.0,
     metrics = PredictionMetrics(100.0, 150.0, 0.6),
+    createdAt = Instant.now(),
+)
+
+private fun stubWealthPrediction() = WealthPrediction(
+    predictionId = 3L,
+    modelName = "WEALTH_ARIMA",
+    horizonMonths = 12,
+    history = emptyList(),
+    projection = emptyList(),
+    expectedFinalWealth = 50_000.0,
+    monthlyGrowthRate = 0.01,
+    metrics = PredictionMetrics(100.0, 150.0, 0.5),
     createdAt = Instant.now(),
 )

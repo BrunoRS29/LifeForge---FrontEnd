@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.ExpensePrediction
 import com.lifeforge.domain.model.IncomePrediction
+import com.lifeforge.domain.model.WealthPrediction
 import com.lifeforge.domain.usecase.PredictExpensesUseCase
 import com.lifeforge.domain.usecase.PredictIncomeUseCase
+import com.lifeforge.domain.usecase.PredictWealthUseCase
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +39,7 @@ import javax.inject.Inject
 class PredictionViewModel @Inject constructor(
     private val predictIncome: PredictIncomeUseCase,
     private val predictExpenses: PredictExpensesUseCase,
+    private val predictWealth: PredictWealthUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PredictionUiState())
@@ -55,6 +58,12 @@ class PredictionViewModel @Inject constructor(
     fun onExpenseHorizonChange(months: Int) {
         _state.update {
             it.copy(expenseHorizonMonths = months.coerceIn(1, 12), errorBanner = null)
+        }
+    }
+
+    fun onWealthHorizonChange(months: Int) {
+        _state.update {
+            it.copy(wealthHorizonMonths = months.coerceIn(1, 60), errorBanner = null)
         }
     }
 
@@ -101,6 +110,24 @@ class PredictionViewModel @Inject constructor(
             }
         }
     }
+
+    fun runPredictWealth() {
+        if (_state.value.isPredictingWealth) return
+        viewModelScope.launch {
+            _state.update { it.copy(isPredictingWealth = true, errorBanner = null) }
+            when (val r = predictWealth(_state.value.wealthHorizonMonths)) {
+                is DataResult.Success -> _state.update {
+                    it.copy(isPredictingWealth = false, wealthPrediction = r.data)
+                }
+                is DataResult.Failure -> _state.update {
+                    it.copy(
+                        isPredictingWealth = false,
+                        errorBanner = r.error.toUserMessage(),
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -113,9 +140,12 @@ class PredictionViewModel @Inject constructor(
 data class PredictionUiState(
     val incomeHorizonMonths: Int = 12,
     val expenseHorizonMonths: Int = 1,
+    val wealthHorizonMonths: Int = 12,
     val isPredictingIncome: Boolean = false,
     val isPredictingExpenses: Boolean = false,
+    val isPredictingWealth: Boolean = false,
     val incomePrediction: IncomePrediction? = null,
     val expensePrediction: ExpensePrediction? = null,
+    val wealthPrediction: WealthPrediction? = null,
     val errorBanner: String? = null,
 )

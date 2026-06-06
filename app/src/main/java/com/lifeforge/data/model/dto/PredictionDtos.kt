@@ -75,6 +75,42 @@ data class PredictExpensesResponseDto(
 )
 
 // ============================================================================
+// POST /api/v1/predictions/wealth
+// ============================================================================
+
+@Serializable
+data class PredictWealthRequestDto(
+    val horizonMonths: Int = 12,
+)
+
+@Serializable
+data class WealthHistoryPointDto(
+    val monthIndex: Int,
+    val amount: Double,
+)
+
+@Serializable
+data class PredictWealthPointDto(
+    val monthIndex: Int,
+    val predictedAmount: Double,
+)
+
+@Serializable
+data class PredictWealthResponseDto(
+    val predictionId: Long,
+    val modelName: String,
+    val horizonMonths: Int,
+    val history: List<WealthHistoryPointDto>,
+    val projection: List<PredictWealthPointDto>,
+    val expectedFinalWealth: Double,
+    val monthlyGrowthRate: Double,
+    val mae: Double,
+    val rmse: Double,
+    val r2: Double,
+    val createdAt: String,
+)
+
+// ============================================================================
 // GET /api/v1/predictions
 // ============================================================================
 

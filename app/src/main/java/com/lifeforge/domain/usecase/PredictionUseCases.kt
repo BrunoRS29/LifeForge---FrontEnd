@@ -7,6 +7,7 @@ import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.ExpensePrediction
 import com.lifeforge.domain.model.IncomePrediction
 import com.lifeforge.domain.model.PredictionSummary
+import com.lifeforge.domain.model.WealthPrediction
 import com.lifeforge.domain.repository.PredictionRepository
 import javax.inject.Inject
 
@@ -71,6 +72,31 @@ class PredictExpensesUseCase @Inject constructor(
         // Random Forest extrapola mal alem de 12 meses - limite documentado
         // no proprio microsservico Python.
         const val MAX_EXPENSE_HORIZON = 12
+    }
+}
+
+// ============================================================================
+// Predict Wealth (serie temporal de patrimonio)
+// ============================================================================
+
+class PredictWealthUseCase @Inject constructor(
+    private val repository: PredictionRepository,
+) {
+    suspend operator fun invoke(horizonMonths: Int = 12): DataResult<WealthPrediction> {
+        if (horizonMonths !in MIN_HORIZON..MAX_WEALTH_HORIZON) {
+            return DataResult.Failure(
+                AppError.Validation(
+                    "horizonMonths",
+                    "horizonte deve estar entre $MIN_HORIZON e $MAX_WEALTH_HORIZON meses",
+                )
+            )
+        }
+        return repository.predictWealth(horizonMonths)
+    }
+
+    companion object {
+        const val MIN_HORIZON = 1
+        const val MAX_WEALTH_HORIZON = 60
     }
 }
 
