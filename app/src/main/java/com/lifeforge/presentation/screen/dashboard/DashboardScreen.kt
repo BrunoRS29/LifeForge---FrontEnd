@@ -98,6 +98,11 @@ fun DashboardScreen(
                 }
 
                 FinancialSnapshotSection(snapshot = state.snapshot)
+
+                // Evolução patrimonial real (hoje) × projetada — Seção 8.4 do TCC.
+                state.snapshot?.let { snapshot ->
+                    WealthProjectionCard(snapshot = snapshot)
+                }
             }
         }
     }
