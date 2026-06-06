@@ -1,5 +1,6 @@
 package com.lifeforge.presentation.screen.finance
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,18 +8,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.Income
@@ -50,7 +50,7 @@ import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.firstInstantOfMonth
 import com.lifeforge.presentation.common.formatBrl
-import com.lifeforge.presentation.common.formatDate
+import com.lifeforge.presentation.common.formatDayMonth
 import com.lifeforge.presentation.common.formatMonthYear
 import com.lifeforge.presentation.common.label
 import com.lifeforge.presentation.common.yearMonthOf
@@ -59,9 +59,13 @@ import java.time.Instant
 
 /**
  * Sub-aba de Receitas com navegação por mês: o cabeçalho mostra o mês
- * selecionado + total, a lista filtra os lançamentos daquele mês, cada card
- * exibe a data e permite editar/excluir, e o form cria/edita (ver
+ * selecionado + total, a lista filtra os lançamentos daquele mês, cada linha
+ * (compacta) exibe a data e abre o editor ao toque, e o form cria/edita (ver
  * [IncomeFormSheet]).
+ *
+ * As linhas são propositalmente densas (uma por lançamento) porque, após
+ * importar extratos, um mês pode ter dezenas de itens — cards grandes
+ * tornavam a navegação cansativa.
  */
 @Composable
 fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
@@ -96,6 +100,7 @@ fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
             MonthNavigator(
                 monthLabel = formatMonthYear(selectedMonth),
                 total = monthTotal,
+                count = monthIncomes.size,
                 onPrev = { selectedMonth = selectedMonth.minusMonths(1) },
                 onNext = { selectedMonth = selectedMonth.plusMonths(1) },
             )
@@ -111,13 +116,13 @@ fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
                 )
             }
         } else {
-            items(items = monthIncomes, key = { it.id }) { income ->
-                IncomeCard(
+            itemsIndexed(items = monthIncomes, key = { _, income -> income.id }) { index, income ->
+                IncomeRow(
                     income = income,
-                    onEdit = { viewModel.openEditForm(income) },
+                    onClick = { viewModel.openEditForm(income) },
                     onDelete = { viewModel.delete(income.id) },
-                    modifier = Modifier.padding(bottom = 12.dp),
                 )
+                if (index < monthIncomes.lastIndex) HorizontalDivider()
             }
         }
     }
@@ -141,52 +146,57 @@ fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
     }
 }
 
+/**
+ * Linha compacta de uma receita. O toque na linha abre o editor; o ícone de
+ * lixeira exclui direto. Metadados (tipo · dia/mês · recorrência) ficam numa
+ * segunda linha discreta para manter a lista limpa.
+ */
 @Composable
-private fun IncomeCard(
+private fun IncomeRow(
     income: Income,
-    onEdit: () -> Unit,
+    onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(income.source, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    income.incomeType.label() + if (income.recurring) " · Recorrente" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    "Recebido em ${formatDate(income.receivedAt)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    formatBrl(income.amount),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Outlined.Edit, contentDescription = "Editar receita")
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Outlined.Delete,
-                    contentDescription = "Apagar",
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                income.source,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                buildString {
+                    append(income.incomeType.label())
+                    append(" · ")
+                    append(formatDayMonth(income.receivedAt))
+                    if (income.recurring) append(" · recorrente")
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            formatBrl(income.amount),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+        )
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription = "Apagar receita",
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

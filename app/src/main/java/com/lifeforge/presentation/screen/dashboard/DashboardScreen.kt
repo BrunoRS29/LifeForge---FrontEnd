@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.RecurringPattern
 import com.lifeforge.domain.usecase.FinancialSnapshot
+import com.lifeforge.presentation.common.AutoSizeText
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatPercent
@@ -212,10 +213,11 @@ private fun MetricCard(
                 )
             }
             Spacer(Modifier.height(4.dp))
-            Text(
+            AutoSizeText(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

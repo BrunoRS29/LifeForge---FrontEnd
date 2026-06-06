@@ -22,13 +22,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isUnspecified
+import androidx.compose.ui.unit.sp
 
 /**
  * Componentes reutilizáveis usados em várias telas. Mantidos juntos
@@ -150,4 +159,44 @@ fun LoadingIndicator(modifier: Modifier = Modifier) {
     ) {
         CircularProgressIndicator()
     }
+}
+
+/**
+ * Texto de uma linha que encolhe a fonte até caber na largura disponível.
+ *
+ * Usado em cards do dashboard, onde valores monetários longos (ex.:
+ * `R$ 1.234.567,89`) eram cortados — aqui a fonte diminui em passos até não
+ * estourar, preservando o valor completo em vez de truncar. O conteúdo só é
+ * desenhado depois de calibrado para evitar um "salto" visível na primeira
+ * composição. O BOM do Compose (1.7.x) ainda não traz o `autoSize` estável,
+ * por isso o ajuste é manual via [androidx.compose.ui.text.TextLayoutResult].
+ */
+@Composable
+fun AutoSizeText(
+    text: String,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    minFontSizeSp: Float = 12f,
+) {
+    val baseSp = if (style.fontSize.isUnspecified) 16f else style.fontSize.value
+    var sizeSp by remember(text, baseSp) { mutableStateOf(baseSp) }
+    var readyToDraw by remember(text, baseSp) { mutableStateOf(false) }
+
+    Text(
+        text = text,
+        style = style.copy(fontSize = sizeSp.sp),
+        color = color,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier.drawWithContent { if (readyToDraw) drawContent() },
+        onTextLayout = { result ->
+            if (result.didOverflowWidth && sizeSp > minFontSizeSp) {
+                sizeSp = (sizeSp * 0.92f).coerceAtLeast(minFontSizeSp)
+            } else {
+                readyToDraw = true
+            }
+        },
+    )
 }

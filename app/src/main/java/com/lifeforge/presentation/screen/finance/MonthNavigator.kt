@@ -31,6 +31,7 @@ fun MonthNavigator(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
+    count: Int? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
@@ -50,9 +51,13 @@ fun MonthNavigator(
                 textAlign = TextAlign.Center,
             )
             Text(
-                "Total: ${formatBrl(total)}",
+                buildString {
+                    if (count != null) append("$count ${if (count == 1) "lançamento" else "lançamentos"} · ")
+                    append("Total: ${formatBrl(total)}")
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
         }
         IconButton(onClick = onNext) {

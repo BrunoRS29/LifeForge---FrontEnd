@@ -23,6 +23,8 @@ private val ptBR: Locale = Locale("pt", "BR")
 private val zoneBR: ZoneId = ZoneId.of("America/Sao_Paulo")
 private val dateFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("dd/MM/yyyy", ptBR)
+private val dayMonthFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("dd/MM", ptBR)
 private val dateTimeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm", ptBR)
 
@@ -79,6 +81,10 @@ fun formatProbability(probability: Double): String =
 /** `dd/MM/yyyy` no fuso de São Paulo. */
 fun formatDate(instant: Instant): String =
     dateFormatter.format(instant.atZone(zoneBR))
+
+/** `dd/MM` — versão curta para listas já filtradas por mês. */
+fun formatDayMonth(instant: Instant): String =
+    dayMonthFormatter.format(instant.atZone(zoneBR))
 
 /** `dd/MM/yyyy às HH:mm` — usado em históricos/timestamps de simulação. */
 fun formatDateTime(instant: Instant): String =

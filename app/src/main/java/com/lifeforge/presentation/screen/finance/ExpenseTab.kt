@@ -1,5 +1,6 @@
 package com.lifeforge.presentation.screen.finance
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,18 +8,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TrendingDown
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.Expense
@@ -50,7 +53,7 @@ import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.firstInstantOfMonth
 import com.lifeforge.presentation.common.formatBrl
-import com.lifeforge.presentation.common.formatDate
+import com.lifeforge.presentation.common.formatDayMonth
 import com.lifeforge.presentation.common.formatMonthYear
 import com.lifeforge.presentation.common.label
 import com.lifeforge.presentation.common.yearMonthOf
@@ -58,21 +61,34 @@ import java.math.BigDecimal
 import java.time.Instant
 
 /**
- * Sub-aba de Despesas. Espelha [IncomeTab]: navegação por mês, data e
- * editar/excluir nos cards, e form que cria (único/recorrente) ou edita.
+ * Sub-aba de Despesas. Espelha [IncomeTab]: navegação por mês, linhas
+ * compactas (uma por lançamento, toque para editar, lixeira para excluir) e
+ * form que cria (único/recorrente) ou edita.
+ *
+ * Há também um filtro por categoria — depois de importar extratos, um mês
+ * costuma ter muitas despesas, e filtrar por categoria deixa a navegação bem
+ * mais direta.
  */
 @Composable
 fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
     var selectedMonth by remember { mutableStateOf(yearMonthOf(Instant.now())) }
+    var categoryFilter by remember { mutableStateOf<ExpenseCategory?>(null) }
 
     val monthExpenses = remember(state.expenses, selectedMonth) {
         state.expenses
             .filter { yearMonthOf(it.spentAt) == selectedMonth }
             .sortedByDescending { it.spentAt }
     }
-    val monthTotal = remember(monthExpenses) {
-        monthExpenses.fold(BigDecimal.ZERO) { acc, e -> acc + e.amount }
+    val visibleExpenses = remember(monthExpenses, categoryFilter) {
+        categoryFilter?.let { cat -> monthExpenses.filter { it.category == cat } } ?: monthExpenses
+    }
+    val monthTotal = remember(visibleExpenses) {
+        visibleExpenses.fold(BigDecimal.ZERO) { acc, e -> acc + e.amount }
+    }
+    // Categorias presentes no mês — só essas viram chip de filtro.
+    val monthCategories = remember(monthExpenses) {
+        monthExpenses.map { it.category }.distinct()
     }
 
     FinanceListScaffold(
@@ -94,12 +110,22 @@ fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
             MonthNavigator(
                 monthLabel = formatMonthYear(selectedMonth),
                 total = monthTotal,
-                onPrev = { selectedMonth = selectedMonth.minusMonths(1) },
-                onNext = { selectedMonth = selectedMonth.plusMonths(1) },
+                count = visibleExpenses.size,
+                onPrev = { selectedMonth = selectedMonth.minusMonths(1); categoryFilter = null },
+                onNext = { selectedMonth = selectedMonth.plusMonths(1); categoryFilter = null },
             )
         },
     ) {
-        if (monthExpenses.isEmpty()) {
+        if (monthCategories.size > 1) {
+            item {
+                CategoryFilterRow(
+                    categories = monthCategories,
+                    selected = categoryFilter,
+                    onSelect = { categoryFilter = it },
+                )
+            }
+        }
+        if (visibleExpenses.isEmpty()) {
             item {
                 Text(
                     "Nenhuma despesa em ${formatMonthYear(selectedMonth)}.",
@@ -109,13 +135,13 @@ fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
                 )
             }
         } else {
-            items(items = monthExpenses, key = { it.id }) { expense ->
-                ExpenseCard(
+            itemsIndexed(items = visibleExpenses, key = { _, expense -> expense.id }) { index, expense ->
+                ExpenseRow(
                     expense = expense,
-                    onEdit = { viewModel.openEditForm(expense) },
+                    onClick = { viewModel.openEditForm(expense) },
                     onDelete = { viewModel.delete(expense.id) },
-                    modifier = Modifier.padding(bottom = 12.dp),
                 )
+                if (index < visibleExpenses.lastIndex) HorizontalDivider()
             }
         }
     }
@@ -139,52 +165,86 @@ fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
     }
 }
 
+/**
+ * Linha de chips para filtrar a lista por categoria. "Todas" limpa o filtro.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExpenseCard(
+private fun CategoryFilterRow(
+    categories: List<ExpenseCategory>,
+    selected: ExpenseCategory?,
+    onSelect: (ExpenseCategory?) -> Unit,
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+    ) {
+        item {
+            FilterChip(
+                selected = selected == null,
+                onClick = { onSelect(null) },
+                label = { Text("Todas") },
+            )
+        }
+        items(categories) { cat ->
+            FilterChip(
+                selected = selected == cat,
+                onClick = { onSelect(if (selected == cat) null else cat) },
+                label = { Text(cat.label()) },
+            )
+        }
+    }
+}
+
+/**
+ * Linha compacta de uma despesa. Toque abre o editor; a lixeira exclui direto.
+ */
+@Composable
+private fun ExpenseRow(
     expense: Expense,
-    onEdit: () -> Unit,
+    onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(expense.description, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    expense.category.label() + if (expense.recurring) " · Recorrente" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    "Gasto em ${formatDate(expense.spentAt)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    formatBrl(expense.amount),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
-            }
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Outlined.Edit, contentDescription = "Editar despesa")
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Outlined.Delete,
-                    contentDescription = "Apagar",
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                expense.description,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                buildString {
+                    append(expense.category.label())
+                    append(" · ")
+                    append(formatDayMonth(expense.spentAt))
+                    if (expense.recurring) append(" · recorrente")
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            formatBrl(expense.amount),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.tertiary,
+            maxLines = 1,
+        )
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription = "Apagar despesa",
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }
