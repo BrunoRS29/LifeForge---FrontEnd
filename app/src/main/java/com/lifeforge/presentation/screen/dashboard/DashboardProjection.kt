@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lifeforge.domain.model.ProjectionInputs
+import com.lifeforge.domain.model.ReferenceData
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.domain.model.UserProfile
 import com.lifeforge.domain.model.WealthProjection
@@ -53,13 +54,19 @@ fun WealthProjectionCard(
     snapshot: FinancialSnapshot,
     profile: UserProfile?,
     riskProfile: RiskProfile?,
+    referenceData: ReferenceData?,
     modifier: Modifier = Modifier,
 ) {
-    val annualInflation = DEFAULT_INFLATION
-    val annualReturn = WealthProjection.returnForRiskProfile(riskProfile)
+    // Premissas da base de referencia do backend; fallback nas constantes
+    // locais quando offline ou ainda nao carregadas.
+    val annualInflation = referenceData?.inflationAnnualMean ?: DEFAULT_INFLATION
+    val annualReturn = referenceData?.returnForRiskProfile(riskProfile)
+        ?: WealthProjection.returnForRiskProfile(riskProfile)
     val horizonMonths = monthsToRetirement(profile)
     val months = horizonMonths ?: DEFAULT_MONTHS
-    val annualSalaryGrowth = profile?.expectedSalaryGrowth?.let(::parsePercent) ?: annualInflation
+    val annualSalaryGrowth = profile?.expectedSalaryGrowth?.let(::parsePercent)
+        ?: referenceData?.salaryGrowthAnnualMean
+        ?: annualInflation
     val monthlySalary = snapshot.monthlySalary.toDouble().takeIf { it > 0.0 }
         ?: profile?.monthlySalary?.let { parseCurrencyInput(it)?.toDouble() }
         ?: 0.0

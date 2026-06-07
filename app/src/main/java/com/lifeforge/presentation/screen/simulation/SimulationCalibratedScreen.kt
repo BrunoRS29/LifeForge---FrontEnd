@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.CalibrationSummary
+import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
@@ -110,6 +111,8 @@ fun SimulationCalibratedScreen(
 
                 AiCalloutCard()
 
+                state.premises?.let { PremisesNote(it) }
+
                 CalibratedParameterForm(
                     form = state.form,
                     isRunning = state.isRunning,
@@ -181,6 +184,26 @@ private fun AiCalloutCard() {
             }
         }
     }
+}
+
+// ============================================================================
+// Premissas (transparencia)
+// ============================================================================
+
+@Composable
+private fun PremisesNote(premises: SimulationPremises) {
+    val perfil = when (premises.riskProfile) {
+        RiskProfile.CONSERVATIVE -> "conservador"
+        RiskProfile.AGGRESSIVE -> "arrojado"
+        else -> "moderado"
+    }
+    Text(
+        text = "Premissas do seu perfil ($perfil): retorno ~${formatProbability(premises.expectedReturnAnnual)} a.a. " +
+            "e inflacao ~${formatProbability(premises.inflationAnnual)} a.a., calibradas automaticamente.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 // ============================================================================

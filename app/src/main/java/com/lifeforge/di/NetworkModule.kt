@@ -10,6 +10,7 @@ import com.lifeforge.data.api.GoalApi
 import com.lifeforge.data.api.IncomeApi
 import com.lifeforge.data.api.OptimizationApi
 import com.lifeforge.data.api.ProfileApi
+import com.lifeforge.data.api.ReferenceApi
 import com.lifeforge.data.api.SimulationApi
 import com.lifeforge.data.api.UserApi
 import com.lifeforge.data.auth.AuthInterceptor
@@ -102,6 +103,10 @@ object NetworkModule {
 
     @Provides @Singleton
     fun provideProfileApi(retrofit: Retrofit): ProfileApi = retrofit.create(ProfileApi::class.java)
+
+    @Provides @Singleton
+    fun provideReferenceApi(retrofit: Retrofit): ReferenceApi =
+        retrofit.create(ReferenceApi::class.java)
 
     @Provides @Singleton
     fun provideGoalApi(retrofit: Retrofit): GoalApi = retrofit.create(GoalApi::class.java)

@@ -3,10 +3,12 @@ package com.lifeforge.presentation.screen.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeforge.domain.model.DataResult
+import com.lifeforge.domain.model.ReferenceData
 import com.lifeforge.domain.model.User
 import com.lifeforge.domain.model.UserProfile
 import com.lifeforge.domain.usecase.FinancialSnapshot
 import com.lifeforge.domain.usecase.GetFinancialSnapshotUseCase
+import com.lifeforge.domain.usecase.GetReferenceDataUseCase
 import com.lifeforge.domain.usecase.GetUserProfileUseCase
 import com.lifeforge.domain.usecase.ObserveCurrentUserUseCase
 import com.lifeforge.domain.usecase.RefreshAssetsUseCase
@@ -50,6 +52,7 @@ class DashboardViewModel @Inject constructor(
     private val refreshExpenses: RefreshExpensesUseCase,
     private val refreshAssets: RefreshAssetsUseCase,
     private val getUserProfile: GetUserProfileUseCase,
+    private val getReferenceData: GetReferenceDataUseCase,
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(LocalUiState())
@@ -70,6 +73,7 @@ class DashboardViewModel @Inject constructor(
             user = user,
             snapshot = snapshot,
             profile = local.profile,
+            referenceData = local.referenceData,
             isRefreshing = local.isRefreshing,
             errorBanner = local.errorBanner,
         )
@@ -88,6 +92,13 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             (getUserProfile() as? DataResult.Success)?.let { ok ->
                 localState.update { it.copy(profile = ok.data) }
+            }
+        }
+        // Premissas de referencia: best-effort (com cache em memoria no repo),
+        // alimentam a projecao do dashboard. Falha cai nas constantes locais.
+        viewModelScope.launch {
+            (getReferenceData() as? DataResult.Success)?.let { ok ->
+                localState.update { it.copy(referenceData = ok.data) }
             }
         }
         viewModelScope.launch {
@@ -123,6 +134,7 @@ class DashboardViewModel @Inject constructor(
         val isRefreshing: Boolean = false,
         val errorBanner: String? = null,
         val profile: UserProfile? = null,
+        val referenceData: ReferenceData? = null,
     )
 }
 
@@ -130,6 +142,7 @@ data class DashboardUiState(
     val user: User? = null,
     val snapshot: FinancialSnapshot? = null,
     val profile: UserProfile? = null,
+    val referenceData: ReferenceData? = null,
     val isRefreshing: Boolean = false,
     val errorBanner: String? = null,
 )

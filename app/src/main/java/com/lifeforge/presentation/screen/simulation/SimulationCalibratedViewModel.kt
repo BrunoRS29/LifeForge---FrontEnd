@@ -7,6 +7,9 @@ import androidx.navigation.toRoute
 import com.lifeforge.domain.model.CalibratedSimulation
 import com.lifeforge.domain.model.CalibratedSimulationParameters
 import com.lifeforge.domain.model.DataResult
+import com.lifeforge.domain.model.RiskProfile
+import com.lifeforge.domain.usecase.GetReferenceDataUseCase
+import com.lifeforge.domain.usecase.ObserveCurrentUserUseCase
 import com.lifeforge.domain.usecase.ObserveGoalUseCase
 import com.lifeforge.domain.usecase.RunCalibratedSimulationUseCase
 import com.lifeforge.presentation.common.parseCurrencyInputAsDouble
@@ -43,6 +46,8 @@ class SimulationCalibratedViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val observeGoal: ObserveGoalUseCase,
     private val runCalibratedSimulation: RunCalibratedSimulationUseCase,
+    private val observeCurrentUser: ObserveCurrentUserUseCase,
+    private val getReferenceData: GetReferenceDataUseCase,
 ) : ViewModel() {
 
     private val goalId: Long = savedStateHandle.toRoute<SimulationCalibrated>().goalId
@@ -52,6 +57,29 @@ class SimulationCalibratedViewModel @Inject constructor(
 
     init {
         loadGoalAndPrepopulate()
+        loadPremises()
+    }
+
+    /**
+     * Carrega, para TRANSPARENCIA, as premissas que o backend usara: retorno
+     * (pelo perfil de risco do usuario) e inflacao, da base de referencia.
+     * Best-effort - se falhar, a tela so nao mostra o aviso.
+     */
+    private fun loadPremises() {
+        viewModelScope.launch {
+            val riskProfile = observeCurrentUser().first()?.riskProfile
+            val ref = (getReferenceData() as? DataResult.Success)?.data ?: return@launch
+            val expectedReturn = ref.returnForRiskProfile(riskProfile) ?: return@launch
+            _state.update {
+                it.copy(
+                    premises = SimulationPremises(
+                        expectedReturnAnnual = expectedReturn,
+                        inflationAnnual = ref.inflationAnnualMean,
+                        riskProfile = riskProfile,
+                    )
+                )
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -199,6 +227,19 @@ data class CalibratedSimulationUiState(
     val progressMessage: String? = null,
     val result: CalibratedSimulation? = null,
     val errorBanner: String? = null,
+    /** Premissas (retorno/inflacao) que o backend usara - para transparencia. */
+    val premises: SimulationPremises? = null,
+)
+
+/**
+ * Premissas de mercado que o backend aplicara na calibracao, derivadas do
+ * perfil de risco do usuario via base de referencia. Exibidas na tela apenas
+ * para transparencia (o usuario nao as edita).
+ */
+data class SimulationPremises(
+    val expectedReturnAnnual: Double,
+    val inflationAnnual: Double,
+    val riskProfile: RiskProfile?,
 )
 
 /**

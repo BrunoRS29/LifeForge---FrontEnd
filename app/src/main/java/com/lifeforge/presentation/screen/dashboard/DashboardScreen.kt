@@ -111,6 +111,7 @@ fun DashboardScreen(
                         snapshot = snapshot,
                         profile = state.profile,
                         riskProfile = state.user?.riskProfile,
+                        referenceData = state.referenceData,
                     )
                 }
 
