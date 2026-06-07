@@ -327,10 +327,14 @@ private fun validateAssetFields(
  * Snapshot consolidado para a tela inicial.
  *
  * - [totalAssets]: soma de `currentValue` de todos os ativos.
- * - [monthlyIncome] / [monthlyExpenses]: comprometimentos marcados como
- *   `recurring` MAIS a média dos últimos meses dos lançamentos pontuais.
- *   Assim, históricos importados (que vêm como não-recorrentes) deixam de
- *   zerar o ritmo mensal — usa a média real dos meses recentes.
+ * - [monthlyIncome]: somente o SALÁRIO (recorrente + média dos meses recentes
+ *   dos salários pontuais) MAIS a renda mensal estimada dos ativos atuais
+ *   (`currentValue * expectedReturn / 12`). Outras rendas avulsas não entram
+ *   no ritmo mensal — o rendimento dos investimentos já é representado pelos
+ *   ativos.
+ * - [monthlyExpenses]: comprometimentos marcados como `recurring` MAIS a média
+ *   dos últimos meses dos lançamentos pontuais. Assim, históricos importados
+ *   (que vêm como não-recorrentes) deixam de zerar o ritmo mensal.
  * - [savingsRate]: (income − expenses) / income, em percentual.
  *   Indefinido quando income é zero (retorna 0.0).
  * - [recurringIncomes] / [recurringExpenses]: padrões recorrentes detectados
@@ -358,11 +362,18 @@ class GetFinancialSnapshotUseCase @Inject constructor(
     ) { incomes, expenses, assets ->
         val totalAssets = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
 
-        // Recorrentes (marcados) + média dos últimos meses dos pontuais.
-        // Os dois conjuntos são disjuntos, então não há dupla contagem.
-        val monthlyIncome =
-            sumOf(incomes.filter { it.recurring }.map { it.amount }) +
-                recentMonthlyAverage(incomes.filterNot { it.recurring }.map { it.amount to it.receivedAt })
+        // Renda mensal = salário (recorrente + média recente dos pontuais) +
+        // renda estimada dos ativos (currentValue * expectedReturn anual / 12).
+        val salaries = incomes.filter { it.incomeType == IncomeType.SALARY }
+        val monthlySalary =
+            sumOf(salaries.filter { it.recurring }.map { it.amount }) +
+                recentMonthlyAverage(salaries.filterNot { it.recurring }.map { it.amount to it.receivedAt })
+        val monthlyAssetIncome = assets.fold(BigDecimal.ZERO) { acc, a ->
+            acc + a.currentValue.multiply(a.expectedReturn).divide(BigDecimal(12), 2, RoundingMode.HALF_UP)
+        }
+        val monthlyIncome = monthlySalary + monthlyAssetIncome
+
+        // Despesas: recorrentes (marcadas) + média dos últimos meses dos pontuais.
         val monthlyExpenses =
             sumOf(expenses.filter { it.recurring }.map { it.amount }) +
                 recentMonthlyAverage(expenses.filterNot { it.recurring }.map { it.amount to it.spentAt })
