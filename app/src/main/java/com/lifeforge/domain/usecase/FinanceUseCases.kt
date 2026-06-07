@@ -345,6 +345,8 @@ data class FinancialSnapshot(
     val monthlyIncome: BigDecimal,
     val monthlyExpenses: BigDecimal,
     val savingsRate: BigDecimal,
+    /** Parte da renda mensal que vem de salário (sem a renda dos ativos). */
+    val monthlySalary: BigDecimal = BigDecimal.ZERO,
     val recurringIncomes: List<RecurringPattern> = emptyList(),
     val recurringExpenses: List<RecurringPattern> = emptyList(),
 )
@@ -391,6 +393,7 @@ class GetFinancialSnapshotUseCase @Inject constructor(
             monthlyIncome = monthlyIncome,
             monthlyExpenses = monthlyExpenses,
             savingsRate = savingsRate,
+            monthlySalary = monthlySalary,
             recurringIncomes = RecurrenceDetector.detectIncome(incomes),
             recurringExpenses = RecurrenceDetector.detectExpense(expenses),
         )

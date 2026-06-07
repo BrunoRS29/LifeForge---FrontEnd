@@ -43,4 +43,70 @@ object WealthProjection {
             }
         }
     }
+
+    /**
+     * Projeção DINÂMICA usada quando há perfil: a renda cresce ao ritmo do
+     * crescimento salarial e as despesas pela inflação, mês a mês. O aporte de
+     * cada mês é `renda − despesa` (nunca negativo), e o patrimônio rende à
+     * taxa informada. Devolve duas séries de [months]+1 pontos (índice 0 = hoje):
+     *  - [ProjectionSeries.projected]: com rendimento dos investimentos
+     *  - [ProjectionSeries.contributionsOnly]: só os aportes acumulados
+     *
+     * Diferente de [project] (aporte fixo, fórmula fechada), aqui o aporte
+     * evolui, então a soma é iterativa.
+     */
+    fun projectDynamic(inputs: ProjectionInputs): ProjectionSeries {
+        require(inputs.months >= 0) { "months deve ser >= 0" }
+        val rRet = monthlyRate(inputs.annualReturn)
+        val gSal = monthlyRate(inputs.annualSalaryGrowth)
+        val gInf = monthlyRate(inputs.annualInflation)
+
+        val projected = ArrayList<Double>(inputs.months + 1)
+        val contributionsOnly = ArrayList<Double>(inputs.months + 1)
+        var wealth = inputs.initialWealth
+        var accumulated = inputs.initialWealth
+        projected.add(wealth)
+        contributionsOnly.add(accumulated)
+
+        for (m in 1..inputs.months) {
+            val income = inputs.monthlyIncome * (1.0 + gSal).pow((m - 1).toDouble())
+            val expenses = inputs.monthlyExpenses * (1.0 + gInf).pow((m - 1).toDouble())
+            val contribution = (income - expenses).coerceAtLeast(0.0)
+            wealth = wealth * (1.0 + rRet) + contribution
+            accumulated += contribution
+            projected.add(wealth)
+            contributionsOnly.add(accumulated)
+        }
+        return ProjectionSeries(projected, contributionsOnly)
+    }
+
+    /** Retorno anual nominal típico por perfil de risco (premissa-base). */
+    fun returnForRiskProfile(riskProfile: RiskProfile?): Double = when (riskProfile) {
+        RiskProfile.CONSERVATIVE -> 0.06
+        RiskProfile.AGGRESSIVE -> 0.12
+        else -> 0.09 // MODERATE / não informado
+    }
+
+    /** Taxa mensal equivalente à anual: (1+a)^(1/12) − 1. */
+    private fun monthlyRate(annual: Double): Double =
+        if (abs(annual) < 1e-12) 0.0 else (1.0 + annual).pow(1.0 / 12.0) - 1.0
+}
+
+/** Entradas da projeção dinâmica (todas anuais, exceto valores mensais). */
+data class ProjectionInputs(
+    val initialWealth: Double,
+    val monthlyIncome: Double,        // renda usada para o aporte (salário)
+    val monthlyExpenses: Double,
+    val annualReturn: Double,
+    val annualSalaryGrowth: Double,
+    val annualInflation: Double,
+    val months: Int,
+)
+
+data class ProjectionSeries(
+    val projected: List<Double>,
+    val contributionsOnly: List<Double>,
+) {
+    val finalProjected: Double get() = projected.last()
+    val finalContributionsOnly: Double get() = contributionsOnly.last()
 }

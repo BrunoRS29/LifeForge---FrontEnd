@@ -2,9 +2,12 @@ package com.lifeforge.presentation.screen.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.User
+import com.lifeforge.domain.model.UserProfile
 import com.lifeforge.domain.usecase.FinancialSnapshot
 import com.lifeforge.domain.usecase.GetFinancialSnapshotUseCase
+import com.lifeforge.domain.usecase.GetUserProfileUseCase
 import com.lifeforge.domain.usecase.ObserveCurrentUserUseCase
 import com.lifeforge.domain.usecase.RefreshAssetsUseCase
 import com.lifeforge.domain.usecase.RefreshExpensesUseCase
@@ -43,6 +46,7 @@ class DashboardViewModel @Inject constructor(
     private val refreshIncomes: RefreshIncomesUseCase,
     private val refreshExpenses: RefreshExpensesUseCase,
     private val refreshAssets: RefreshAssetsUseCase,
+    private val getUserProfile: GetUserProfileUseCase,
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(LocalUiState())
@@ -55,6 +59,7 @@ class DashboardViewModel @Inject constructor(
         DashboardUiState(
             user = user,
             snapshot = snapshot,
+            profile = local.profile,
             isRefreshing = local.isRefreshing,
             errorBanner = local.errorBanner,
         )
@@ -68,6 +73,13 @@ class DashboardViewModel @Inject constructor(
 
     fun refresh() {
         if (localState.value.isRefreshing) return
+        // Perfil é network-only e best-effort: alimenta a projeção personalizada
+        // sem bloquear o resto do dashboard nem virar banner de erro.
+        viewModelScope.launch {
+            (getUserProfile() as? DataResult.Success)?.let { ok ->
+                localState.update { it.copy(profile = ok.data) }
+            }
+        }
         viewModelScope.launch {
             localState.update { it.copy(isRefreshing = true, errorBanner = null) }
 
@@ -100,12 +112,14 @@ class DashboardViewModel @Inject constructor(
     private data class LocalUiState(
         val isRefreshing: Boolean = false,
         val errorBanner: String? = null,
+        val profile: UserProfile? = null,
     )
 }
 
 data class DashboardUiState(
     val user: User? = null,
     val snapshot: FinancialSnapshot? = null,
+    val profile: UserProfile? = null,
     val isRefreshing: Boolean = false,
     val errorBanner: String? = null,
 )

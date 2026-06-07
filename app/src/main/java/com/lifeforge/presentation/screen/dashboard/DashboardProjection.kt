@@ -14,10 +14,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.lifeforge.domain.model.ProjectionInputs
+import com.lifeforge.domain.model.RiskProfile
+import com.lifeforge.domain.model.UserProfile
 import com.lifeforge.domain.model.WealthProjection
 import com.lifeforge.domain.usecase.FinancialSnapshot
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
+import com.lifeforge.presentation.common.parseCurrencyInput
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -27,45 +31,65 @@ import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import kotlin.math.roundToInt
+
+private const val DEFAULT_INFLATION = 0.045   // premissa-base (4,5% a.a.)
+private const val DEFAULT_MONTHS = 60         // 5 anos quando não há perfil
 
 /**
  * Card de evolução patrimonial: real (hoje) × projetado (Seção 8.4 do TCC).
  *
- * Como ainda não armazenamos um histórico mensal de patrimônio, o ponto
- * "real" é o patrimônio atual (mês 0) e a curva é a PROJEÇÃO determinística
- * para os próximos 5 anos (juros compostos com aportes, fórmula 6.1):
- *  - linha de cima: patrimônio projetado COM rendimento (~8% a.a.)
- *  - linha de baixo: somente aportes acumulados (sem rendimento)
+ * Fase 2: a projeção agora é PERSONALIZADA pelo perfil:
+ *  - horizonte = até a idade desejada de aposentadoria (senão 5 anos);
+ *  - renda cresce ao ritmo do crescimento salarial informado;
+ *  - despesas corrigidas pela inflação;
+ *  - retorno anual conforme o perfil de risco.
  *
- * A distância entre as linhas é o efeito dos juros compostos — a mensagem
- * central do app: planejar investindo supera guardar parado.
+ * A linha de cima é o patrimônio COM rendimento; a de baixo, só os aportes
+ * acumulados. A distância é o efeito dos juros compostos.
  */
 @Composable
 fun WealthProjectionCard(
     snapshot: FinancialSnapshot,
+    profile: UserProfile?,
+    riskProfile: RiskProfile?,
     modifier: Modifier = Modifier,
 ) {
-    val initial = snapshot.totalAssets.toDouble()
-    val contribution = (snapshot.monthlyIncome - snapshot.monthlyExpenses).toDouble()
-    val months = 60
-    val annualReturn = 0.08
+    val annualInflation = DEFAULT_INFLATION
+    val annualReturn = WealthProjection.returnForRiskProfile(riskProfile)
+    val horizonMonths = monthsToRetirement(profile)
+    val months = horizonMonths ?: DEFAULT_MONTHS
+    val annualSalaryGrowth = profile?.expectedSalaryGrowth?.let(::parsePercent) ?: annualInflation
+    val monthlySalary = snapshot.monthlySalary.toDouble().takeIf { it > 0.0 }
+        ?: profile?.monthlySalary?.let { parseCurrencyInput(it)?.toDouble() }
+        ?: 0.0
+    val monthlyExpenses = snapshot.monthlyExpenses.toDouble()
 
-    val projected = remember(initial, contribution) {
-        WealthProjection.project(initial, contribution, annualReturn, months)
-    }
-    val contributionsOnly = remember(initial, contribution) {
-        WealthProjection.project(initial, contribution, 0.0, months)
-    }
+    val inputs = ProjectionInputs(
+        initialWealth = snapshot.totalAssets.toDouble(),
+        monthlyIncome = monthlySalary,
+        monthlyExpenses = monthlyExpenses,
+        annualReturn = annualReturn,
+        annualSalaryGrowth = annualSalaryGrowth,
+        annualInflation = annualInflation,
+        months = months,
+    )
+    val proj = remember(inputs) { WealthProjection.projectDynamic(inputs) }
 
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(projected, contributionsOnly) {
+    LaunchedEffect(proj) {
         modelProducer.runTransaction {
             lineSeries {
-                series(y = projected)
-                series(y = contributionsOnly)
+                series(y = proj.projected)
+                series(y = proj.contributionsOnly)
             }
         }
     }
+
+    val years = (months / 12.0).roundToInt().coerceAtLeast(1)
+    val contribution0 = (monthlySalary - monthlyExpenses).coerceAtLeast(0.0)
+    val personalized = horizonMonths != null ||
+        profile?.monthlySalary != null || profile?.expectedSalaryGrowth != null
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -75,16 +99,28 @@ fun WealthProjectionCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Evolução do patrimônio (5 anos)",
+                if (horizonMonths != null) "Evolução do patrimônio até a aposentadoria"
+                else "Evolução do patrimônio ($years anos)",
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                "A partir de ${formatBrl(snapshot.totalAssets)} hoje, aportando " +
-                    "${formatBrl(contribution)}/mês a ~8% a.a. Linha de baixo: " +
-                    "sem rendimento (só aportes).",
+                buildString {
+                    append("De ${formatBrl(snapshot.totalAssets)} hoje, aportando ~")
+                    append("${formatBrl(contribution0)}/mês")
+                    append(" por $years anos · retorno ~${pct(annualReturn)} a.a.")
+                    append(" · salário +${pct(annualSalaryGrowth)}/ano · inflação ${pct(annualInflation)}/ano.")
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (!personalized) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Preencha seu perfil (idade, aposentadoria, salário) para personalizar esta projeção.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             Spacer(Modifier.height(12.dp))
 
             CartesianChartHost(
@@ -101,11 +137,25 @@ fun WealthProjectionCard(
 
             Spacer(Modifier.height(8.dp))
             Text(
-                "Em 5 anos: projetado ${formatBrlCompact(projected.last().toBigDecimal())} " +
-                    "vs. ${formatBrlCompact(contributionsOnly.last().toBigDecimal())} sem investir.",
+                "Em $years anos: projetado ${formatBrlCompact(proj.finalProjected.toBigDecimal())} " +
+                    "vs. ${formatBrlCompact(proj.finalContributionsOnly.toBigDecimal())} sem investir.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
 }
+
+/** Meses até a aposentadoria a partir do perfil; null se idade/aposentadoria ausentes. */
+private fun monthsToRetirement(profile: UserProfile?): Int? {
+    val age = profile?.age ?: return null
+    val retire = profile.retirementAge ?: return null
+    if (retire <= age) return null
+    return ((retire - age) * 12).coerceAtMost(600)
+}
+
+/** "5" -> 0.05 ; "5,5" -> 0.055. */
+private fun parsePercent(raw: String): Double? =
+    raw.replace(',', '.').toDoubleOrNull()?.let { it / 100.0 }
+
+private fun pct(fraction: Double): String = "${(fraction * 100).roundToInt()}%"

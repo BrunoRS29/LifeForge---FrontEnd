@@ -105,8 +105,13 @@ fun DashboardScreen(
                 FinancialSnapshotSection(snapshot = state.snapshot)
 
                 // Evolução patrimonial real (hoje) × projetada — Seção 8.4 do TCC.
+                // Personalizada pelo perfil (horizonte, salário, inflação, retorno).
                 state.snapshot?.let { snapshot ->
-                    WealthProjectionCard(snapshot = snapshot)
+                    WealthProjectionCard(
+                        snapshot = snapshot,
+                        profile = state.profile,
+                        riskProfile = state.user?.riskProfile,
+                    )
                 }
 
                 // Recorrências detectadas automaticamente no histórico.
