@@ -21,8 +21,12 @@ data class ReferenceDataResponseDto(
     val unexpectedExpenseAnnualFrequency: Double,
     val unexpectedExpenseMeanFractionOfIncome: Double,
     val lifeExpectancyYears: Int,
+    val vehicleDepreciationAnnual: Double = 0.0,
+    val realEstateAppreciationAnnual: Double = 0.0,
+    val safeWithdrawalRate: Double = 0.04,
     val byRiskProfile: Map<String, RiskProfileStatsDto> = emptyMap(),
     val byEmploymentType: Map<String, EmploymentStatsDto> = emptyMap(),
+    val childCostByAge: List<ChildCostBracketDto> = emptyList(),
 )
 
 @Serializable
@@ -35,4 +39,10 @@ data class RiskProfileStatsDto(
 data class EmploymentStatsDto(
     val unemploymentProbAnnual: Double,
     val incomeVolatilityAnnual: Double,
+)
+
+@Serializable
+data class ChildCostBracketDto(
+    val ageMaxInclusive: Int,
+    val monthlyCost: Double,
 )

@@ -144,11 +144,20 @@ fun ProfileParamsScreen(
             )
             NumberField(form.dependents, { v -> viewModel.update { it.copy(dependents = v) } }, "Filhos / dependentes", state.isSaving)
             LifeForgeTextField(
+                value = form.childrenAges,
+                onValueChange = { v ->
+                    viewModel.update { it.copy(childrenAges = v.filter { c -> c.isDigit() || c == ',' || c == ' ' }) }
+                },
+                label = "Idades dos filhos (ex.: 3, 7)",
+                enabled = !state.isSaving,
+            )
+            LifeForgeTextField(
                 value = form.state,
                 onValueChange = { v -> viewModel.update { it.copy(state = v.take(2)) } },
                 label = "Estado (UF)",
                 enabled = !state.isSaving,
             )
+            NumberField(form.lifeExpectancy, { v -> viewModel.update { it.copy(lifeExpectancy = v) } }, "Expectativa de vida (anos)", state.isSaving)
 
             SectionHeader("Profissional")
             LifeForgeTextField(
@@ -172,6 +181,20 @@ fun ProfileParamsScreen(
                 value = form.housingMonthlyCost,
                 onValueChange = { v -> viewModel.update { it.copy(housingMonthlyCost = sanitizeCurrencyInput(v)) } },
                 label = "Parcela / aluguel mensal (R$)",
+                enabled = !state.isSaving,
+            )
+            CurrencyField(
+                value = form.propertyValue,
+                onValueChange = { v -> viewModel.update { it.copy(propertyValue = sanitizeCurrencyInput(v)) } },
+                label = "Valor do imóvel próprio (R$)",
+                enabled = !state.isSaving,
+            )
+
+            SectionHeader("Veículos")
+            CurrencyField(
+                value = form.vehiclesValue,
+                onValueChange = { v -> viewModel.update { it.copy(vehiclesValue = sanitizeCurrencyInput(v)) } },
+                label = "Valor de mercado dos veículos (R$)",
                 enabled = !state.isSaving,
             )
 

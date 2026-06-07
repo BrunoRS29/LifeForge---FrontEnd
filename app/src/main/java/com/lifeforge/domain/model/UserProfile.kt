@@ -17,13 +17,18 @@ data class UserProfile(
     // --- Pessoal ---
     val maritalStatus: MaritalStatus? = null,
     val dependents: Int? = null,
+    val childrenAges: String? = null,            // idades dos filhos, CSV ex.: "3, 7"
     val state: String? = null,
+    val lifeExpectancy: Int? = null,             // expectativa de vida desejada (anos)
     // --- Profissional ---
     val expectedSalaryGrowth: String? = null,   // % ao ano
     val unemploymentRisk: RiskLevel? = null,
     // --- Moradia ---
     val housingStatus: HousingStatus? = null,
     val housingMonthlyCost: String? = null,      // parcela ou aluguel
+    val propertyValue: String? = null,           // valor de mercado do imóvel próprio
+    // --- Veículos ---
+    val vehiclesValue: String? = null,           // valor de mercado total dos veículos
     // --- Tributação ---
     val taxRegime: TaxRegime? = null,
     // --- Patrimônio / dívidas ---

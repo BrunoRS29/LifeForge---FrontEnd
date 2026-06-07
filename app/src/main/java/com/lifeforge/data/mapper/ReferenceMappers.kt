@@ -2,6 +2,7 @@ package com.lifeforge.data.mapper
 
 import com.lifeforge.data.model.dto.ReferenceDataResponseDto
 import com.lifeforge.data.model.dto.RiskProfileStatsDto
+import com.lifeforge.domain.model.ChildCostBracket
 import com.lifeforge.domain.model.ReferenceData
 import com.lifeforge.domain.model.RiskProfile
 
@@ -17,8 +18,12 @@ fun ReferenceDataResponseDto.toDomain(): ReferenceData = ReferenceData(
     unexpectedExpenseAnnualFrequency = unexpectedExpenseAnnualFrequency,
     unexpectedExpenseMeanFractionOfIncome = unexpectedExpenseMeanFractionOfIncome,
     lifeExpectancyYears = lifeExpectancyYears,
+    vehicleDepreciationAnnual = vehicleDepreciationAnnual,
+    realEstateAppreciationAnnual = realEstateAppreciationAnnual,
+    safeWithdrawalRate = safeWithdrawalRate,
     returnByRiskProfile = byRiskProfile.toRiskMap { it.expectedReturnAnnual },
     volatilityByRiskProfile = byRiskProfile.toRiskMap { it.volatilityAnnual },
+    childCostByAge = childCostByAge.map { ChildCostBracket(it.ageMaxInclusive, it.monthlyCost) },
 )
 
 private inline fun Map<String, RiskProfileStatsDto>.toRiskMap(

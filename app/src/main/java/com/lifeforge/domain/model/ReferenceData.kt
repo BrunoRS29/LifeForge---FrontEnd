@@ -16,8 +16,12 @@ data class ReferenceData(
     val unexpectedExpenseAnnualFrequency: Double,
     val unexpectedExpenseMeanFractionOfIncome: Double,
     val lifeExpectancyYears: Int,
+    val vehicleDepreciationAnnual: Double,
+    val realEstateAppreciationAnnual: Double,
+    val safeWithdrawalRate: Double,
     val returnByRiskProfile: Map<RiskProfile, Double>,
     val volatilityByRiskProfile: Map<RiskProfile, Double>,
+    val childCostByAge: List<ChildCostBracket>,
 ) {
     /**
      * Retorno anual esperado para o perfil informado; cai no MODERATE quando o
@@ -27,4 +31,14 @@ data class ReferenceData(
     fun returnForRiskProfile(riskProfile: RiskProfile?): Double? =
         returnByRiskProfile[riskProfile ?: RiskProfile.MODERATE]
             ?: returnByRiskProfile[RiskProfile.MODERATE]
+
+    /** Custo mensal medio de um filho na idade [ageYears]; 0 quando independente. */
+    fun childMonthlyCost(ageYears: Int): Double =
+        childCostByAge.firstOrNull { ageYears <= it.ageMaxInclusive }?.monthlyCost ?: 0.0
 }
+
+/** Faixa etaria (ate [ageMaxInclusive] anos) e custo mensal medio associado. */
+data class ChildCostBracket(
+    val ageMaxInclusive: Int,
+    val monthlyCost: Double,
+)
