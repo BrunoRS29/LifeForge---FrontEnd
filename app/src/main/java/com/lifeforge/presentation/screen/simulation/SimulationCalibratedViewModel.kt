@@ -136,32 +136,29 @@ class SimulationCalibratedViewModel @Inject constructor(
      */
     private fun parseForm(form: CalibratedSimulationForm): CalibratedSimulationParameters? {
         val initialCapital = parseCurrencyInputAsDouble(form.initialCapitalInput)
-        val expectedReturn = parseCurrencyInputAsDouble(form.expectedReturnInput)
-        val volatility = parseCurrencyInputAsDouble(form.volatilityInput)
         val targetAmount = parseCurrencyInputAsDouble(form.targetAmountInput)
         val horizon = form.horizonMonthsInput.toIntOrNull()
-        val unemploymentProb = parseCurrencyInputAsDouble(form.unemploymentProbInput) ?: 0.0
-        val inflation = parseCurrencyInputAsDouble(form.inflationInput) ?: 0.0
 
-        if (initialCapital == null || expectedReturn == null || volatility == null
-            || targetAmount == null || horizon == null
-        ) {
+        if (initialCapital == null || targetAmount == null || horizon == null) {
             _state.update {
                 it.copy(errorBanner = "Verifique os valores numericos do formulario")
             }
             return null
         }
 
+        // Premissas de mercado vao NULAS: o backend as calibra pelo perfil
+        // (perfil de risco + vinculo) a partir da base de referencia. Eh o
+        // cerne da simulacao de 1 toque - o usuario nao estima nada disso.
         return CalibratedSimulationParameters(
             goalId = goalId,
             initialCapital = initialCapital,
-            expectedReturnAnnual = expectedReturn,
-            volatilityAnnual = volatility,
+            expectedReturnAnnual = null,
+            volatilityAnnual = null,
             horizonMonths = horizon,
             targetAmount = targetAmount,
-            unemploymentProbAnnual = unemploymentProb,
-            unemploymentDurationMonths = form.unemploymentDurationMonths,
-            inflationAnnual = inflation,
+            unemploymentProbAnnual = null,
+            unemploymentDurationMonths = null,
+            inflationAnnual = null,
             numSimulations = form.numSimulations,
             seed = null,
             incomeHorizonMonths = form.incomeHorizonMonths,
@@ -171,16 +168,11 @@ class SimulationCalibratedViewModel @Inject constructor(
     companion object {
         const val STAGE_PREDICTING = "Treinando modelos de IA e calibrando parametros..."
 
-        /** Mesmos defaults razoaveis para cenario brasileiro do SimulationViewModel. */
+        /** Defaults: capital/alvo/horizonte. Premissas de mercado vem do perfil. */
         private fun defaultForm() = CalibratedSimulationForm(
             initialCapitalInput = "10000",
-            expectedReturnInput = "0,08",
-            volatilityInput = "0,15",
             targetAmountInput = "100000",
             horizonMonthsInput = "120",
-            unemploymentProbInput = "0,05",
-            unemploymentDurationMonths = 6,
-            inflationInput = "0,04",
             numSimulations = 10_000,
             incomeHorizonMonths = 12,
         )
@@ -215,18 +207,12 @@ data class CalibratedSimulationUiState(
  */
 data class CalibratedSimulationForm(
     val initialCapitalInput: String = "",
-    val expectedReturnInput: String = "",
-    val volatilityInput: String = "",
     val targetAmountInput: String = "",
     val horizonMonthsInput: String = "",
-    val unemploymentProbInput: String = "",
-    val unemploymentDurationMonths: Int = 6,
-    val inflationInput: String = "",
     val numSimulations: Int = 10_000,
     val incomeHorizonMonths: Int = 12,
 ) {
     val canRun: Boolean
-        get() = initialCapitalInput.isNotBlank() && expectedReturnInput.isNotBlank() &&
-            volatilityInput.isNotBlank() && targetAmountInput.isNotBlank() &&
+        get() = initialCapitalInput.isNotBlank() && targetAmountInput.isNotBlank() &&
             horizonMonthsInput.isNotBlank()
 }

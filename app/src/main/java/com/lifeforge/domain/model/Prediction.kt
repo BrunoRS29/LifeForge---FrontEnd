@@ -168,17 +168,24 @@ data class CalibrationSummary(
  * Parametros para disparar uma simulacao calibrada. Note a AUSENCIA
  * de `monthlyContribution` - eh exatamente o que sera derivado pelo
  * backend a partir das predicoes.
+ *
+ * As premissas de mercado de longo prazo ([expectedReturnAnnual],
+ * [volatilityAnnual], [unemploymentProbAnnual], [unemploymentDurationMonths],
+ * [inflationAnnual]) sao NULAS por padrao: quando nulas, o backend as
+ * preenche a partir da base de referencia calibrada ao perfil do usuario
+ * (perfil de risco + vinculo). Isso habilita a "simulacao de 1 toque" - o
+ * usuario nao precisa estimar retorno/volatilidade/desemprego/inflacao.
  */
 data class CalibratedSimulationParameters(
     val goalId: Long,
     val initialCapital: Double,
-    val expectedReturnAnnual: Double,
-    val volatilityAnnual: Double,
+    val expectedReturnAnnual: Double? = null,
+    val volatilityAnnual: Double? = null,
     val horizonMonths: Int,
     val targetAmount: Double,
-    val unemploymentProbAnnual: Double = 0.0,
-    val unemploymentDurationMonths: Int = 6,
-    val inflationAnnual: Double = 0.0,
+    val unemploymentProbAnnual: Double? = null,
+    val unemploymentDurationMonths: Int? = null,
+    val inflationAnnual: Double? = null,
     val numSimulations: Int = 10_000,
     val seed: Long? = null,
     /** Horizonte usado APENAS para calcular a media da renda projetada. */

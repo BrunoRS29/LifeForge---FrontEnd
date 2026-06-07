@@ -165,15 +165,16 @@ private fun AiCalloutCard() {
             )
             Column {
                 Text(
-                    text = "Aporte derivado da sua renda",
+                    text = "Tudo calibrado pelo seu perfil",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Nesta simulacao, o aporte mensal NAO eh digitado: " +
-                        "a IA preve sua renda e despesas com base no seu historico " +
-                        "e calcula automaticamente quanto sobra por mes.",
+                    text = "Voce nao estima nada de mercado: a IA preve sua renda e " +
+                        "despesas pelo seu historico (e calcula o aporte mensal), e o " +
+                        "retorno, a volatilidade, a inflacao e o risco de desemprego vem " +
+                        "da base de referencia calibrada ao seu perfil de risco e vinculo.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -210,25 +211,9 @@ private fun CalibratedParameterForm(
                 enabled = !isRunning,
             )
 
-            // monthlyContribution AUSENTE intencionalmente
-
-            CurrencyField(
-                value = form.expectedReturnInput,
-                onValueChange = { v ->
-                    onChange { it.copy(expectedReturnInput = sanitizeCurrencyInput(v)) }
-                },
-                label = "Retorno anual esperado (fracao, ex: 0,08)",
-                enabled = !isRunning,
-            )
-
-            CurrencyField(
-                value = form.volatilityInput,
-                onValueChange = { v ->
-                    onChange { it.copy(volatilityInput = sanitizeCurrencyInput(v)) }
-                },
-                label = "Volatilidade anual (fracao, ex: 0,15)",
-                enabled = !isRunning,
-            )
+            // monthlyContribution AUSENTE intencionalmente (derivado pela IA).
+            // Premissas de mercado (retorno, volatilidade, inflacao, desemprego)
+            // tambem NAO sao digitadas: o backend as calibra pelo seu perfil.
 
             CurrencyField(
                 value = form.targetAmountInput,
@@ -245,24 +230,6 @@ private fun CalibratedParameterForm(
                     onChange { it.copy(horizonMonthsInput = v.filter(Char::isDigit)) }
                 },
                 label = "Horizonte (meses)",
-                enabled = !isRunning,
-            )
-
-            CurrencyField(
-                value = form.inflationInput,
-                onValueChange = { v ->
-                    onChange { it.copy(inflationInput = sanitizeCurrencyInput(v)) }
-                },
-                label = "Inflacao anual (opcional)",
-                enabled = !isRunning,
-            )
-
-            CurrencyField(
-                value = form.unemploymentProbInput,
-                onValueChange = { v ->
-                    onChange { it.copy(unemploymentProbInput = sanitizeCurrencyInput(v)) }
-                },
-                label = "Probabilidade anual de desemprego (0..1, opcional)",
                 enabled = !isRunning,
             )
         }

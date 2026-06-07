@@ -135,13 +135,16 @@ data class PredictionSummaryResponseDto(
 data class RunCalibratedSimulationRequestDto(
     val goalId: String,
     val initialCapital: Double,
-    val expectedReturnAnnual: Double,
-    val volatilityAnnual: Double,
+    // Premissas de mercado: nulas => backend preenche pela base calibrada ao
+    // perfil (perfil de risco + vinculo). Com explicitNulls=false no Json, os
+    // campos nulos sao omitidos do corpo enviado.
+    val expectedReturnAnnual: Double? = null,
+    val volatilityAnnual: Double? = null,
     val horizonMonths: Int,
     val targetAmount: Double,
-    val unemploymentProbAnnual: Double = 0.0,
-    val unemploymentDurationMonths: Int = 6,
-    val inflationAnnual: Double = 0.0,
+    val unemploymentProbAnnual: Double? = null,
+    val unemploymentDurationMonths: Int? = null,
+    val inflationAnnual: Double? = null,
     val numSimulations: Int = 10_000,
     val seed: Long? = null,
     val incomeHorizonMonths: Int = 12,

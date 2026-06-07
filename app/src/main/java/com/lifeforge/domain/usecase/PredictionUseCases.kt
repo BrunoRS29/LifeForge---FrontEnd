@@ -145,12 +145,14 @@ class RunCalibratedSimulationUseCase @Inject constructor(
                 AppError.Validation("targetAmount", "valor alvo deve ser positivo")
             )
         }
-        if (p.volatilityAnnual < 0.0) {
+        // Premissas opcionais (null => backend usa o preset do perfil): so
+        // validamos quando o app de fato envia um valor.
+        if (p.volatilityAnnual != null && p.volatilityAnnual < 0.0) {
             return DataResult.Failure(
                 AppError.Validation("volatilityAnnual", "volatilidade nao pode ser negativa")
             )
         }
-        if (p.unemploymentProbAnnual !in 0.0..1.0) {
+        if (p.unemploymentProbAnnual != null && p.unemploymentProbAnnual !in 0.0..1.0) {
             return DataResult.Failure(
                 AppError.Validation("unemploymentProbAnnual", "probabilidade entre 0 e 1")
             )
