@@ -80,11 +80,15 @@ object WealthProjection {
         return ProjectionSeries(projected, contributionsOnly)
     }
 
-    /** Retorno anual nominal típico por perfil de risco (premissa-base). */
+    /**
+     * Retorno anual nominal típico por perfil de risco (premissa-base).
+     * Mesmos valores da base de referência do backend (ReferenceData):
+     * conservador 9% · moderado 11% · arrojado 13%.
+     */
     fun returnForRiskProfile(riskProfile: RiskProfile?): Double = when (riskProfile) {
-        RiskProfile.CONSERVATIVE -> 0.06
-        RiskProfile.AGGRESSIVE -> 0.12
-        else -> 0.09 // MODERATE / não informado
+        RiskProfile.CONSERVATIVE -> 0.09
+        RiskProfile.AGGRESSIVE -> 0.13
+        else -> 0.11 // MODERATE / não informado
     }
 
     /** Taxa mensal equivalente à anual: (1+a)^(1/12) − 1. */
