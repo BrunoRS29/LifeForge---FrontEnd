@@ -19,6 +19,12 @@ enum class Bank(val label: String) {
     ITAU("Itaú"),
 }
 
+/**
+ * Tipo de documento importado: extrato de conta (movimentações) ou fatura de
+ * cartão (compras unitárias). O parser e a classificação diferem.
+ */
+enum class StatementKind { ACCOUNT, CARD_INVOICE }
+
 /** Uma transação bruta extraída de uma linha do extrato (valor COM sinal). */
 data class BankTransaction(
     val date: LocalDate,
@@ -37,6 +43,8 @@ enum class InternalReason(val label: String) {
     INVESTMENT("Investimento (RDB/aplicação)"),
     SELF_TRANSFER("Transferência sua"),
     CROSS_ACCOUNT("Transferência entre suas contas"),
+    CARD_BILL("Fatura de cartão (vem das faturas)"),
+    CARD_CREDIT("Crédito da fatura (pagamento/estorno)"),
 }
 
 /**

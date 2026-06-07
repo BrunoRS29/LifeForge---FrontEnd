@@ -28,6 +28,7 @@ object StatementClassifier {
     fun classify(
         transactions: List<BankTransaction>,
         userName: String? = null,
+        treatCardBillAsInternal: Boolean = false,
     ): List<ClassifiedTransaction> {
         val nameTokens = userName
             ?.let { normalize(it) }
@@ -36,9 +37,29 @@ object StatementClassifier {
             ?.filter { it.length >= 3 }
             ?: emptyList()
 
-        val initial = transactions.map { classifyOne(it, nameTokens) }
+        val initial = transactions.map { classifyOne(it, nameTokens, treatCardBillAsInternal) }
         return detectCrossAccountTransfers(initial)
     }
+
+    /**
+     * Classifica os itens de uma FATURA de cartão. Compras (despesa = negativo
+     * na convenção interna) viram despesa com categoria; créditos da fatura
+     * (pagamento recebido, estorno — positivos aqui) viram movimento interno e
+     * já vêm desmarcados. Faturas não têm pareamento entre contas.
+     */
+    fun classifyFatura(transactions: List<BankTransaction>): List<ClassifiedTransaction> =
+        transactions.map { txn ->
+            if (txn.amount.signum() >= 0) {
+                internal(txn, InternalReason.CARD_CREDIT)
+            } else {
+                ClassifiedTransaction(
+                    txn = txn,
+                    kind = TxnKind.EXPENSE,
+                    category = detectCategory(normalize(txn.description)),
+                    includedByDefault = true,
+                )
+            }
+        }
 
     // ------------------------------------------------------------------------
     // Passagem 1: classificação individual
@@ -47,15 +68,20 @@ object StatementClassifier {
     private fun classifyOne(
         txn: BankTransaction,
         nameTokens: List<String>,
+        treatCardBillAsInternal: Boolean,
     ): ClassifiedTransaction {
         val d = normalize(txn.description)
 
         if (containsAny(d, INVESTMENT_KEYWORDS)) {
             return internal(txn, InternalReason.INVESTMENT)
         }
-        // NB: "Pagamento de fatura" NÃO é filtrado — como o extrato não traz as
-        // compras unitárias do cartão, o pagamento da fatura representa o gasto
-        // do mês e deve contar como despesa.
+        // "Pagamento de fatura": por padrão conta como despesa (o extrato não
+        // traz as compras unitárias do cartão). Mas quando o usuário também
+        // importa as faturas, o gasto vem dos itens da fatura — aqui o
+        // pagamento é desativado para não contar em dobro.
+        if (treatCardBillAsInternal && d.contains("fatura")) {
+            return internal(txn, InternalReason.CARD_BILL)
+        }
         if (nameTokens.isNotEmpty() && isTransferLike(d) && nameTokens.any { d.contains(it) }) {
             return internal(txn, InternalReason.SELF_TRANSFER)
         }
@@ -160,15 +186,25 @@ object StatementClassifier {
         listOf("rdb", "cdb", "tesouro direto", "int itau", "aplicacao", "resgate")
     private val TRANSFER_KEYWORDS = listOf("pix", " ted", " doc", "transfer")
     private val FOOD =
-        listOf("mercado", "supermerc", "atacad", "hortifruti", "padaria", "acougue", "ifood", "milk", "restaurante", "lanchonete")
+        listOf(
+            "mercado", "supermerc", "atacad", "hortifruti", "padaria", "acougue", "ifood", "ifd*",
+            "milk", "restaurante", "lanchonete", "pizz", "acai", "churrasc", "burgue", "lanch",
+            "savegnago", "assai", "delta superm", "coxinha", "hot dog", "sorvete", "cafe",
+        )
     private val HOUSING =
         listOf("cpfl", "semae", "sabesp", "enel", "energia", "agua", "vivo", "claro", "telefonica", "telesp", "internet", "aluguel", "condominio", "forca luz")
     private val TRANSPORT =
-        listOf("uber", "99app", "posto", "combustivel", "ipva", "estacionamento", "pedagio", "shell", "ipiranga")
+        listOf(
+            "uber", "99app", "posto", "combustivel", "ipva", "estacionamento", "pedagio", "shell",
+            "ipiranga", "abastece", "abastec*", "sem parar", "zona azul", "auto posto",
+        )
     private val HEALTH =
-        listOf("farmacia", "drogaria", "drogasil", "unimed", "hospital", "clinica", "saude")
+        listOf("farmacia", "drogaria", "drogasil", "drogal", "unimed", "hospital", "clinica", "saude")
     private val EDUCATION =
         listOf("escola", "faculdade", "curso", "ensino", "universidade", "udemy", "alura", "colegio")
     private val LEISURE =
-        listOf("netflix", "spotify", "cinema", "disney", "steam", "hbo", "prime video")
+        listOf(
+            "netflix", "spotify", "cinema", "disney", "steam", "hbo", "prime video",
+            "multiplex", "totalpass", "park",
+        )
 }

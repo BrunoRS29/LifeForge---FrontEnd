@@ -44,6 +44,29 @@ class StatementImportTest {
     }
 
     @Test
+    fun `fatura nubank - parseia, ignora cabecalho e inverte o sinal da compra`() {
+        // String normal (não triple-quote): o CSV tem aspas triplas ("""), que
+        // encerrariam uma raw string do Kotlin.
+        val csv = "date,title,amount\n" +
+            "2026-04-06,Padaria Asturias,\"10,68\"\n" +
+            "2026-05-07,\"IOF de \"\"Sparekorea.Com\"\"\",\"39,48\"\n" +
+            "2026-03-10,Pagamento recebido,\"- 5.925,06\""
+
+        val txns = StatementParser.parseNubankFatura(csv, "fatura.csv")
+
+        assertThat(txns).hasSize(3)
+        // Compra positiva na fatura -> negativa (despesa) na convenção interna.
+        assertThat(txns[0].amount).isEqualTo(BigDecimal("-10.68"))
+        assertThat(txns[0].description).isEqualTo("Padaria Asturias")
+        // Campo com aspas e ponto não quebra o split.
+        assertThat(txns[1].description).isEqualTo("IOF de \"Sparekorea.Com\"")
+        assertThat(txns[1].amount).isEqualTo(BigDecimal("-39.48"))
+        // Crédito (negativo na fatura) -> positivo (será marcado como interno).
+        assertThat(txns[2].amount).isEqualTo(BigDecimal("5925.06"))
+        assertThat(txns[0].bank).isEqualTo(Bank.NUBANK)
+    }
+
+    @Test
     fun `itau - entende formato BR (virgula decimal) e sinal`() {
         val txt = """
             24/02/2023;REMUNERACAO/SALARIO;1700,00
@@ -86,6 +109,40 @@ class StatementImportTest {
         // Fatura de cartão conta como despesa (extrato não tem compras unitárias).
         assertThat(res[2].kind).isEqualTo(TxnKind.EXPENSE)
         assertThat(res[2].includedByDefault).isTrue()
+    }
+
+    @Test
+    fun `fatura - compra vira despesa e credito vira interno desmarcado`() {
+        val txns = StatementParser.parseNubankFatura(
+            "date,title,amount\n" +
+                "2026-04-06,Padaria Asturias,\"10,68\"\n" +
+                "2026-03-10,Pagamento recebido,\"- 5.925,06\"\n" +
+                "2026-02-20,\"Estorno de \"\"Loja\"\"\",\"- 376,19\"",
+            "f.csv",
+        )
+
+        val res = StatementClassifier.classifyFatura(txns)
+
+        assertThat(res[0].kind).isEqualTo(TxnKind.EXPENSE)
+        assertThat(res[0].includedByDefault).isTrue()
+        assertThat(res[0].category).isEqualTo(ExpenseCategory.FOOD)   // padaria
+        assertThat(res[1].kind).isEqualTo(TxnKind.INTERNAL)           // pagamento recebido
+        assertThat(res[1].internalReason).isEqualTo(InternalReason.CARD_CREDIT)
+        assertThat(res[1].includedByDefault).isFalse()
+        assertThat(res[2].kind).isEqualTo(TxnKind.INTERNAL)           // estorno
+    }
+
+    @Test
+    fun `extrato - pagamento de fatura vira interno quando faturas sao importadas`() {
+        val txns = listOf(txn("-4707.54", "Pagamento de fatura"))
+
+        // Sem importar faturas: conta como despesa (comportamento padrão).
+        assertThat(StatementClassifier.classify(txns)[0].kind).isEqualTo(TxnKind.EXPENSE)
+
+        // Importando faturas: desativado (o gasto vem dos itens da fatura).
+        val comFatura = StatementClassifier.classify(txns, treatCardBillAsInternal = true)
+        assertThat(comFatura[0].kind).isEqualTo(TxnKind.INTERNAL)
+        assertThat(comFatura[0].internalReason).isEqualTo(InternalReason.CARD_BILL)
     }
 
     @Test

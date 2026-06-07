@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.imports.Bank
 import com.lifeforge.domain.imports.ClassifiedTransaction
+import com.lifeforge.domain.imports.StatementKind
 import com.lifeforge.domain.imports.TxnKind
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
@@ -70,6 +72,10 @@ fun ImportScreen(
     val pickFiles = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris -> viewModel.addFiles(uris) }
+
+    val pickFaturas = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris -> viewModel.addFaturaFiles(uris) }
 
     val included = state.includedIndices.mapNotNull { state.classified.getOrNull(it) }
     val incomeTotal = included.filter { it.txn.amount.signum() > 0 }
@@ -129,7 +135,9 @@ fun ImportScreen(
                     state = state,
                     onBankSelected = viewModel::onBankSelected,
                     onUserNameChange = viewModel::onUserNameChange,
+                    onImportInvoicesChange = viewModel::onImportInvoicesChange,
                     onAddFiles = { pickFiles.launch(arrayOf("*/*")) },
+                    onAddFaturas = { pickFaturas.launch(arrayOf("*/*")) },
                 )
             }
 
@@ -186,7 +194,9 @@ private fun SetupCard(
     state: ImportUiState,
     onBankSelected: (Bank) -> Unit,
     onUserNameChange: (String) -> Unit,
+    onImportInvoicesChange: (Boolean) -> Unit,
     onAddFiles: () -> Unit,
+    onAddFaturas: () -> Unit,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(
@@ -216,14 +226,45 @@ private fun SetupCard(
             OutlinedButton(onClick = onAddFiles, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.UploadFile, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Adicionar arquivos do ${state.selectedBank.label}")
+                Text("Adicionar extratos do ${state.selectedBank.label}")
+            }
+
+            HorizontalDivider()
+
+            // Chave: importar também as faturas do cartão (somente Nubank).
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Importar também as faturas?", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        if (state.importInvoices)
+                            "O pagamento da fatura no extrato é desativado; as despesas vêm dos itens da fatura."
+                        else
+                            "Só extratos: o pagamento da fatura conta como uma despesa única.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = state.importInvoices, onCheckedChange = onImportInvoicesChange)
+            }
+
+            if (state.importInvoices) {
+                OutlinedButton(onClick = onAddFaturas, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.UploadFile, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Adicionar faturas do Nubank (CSV)")
+                }
             }
 
             if (state.sources.isNotEmpty()) {
                 HorizontalDivider()
                 state.sources.forEach { src ->
+                    val tipo = if (src.kind == StatementKind.CARD_INVOICE) "fatura" else "extrato"
                     Text(
-                        "• ${src.fileName} (${src.bank.label}) — ${src.count} transações",
+                        "• ${src.fileName} — ${src.bank.label} · $tipo · ${src.count} itens",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

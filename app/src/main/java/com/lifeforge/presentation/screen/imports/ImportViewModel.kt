@@ -10,6 +10,7 @@ import com.lifeforge.domain.imports.BankTransaction
 import com.lifeforge.domain.imports.ClassifiedTransaction
 import com.lifeforge.domain.imports.ImportResult
 import com.lifeforge.domain.imports.StatementClassifier
+import com.lifeforge.domain.imports.StatementKind
 import com.lifeforge.domain.imports.StatementParser
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.repository.ExpenseRepository
@@ -44,8 +45,11 @@ class ImportViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
 ) : ViewModel() {
 
-    /** Transações brutas acumuladas de todos os arquivos da sessão. */
+    /** Transações brutas de extratos de conta, acumuladas na sessão. */
     private var rawTransactions: List<BankTransaction> = emptyList()
+
+    /** Itens brutos de faturas de cartão (somente Nubank). */
+    private var rawFaturas: List<BankTransaction> = emptyList()
 
     private val _state = MutableStateFlow(ImportUiState())
     val state: StateFlow<ImportUiState> = _state.asStateFlow()
@@ -54,6 +58,16 @@ class ImportViewModel @Inject constructor(
 
     fun onUserNameChange(name: String) {
         _state.update { it.copy(userName = name) }
+        reclassify()
+    }
+
+    /**
+     * Liga/desliga a importação de faturas. Quando ligado, o "Pagamento de
+     * fatura" do extrato é desativado (vira interno) e as despesas vêm dos
+     * itens da fatura — evita contar o gasto do cartão duas vezes.
+     */
+    fun onImportInvoicesChange(enabled: Boolean) {
+        _state.update { it.copy(importInvoices = enabled) }
         reclassify()
     }
 
@@ -72,7 +86,7 @@ class ImportViewModel @Inject constructor(
                     val parsed = if (content.isNullOrBlank()) emptyList()
                     else StatementParser.parse(bank, content, name)
                     newRaw += parsed
-                    newSources += ImportedSource(bank, name, parsed.size)
+                    newSources += ImportedSource(bank, name, parsed.size, StatementKind.ACCOUNT)
                 }
             }
 
@@ -80,6 +94,34 @@ class ImportViewModel @Inject constructor(
             _state.update { it.copy(sources = it.sources + newSources) }
             if (newRaw.isEmpty()) {
                 _state.update { it.copy(error = "Nenhuma transação reconhecida — confira se o banco selecionado é o do arquivo.") }
+            }
+            reclassify()
+        }
+    }
+
+    /** Adiciona arquivos de FATURA do Nubank (CSV `date,title,amount`). */
+    fun addFaturaFiles(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            _state.update { it.copy(error = null) }
+            val newSources = mutableListOf<ImportedSource>()
+            val newRaw = mutableListOf<BankTransaction>()
+
+            withContext(Dispatchers.IO) {
+                for (uri in uris) {
+                    val name = displayName(uri)
+                    val content = runCatching { readText(uri) }.getOrNull()
+                    val parsed = if (content.isNullOrBlank()) emptyList()
+                    else StatementParser.parseNubankFatura(content, name)
+                    newRaw += parsed
+                    newSources += ImportedSource(Bank.NUBANK, name, parsed.size, StatementKind.CARD_INVOICE)
+                }
+            }
+
+            rawFaturas = rawFaturas + newRaw
+            _state.update { it.copy(sources = it.sources + newSources) }
+            if (newRaw.isEmpty()) {
+                _state.update { it.copy(error = "Nenhum item de fatura reconhecido — confira se é o CSV de fatura do Nubank.") }
             }
             reclassify()
         }
@@ -95,8 +137,13 @@ class ImportViewModel @Inject constructor(
 
     fun clearAll() {
         rawTransactions = emptyList()
+        rawFaturas = emptyList()
         _state.update {
-            ImportUiState(selectedBank = it.selectedBank, userName = it.userName)
+            ImportUiState(
+                selectedBank = it.selectedBank,
+                userName = it.userName,
+                importInvoices = it.importInvoices,
+            )
         }
     }
 
@@ -126,8 +173,15 @@ class ImportViewModel @Inject constructor(
     fun onResultDismiss() = _state.update { it.copy(result = null) }
 
     private fun reclassify() {
-        val name = _state.value.userName.trim().ifBlank { null }
-        val classified = StatementClassifier.classify(rawTransactions, name)
+        val s = _state.value
+        val name = s.userName.trim().ifBlank { null }
+        val statementClassified = StatementClassifier.classify(
+            rawTransactions,
+            userName = name,
+            treatCardBillAsInternal = s.importInvoices,
+        )
+        val faturaClassified = StatementClassifier.classifyFatura(rawFaturas)
+        val classified = statementClassified + faturaClassified
         val defaultIncluded = classified.indices
             .filter { classified[it].includedByDefault }
             .toSet()
@@ -161,11 +215,13 @@ data class ImportedSource(
     val bank: Bank,
     val fileName: String,
     val count: Int,
+    val kind: StatementKind = StatementKind.ACCOUNT,
 )
 
 data class ImportUiState(
     val selectedBank: Bank = Bank.NUBANK,
     val userName: String = "",
+    val importInvoices: Boolean = false,
     val sources: List<ImportedSource> = emptyList(),
     val classified: List<ClassifiedTransaction> = emptyList(),
     val includedIndices: Set<Int> = emptySet(),
