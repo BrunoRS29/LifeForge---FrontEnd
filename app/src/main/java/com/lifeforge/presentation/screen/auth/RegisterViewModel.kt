@@ -3,9 +3,13 @@ package com.lifeforge.presentation.screen.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeforge.domain.model.AppError
+import com.lifeforge.domain.model.DataResult
+import com.lifeforge.domain.model.EmploymentType
 import com.lifeforge.domain.model.RiskProfile
-import com.lifeforge.domain.model.onFailure
+import com.lifeforge.domain.model.UserProfile
 import com.lifeforge.domain.usecase.RegisterUseCase
+import com.lifeforge.domain.usecase.UpdateUserProfileUseCase
+import com.lifeforge.presentation.common.sanitizeCurrencyInput
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +33,7 @@ import javax.inject.Inject
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
     private val registerUseCase: RegisterUseCase,
+    private val updateUserProfile: UpdateUserProfileUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RegisterUiState())
@@ -50,6 +55,23 @@ class RegisterViewModel @Inject constructor(
         _state.update { it.copy(riskProfile = profile) }
     }
 
+    // --- Essenciais opcionais (salvos no perfil após o registro) ---
+
+    fun onAgeChange(value: String) =
+        _state.update { it.copy(age = value.filter { c -> c.isDigit() }.take(3)) }
+
+    fun onMonthlySalaryChange(value: String) =
+        _state.update { it.copy(monthlySalary = sanitizeCurrencyInput(value)) }
+
+    fun onEmploymentTypeChange(type: EmploymentType?) =
+        _state.update { it.copy(employmentType = type) }
+
+    fun onRetirementAgeChange(value: String) =
+        _state.update { it.copy(retirementAge = value.filter { c -> c.isDigit() }.take(3)) }
+
+    fun onMonthlyContributionChange(value: String) =
+        _state.update { it.copy(monthlyContribution = sanitizeCurrencyInput(value)) }
+
     fun onErrorBannerDismiss() {
         _state.update { it.copy(errorBanner = null) }
     }
@@ -61,16 +83,37 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isSubmitting = true, errorBanner = null) }
 
-            registerUseCase(
-                email = current.email,
-                name = current.name,
-                password = current.password,
-                riskProfile = current.riskProfile,
-            ).onFailure { error -> handleError(error) }
+            when (
+                val result = registerUseCase(
+                    email = current.email,
+                    name = current.name,
+                    password = current.password,
+                    riskProfile = current.riskProfile,
+                )
+            ) {
+                is DataResult.Success -> {
+                    // Sessão já autenticada — salva os essenciais no perfil
+                    // (best-effort: se falhar, o usuário preenche depois no Perfil).
+                    val profile = current.toEssentialsProfile()
+                    if (profile != UserProfile.EMPTY) {
+                        runCatching { updateUserProfile(profile) }
+                    }
+                    // Navegação acontece via RootSessionViewModel reagindo à sessão.
+                }
+                is DataResult.Failure -> handleError(result.error)
+            }
 
             _state.update { it.copy(isSubmitting = false) }
         }
     }
+
+    private fun RegisterUiState.toEssentialsProfile(): UserProfile = UserProfile(
+        age = age.toIntOrNull(),
+        monthlySalary = monthlySalary.ifBlank { null },
+        employmentType = employmentType,
+        retirementAge = retirementAge.toIntOrNull(),
+        monthlyContribution = monthlyContribution.ifBlank { null },
+    )
 
     private fun handleError(error: AppError) {
         when (error) {
@@ -96,6 +139,12 @@ data class RegisterUiState(
     val name: String = "",
     val password: String = "",
     val riskProfile: RiskProfile? = null,
+    // Essenciais opcionais para projeções (salvos no perfil após o registro).
+    val age: String = "",
+    val monthlySalary: String = "",
+    val employmentType: EmploymentType? = null,
+    val retirementAge: String = "",
+    val monthlyContribution: String = "",
     val emailError: String? = null,
     val nameError: String? = null,
     val passwordError: String? = null,

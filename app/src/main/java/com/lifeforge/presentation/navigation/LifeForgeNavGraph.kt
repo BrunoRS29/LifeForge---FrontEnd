@@ -29,6 +29,7 @@ import com.lifeforge.presentation.screen.goal.GoalEditScreen
 import com.lifeforge.presentation.screen.goal.GoalsListScreen
 import com.lifeforge.presentation.screen.imports.ImportScreen
 import com.lifeforge.presentation.screen.optimization.OptimizationScreen
+import com.lifeforge.presentation.screen.profile.ProfileParamsScreen
 import com.lifeforge.presentation.screen.profile.ProfileScreen
 import com.lifeforge.presentation.screen.simulation.SimulationScreen
 import com.lifeforge.presentation.navigation.Predictions
@@ -167,6 +168,7 @@ fun LifeForgeNavGraph(
             composable<Profile> {
                 ProfileScreen(
                     onLogout = { rootViewModel.logout() },
+                    onNavigateToParams = { navController.navigate(ProfileParams) },
                 )
             }
 
@@ -192,6 +194,11 @@ fun LifeForgeNavGraph(
             }
             composable<StatementImport> {
                 ImportScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+            composable<ProfileParams> {
+                ProfileParamsScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }

@@ -32,7 +32,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lifeforge.domain.model.EmploymentType
 import com.lifeforge.domain.model.RiskProfile
+import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.LifeForgePasswordField
 import com.lifeforge.presentation.common.LifeForgeTextField
@@ -132,6 +134,58 @@ fun RegisterScreen(
                     enabled = !state.isSubmitting,
                 )
 
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    "Dados para projeções (opcional)",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Ajuda a personalizar suas simulações. Pode preencher depois no Perfil.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                LifeForgeTextField(
+                    value = state.age,
+                    onValueChange = viewModel::onAgeChange,
+                    label = "Idade",
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Next,
+                    enabled = !state.isSubmitting,
+                )
+                Spacer(Modifier.height(12.dp))
+                CurrencyField(
+                    value = state.monthlySalary,
+                    onValueChange = viewModel::onMonthlySalaryChange,
+                    label = "Salário mensal (R$)",
+                    enabled = !state.isSubmitting,
+                )
+                Spacer(Modifier.height(12.dp))
+                Text("Tipo de vínculo", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                EmploymentTypeChips(
+                    selected = state.employmentType,
+                    onSelect = viewModel::onEmploymentTypeChange,
+                    enabled = !state.isSubmitting,
+                )
+                Spacer(Modifier.height(12.dp))
+                LifeForgeTextField(
+                    value = state.retirementAge,
+                    onValueChange = viewModel::onRetirementAgeChange,
+                    label = "Idade desejada de aposentadoria",
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Next,
+                    enabled = !state.isSubmitting,
+                )
+                Spacer(Modifier.height(12.dp))
+                CurrencyField(
+                    value = state.monthlyContribution,
+                    onValueChange = viewModel::onMonthlyContributionChange,
+                    label = "Aporte mensal (R$)",
+                    enabled = !state.isSubmitting,
+                )
+
                 Spacer(Modifier.height(32.dp))
                 Button(
                     onClick = viewModel::submit,
@@ -177,4 +231,26 @@ private fun RiskProfile.label(): String = when (this) {
     RiskProfile.CONSERVATIVE -> "Conservador"
     RiskProfile.MODERATE -> "Moderado"
     RiskProfile.AGGRESSIVE -> "Arrojado"
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun EmploymentTypeChips(
+    selected: EmploymentType?,
+    onSelect: (EmploymentType?) -> Unit,
+    enabled: Boolean,
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        EmploymentType.entries.forEach { type ->
+            FilterChip(
+                selected = selected == type,
+                onClick = { onSelect(if (selected == type) null else type) },
+                label = { Text(type.label) },
+                enabled = enabled,
+            )
+        }
+    }
 }

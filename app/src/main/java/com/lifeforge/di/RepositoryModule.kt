@@ -9,6 +9,7 @@ import com.lifeforge.data.repository.IncomeRepositoryImpl
 import com.lifeforge.data.repository.IncomeScheduleRepositoryImpl
 import com.lifeforge.data.repository.OptimizationRepositoryImpl
 import com.lifeforge.data.repository.SimulationRepositoryImpl
+import com.lifeforge.data.repository.UserProfileRepositoryImpl
 import com.lifeforge.data.repository.UserRepositoryImpl
 import com.lifeforge.domain.repository.AssetRepository
 import com.lifeforge.domain.repository.AuthRepository
@@ -19,6 +20,7 @@ import com.lifeforge.domain.repository.IncomeRepository
 import com.lifeforge.domain.repository.IncomeScheduleRepository
 import com.lifeforge.domain.repository.OptimizationRepository
 import com.lifeforge.domain.repository.SimulationRepository
+import com.lifeforge.domain.repository.UserProfileRepository
 import com.lifeforge.domain.repository.UserRepository
 import com.lifeforge.data.repository.PredictionRepositoryImpl
 import com.lifeforge.domain.repository.PredictionRepository
@@ -50,6 +52,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindUserRepository(impl: UserRepositoryImpl): UserRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUserProfileRepository(impl: UserProfileRepositoryImpl): UserProfileRepository
 
     @Binds
     @Singleton

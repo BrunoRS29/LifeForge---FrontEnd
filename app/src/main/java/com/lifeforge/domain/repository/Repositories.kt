@@ -22,6 +22,7 @@ import com.lifeforge.domain.model.SimulationParameters
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.SimulationSummary
 import com.lifeforge.domain.model.User
+import com.lifeforge.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 import java.math.BigDecimal
 import java.time.Instant
@@ -68,6 +69,15 @@ interface UserRepository {
     suspend fun refreshCurrentUser(): DataResult<User>
 
     suspend fun updateRiskProfile(profile: RiskProfile): DataResult<User>
+}
+
+// ===========================================================================
+// User profile — parâmetros estendidos para projeções (network-only)
+// ===========================================================================
+
+interface UserProfileRepository {
+    suspend fun getProfile(): DataResult<UserProfile>
+    suspend fun updateProfile(profile: UserProfile): DataResult<UserProfile>
 }
 
 // ===========================================================================

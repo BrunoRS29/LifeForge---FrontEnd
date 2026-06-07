@@ -77,6 +77,7 @@ import com.lifeforge.presentation.common.label
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onNavigateToParams: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -123,6 +124,12 @@ fun ProfileScreen(
                     RiskProfileCard(
                         user = user,
                         onEditClick = viewModel::openRiskProfileDialog,
+                    )
+                    SettingsItemCard(
+                        icon = Icons.Outlined.Tune,
+                        title = "Dados para projeções",
+                        subtitle = "Idade, salário, moradia… quanto mais, mais precisas as projeções",
+                        onClick = onNavigateToParams,
                     )
                     UsageCard(counts = state.counts)
                     SettingsCard(

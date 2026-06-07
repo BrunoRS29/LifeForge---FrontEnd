@@ -101,6 +101,13 @@ data object Predictions
 @Serializable
 data object StatementImport
 
+/**
+ * Parâmetros do perfil (dados para projeções) — full-screen, sem bottom bar.
+ * Acessível pela tela de Perfil.
+ */
+@Serializable
+data object ProfileParams
+
 // ============================================================================
 // Metadata para o bottom bar
 // ============================================================================
