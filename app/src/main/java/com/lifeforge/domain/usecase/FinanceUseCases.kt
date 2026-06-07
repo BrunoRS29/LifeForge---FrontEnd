@@ -23,6 +23,7 @@ import com.lifeforge.domain.repository.IncomeRepository
 import com.lifeforge.domain.repository.IncomeScheduleRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
@@ -327,11 +328,12 @@ private fun validateAssetFields(
  * Snapshot consolidado para a tela inicial.
  *
  * - [totalAssets]: soma de `currentValue` de todos os ativos.
- * - [monthlyIncome]: somente o SALÁRIO (recorrente + média dos meses recentes
- *   dos salários pontuais) MAIS a renda mensal estimada dos ativos atuais
- *   (`currentValue * expectedReturn / 12`). Outras rendas avulsas não entram
- *   no ritmo mensal — o rendimento dos investimentos já é representado pelos
- *   ativos.
+ * - [monthlyIncome]: SALÁRIO MAIS a renda mensal estimada dos ativos atuais
+ *   (`currentValue * expectedReturn / 12`). O salário é o configurado pelo
+ *   usuário no perfil (fonte de verdade); na ausência dele, usa-se o inferido
+ *   dos lançamentos (recorrente + média dos meses recentes dos pontuais).
+ *   Outras rendas avulsas não entram no ritmo mensal — o rendimento dos
+ *   investimentos já é representado pelos ativos.
  * - [monthlyExpenses]: comprometimentos marcados como `recurring` MAIS a média
  *   dos últimos meses dos lançamentos pontuais. Assim, históricos importados
  *   (que vêm como não-recorrentes) deixam de zerar o ritmo mensal.
@@ -357,19 +359,32 @@ class GetFinancialSnapshotUseCase @Inject constructor(
     private val assetRepository: AssetRepository,
 ) {
 
-    operator fun invoke(): Flow<FinancialSnapshot> = combine(
+    /**
+     * @param configuredSalary salário mensal informado pelo usuário no perfil.
+     *   Quando presente, é a **fonte de verdade** da renda salarial; só caímos
+     *   no salário inferido dos lançamentos quando esse flow emite `null`.
+     *   Default = `flowOf(null)` para callers/tests sem perfil.
+     */
+    operator fun invoke(
+        configuredSalary: Flow<BigDecimal?> = flowOf(null),
+    ): Flow<FinancialSnapshot> = combine(
         incomeRepository.observeAll(),
         expenseRepository.observeAll(),
         assetRepository.observeAll(),
-    ) { incomes, expenses, assets ->
+        configuredSalary,
+    ) { incomes, expenses, assets, profileSalary ->
         val totalAssets = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
 
-        // Renda mensal = salário (recorrente + média recente dos pontuais) +
-        // renda estimada dos ativos (currentValue * expectedReturn anual / 12).
+        // Renda mensal = salário + renda estimada dos ativos
+        // (currentValue * expectedReturn anual / 12).
+        // O salário é o que o usuário configurou no perfil ([profileSalary]); só
+        // caímos no salário inferido dos lançamentos (recorrente + média recente
+        // dos pontuais) quando o perfil não tem salário informado.
         val salaries = incomes.filter { it.incomeType == IncomeType.SALARY }
-        val monthlySalary =
+        val inferredSalary =
             sumOf(salaries.filter { it.recurring }.map { it.amount }) +
                 recentMonthlyAverage(salaries.filterNot { it.recurring }.map { it.amount to it.receivedAt })
+        val monthlySalary = profileSalary ?: inferredSalary
         val monthlyAssetIncome = assets.fold(BigDecimal.ZERO) { acc, a ->
             acc + a.currentValue.multiply(a.expectedReturn).divide(BigDecimal(12), 2, RoundingMode.HALF_UP)
         }

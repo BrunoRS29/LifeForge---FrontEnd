@@ -12,6 +12,7 @@ import com.lifeforge.domain.usecase.ObserveCurrentUserUseCase
 import com.lifeforge.domain.usecase.RefreshAssetsUseCase
 import com.lifeforge.domain.usecase.RefreshExpensesUseCase
 import com.lifeforge.domain.usecase.RefreshIncomesUseCase
+import com.lifeforge.presentation.common.parseCurrencyInput
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -21,6 +22,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -53,7 +56,14 @@ class DashboardViewModel @Inject constructor(
 
     val state: StateFlow<DashboardUiState> = combine(
         observeCurrentUser(),
-        getFinancialSnapshot(),
+        getFinancialSnapshot(
+            // Salário do perfil é a fonte de verdade da renda mensal. Derivado
+            // do perfil já carregado em localState (sem fetch extra); distinct
+            // evita recalcular o snapshot a cada toggle de refreshing.
+            configuredSalary = localState
+                .map { it.profile?.monthlySalary?.let(::parseCurrencyInput) }
+                .distinctUntilChanged(),
+        ),
         localState,
     ) { user, snapshot, local ->
         DashboardUiState(
