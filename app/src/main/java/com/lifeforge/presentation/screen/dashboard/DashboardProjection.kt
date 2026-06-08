@@ -72,6 +72,12 @@ fun WealthProjectionCard(
         ?: 0.0
     val monthlyExpenses = snapshot.monthlyExpenses.toDouble()
 
+    // Ativos reais do perfil (imóvel valoriza, veículos depreciam) e filhos
+    // (custo por idade) — só entram quando o usuário informa; taxas vêm da base.
+    val propertyValue = profile?.propertyValue?.let { parseCurrencyInput(it)?.toDouble() } ?: 0.0
+    val vehiclesValue = profile?.vehiclesValue?.let { parseCurrencyInput(it)?.toDouble() } ?: 0.0
+    val childrenAges = parseAges(profile?.childrenAges)
+
     val inputs = ProjectionInputs(
         initialWealth = snapshot.totalAssets.toDouble(),
         monthlyIncome = monthlySalary,
@@ -80,6 +86,12 @@ fun WealthProjectionCard(
         annualSalaryGrowth = annualSalaryGrowth,
         annualInflation = annualInflation,
         months = months,
+        initialPropertyValue = propertyValue,
+        annualPropertyAppreciation = referenceData?.realEstateAppreciationAnnual ?: 0.0,
+        initialVehiclesValue = vehiclesValue,
+        annualVehicleDepreciation = referenceData?.vehicleDepreciationAnnual ?: 0.0,
+        childrenAges = childrenAges,
+        childCostByAge = referenceData?.childCostByAge ?: emptyList(),
     )
     val proj = remember(inputs) { WealthProjection.projectDynamic(inputs) }
 
@@ -94,7 +106,9 @@ fun WealthProjectionCard(
     }
 
     val years = (months / 12.0).roundToInt().coerceAtLeast(1)
-    val contribution0 = (monthlySalary - monthlyExpenses).coerceAtLeast(0.0)
+    val childCost0 = childrenAges.sumOf { referenceData?.childMonthlyCost(it) ?: 0.0 }
+    val contribution0 = (monthlySalary - monthlyExpenses - childCost0).coerceAtLeast(0.0)
+    val initialNetWorth = snapshot.totalAssets.toDouble() + propertyValue + vehiclesValue
     val personalized = horizonMonths != null ||
         profile?.monthlySalary != null || profile?.expectedSalaryGrowth != null
 
@@ -112,7 +126,7 @@ fun WealthProjectionCard(
             )
             Text(
                 buildString {
-                    append("De ${formatBrl(snapshot.totalAssets)} hoje, aportando ~")
+                    append("De ${formatBrl(initialNetWorth.toBigDecimal())} hoje, aportando ~")
                     append("${formatBrl(contribution0)}/mês")
                     append(" por $years anos · retorno ~${pct(annualReturn)} a.a.")
                     append(" · salário +${pct(annualSalaryGrowth)}/ano · inflação ${pct(annualInflation)}/ano.")
@@ -164,5 +178,9 @@ private fun monthsToRetirement(profile: UserProfile?): Int? {
 /** "5" -> 0.05 ; "5,5" -> 0.055. */
 private fun parsePercent(raw: String): Double? =
     raw.replace(',', '.').toDoubleOrNull()?.let { it / 100.0 }
+
+/** "3, 7" -> [3, 7]; ignora valores inválidos/fora de 0..120. */
+private fun parseAges(raw: String?): List<Int> =
+    raw?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.filter { it in 0..120 } ?: emptyList()
 
 private fun pct(fraction: Double): String = "${(fraction * 100).roundToInt()}%"

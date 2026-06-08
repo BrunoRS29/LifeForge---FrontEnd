@@ -120,4 +120,49 @@ class WealthProjectionTest {
         assertThat(mod).isLessThan(agg)
         assertThat(WealthProjection.returnForRiskProfile(null)).isEqualTo(mod)
     }
+
+    // ------------------------------------------------------------------------
+    // Ativos reais e custo de filhos (diferenciais)
+    // ------------------------------------------------------------------------
+
+    @Test
+    fun `imovel valoriza e entra no patrimonio projetado`() {
+        val base = ProjectionInputs(
+            initialWealth = 10_000.0, monthlyIncome = 5_000.0, monthlyExpenses = 3_000.0,
+            annualReturn = 0.0, annualSalaryGrowth = 0.0, annualInflation = 0.0, months = 120,
+        )
+        val comImovel = base.copy(initialPropertyValue = 100_000.0, annualPropertyAppreciation = 0.06)
+        val semImovel = WealthProjection.projectDynamic(base).finalProjected
+        val comImovelFinal = WealthProjection.projectDynamic(comImovel).finalProjected
+        // O imóvel entra no patrimônio e ainda valoriza: final > base + valor inicial.
+        assertThat(comImovelFinal).isGreaterThan(semImovel + 100_000.0)
+    }
+
+    @Test
+    fun `veiculo deprecia cerca de dez por cento ao ano`() {
+        val s = WealthProjection.projectDynamic(
+            ProjectionInputs(
+                initialWealth = 0.0, monthlyIncome = 0.0, monthlyExpenses = 0.0,
+                annualReturn = 0.0, annualSalaryGrowth = 0.0, annualInflation = 0.0, months = 12,
+                initialVehiclesValue = 50_000.0, annualVehicleDepreciation = 0.10,
+            )
+        )
+        // Sem renda/rendimento, o patrimônio é só o veículo: ~90% após 1 ano.
+        assertThat(s.finalProjected).isWithin(1.0).of(45_000.0)
+    }
+
+    @Test
+    fun `custo de filhos reduz o patrimonio projetado`() {
+        val base = ProjectionInputs(
+            initialWealth = 10_000.0, monthlyIncome = 5_000.0, monthlyExpenses = 3_000.0,
+            annualReturn = 0.08, annualSalaryGrowth = 0.0, annualInflation = 0.0, months = 120,
+        )
+        val comFilho = base.copy(
+            childrenAges = listOf(5),
+            childCostByAge = listOf(ChildCostBracket(ageMaxInclusive = 18, monthlyCost = 1_000.0)),
+        )
+        val semFilho = WealthProjection.projectDynamic(base).finalProjected
+        val comFilhoFinal = WealthProjection.projectDynamic(comFilho).finalProjected
+        assertThat(comFilhoFinal).isLessThan(semFilho)
+    }
 }

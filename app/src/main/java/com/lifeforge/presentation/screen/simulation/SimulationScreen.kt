@@ -331,7 +331,10 @@ internal fun ResultSection(result: SimulationResult) {
             }
         }
 
-        // Estatísticas-chave em grid 2x2.
+        // Cenários nomeados (diferencial): pessimista/realista/otimista.
+        ScenariosCard(result)
+
+        // Estatísticas-chave: mediana e média real (deflacionada pela inflação).
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatBox(
                 modifier = Modifier.weight(1f),
@@ -344,24 +347,73 @@ internal fun ResultSection(result: SimulationResult) {
                 value = formatBrlCompact(result.meanReal.toBigDecimal()),
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatBox(
-                modifier = Modifier.weight(1f),
-                label = "P5 (pessimista)",
-                value = result.percentiles["P5"]
-                    ?.let { formatBrlCompact(it.toBigDecimal()) } ?: "—",
-            )
-            StatBox(
-                modifier = Modifier.weight(1f),
-                label = "P95 (otimista)",
-                value = result.percentiles["P95"]
-                    ?.let { formatBrlCompact(it.toBigDecimal()) } ?: "—",
-            )
-        }
 
         FanChart(trajectory = result.trajectory)
         HistogramChart(buckets = result.histogram, targetAmount = result.targetAmount)
         PercentilesChart(percentiles = result.percentiles)
+    }
+}
+
+/**
+ * Três cenários nomeados a partir dos percentis do Monte Carlo (diferencial de
+ * TCC): pessimista (P10), realista (P50) e otimista (P90). Dá ao usuário uma
+ * leitura imediata da faixa de resultados sem precisar interpretar gráficos.
+ */
+@Composable
+private fun ScenariosCard(result: SimulationResult) {
+    val pessimista = result.percentiles["P10"] ?: result.worstCase
+    val realista = result.percentiles["P50"] ?: result.median
+    val otimista = result.percentiles["P90"] ?: result.bestCase
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text("Cenários", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Patrimônio final em 3 cenários (percentis do Monte Carlo).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ScenarioBox(Modifier.weight(1f), "Pessimista", "P10", pessimista)
+                ScenarioBox(Modifier.weight(1f), "Realista", "P50", realista)
+                ScenarioBox(Modifier.weight(1f), "Otimista", "P90", otimista)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScenarioBox(
+    modifier: Modifier,
+    title: String,
+    percentile: String,
+    value: Double,
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(formatBrlCompact(value.toBigDecimal()), style = MaterialTheme.typography.titleSmall)
+            Text(
+                percentile,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

@@ -60,22 +60,39 @@ object WealthProjection {
         val rRet = monthlyRate(inputs.annualReturn)
         val gSal = monthlyRate(inputs.annualSalaryGrowth)
         val gInf = monthlyRate(inputs.annualInflation)
+        // Imóvel valoriza; veículos depreciam (fator mensal de retenção do valor).
+        val propMonthlyFactor = (1.0 + inputs.annualPropertyAppreciation).pow(1.0 / 12.0)
+        val vehMonthlyFactor = (1.0 - inputs.annualVehicleDepreciation).coerceIn(0.0, 1.0).pow(1.0 / 12.0)
+        // Os ativos reais entram igual nas duas linhas (base), então a distância
+        // entre elas continua refletindo o efeito de investir.
+        val realAssetsBaseline = inputs.initialPropertyValue + inputs.initialVehiclesValue
 
         val projected = ArrayList<Double>(inputs.months + 1)
         val contributionsOnly = ArrayList<Double>(inputs.months + 1)
-        var wealth = inputs.initialWealth
-        var accumulated = inputs.initialWealth
-        projected.add(wealth)
-        contributionsOnly.add(accumulated)
+        var liquid = inputs.initialWealth
+        var property = inputs.initialPropertyValue
+        var vehicles = inputs.initialVehiclesValue
+        var accumulatedLiquid = inputs.initialWealth
+        projected.add(liquid + property + vehicles)
+        contributionsOnly.add(accumulatedLiquid + realAssetsBaseline)
 
         for (m in 1..inputs.months) {
+            val inflationFactor = (1.0 + gInf).pow((m - 1).toDouble())
             val income = inputs.monthlyIncome * (1.0 + gSal).pow((m - 1).toDouble())
-            val expenses = inputs.monthlyExpenses * (1.0 + gInf).pow((m - 1).toDouble())
+            // Custo dos filhos: cada um envelhece ao longo do horizonte e muda de
+            // faixa; o valor base também é corrigido pela inflação.
+            val yearsElapsed = (m - 1) / 12
+            val childCost = inputs.childrenAges.sumOf {
+                childMonthlyCost(it + yearsElapsed, inputs.childCostByAge)
+            } * inflationFactor
+            val expenses = inputs.monthlyExpenses * inflationFactor + childCost
             val contribution = (income - expenses).coerceAtLeast(0.0)
-            wealth = wealth * (1.0 + rRet) + contribution
-            accumulated += contribution
-            projected.add(wealth)
-            contributionsOnly.add(accumulated)
+            liquid = liquid * (1.0 + rRet) + contribution
+            property *= propMonthlyFactor
+            vehicles *= vehMonthlyFactor
+            accumulatedLiquid += contribution
+            projected.add(liquid + property + vehicles)
+            contributionsOnly.add(accumulatedLiquid + realAssetsBaseline)
         }
         return ProjectionSeries(projected, contributionsOnly)
     }
@@ -94,6 +111,10 @@ object WealthProjection {
     /** Taxa mensal equivalente à anual: (1+a)^(1/12) − 1. */
     private fun monthlyRate(annual: Double): Double =
         if (abs(annual) < 1e-12) 0.0 else (1.0 + annual).pow(1.0 / 12.0) - 1.0
+
+    /** Custo mensal de um filho na idade [ageYears] conforme [brackets]; 0 se ausente. */
+    private fun childMonthlyCost(ageYears: Int, brackets: List<ChildCostBracket>): Double =
+        brackets.firstOrNull { ageYears <= it.ageMaxInclusive }?.monthlyCost ?: 0.0
 }
 
 /** Entradas da projeção dinâmica (todas anuais, exceto valores mensais). */
@@ -105,6 +126,14 @@ data class ProjectionInputs(
     val annualSalaryGrowth: Double,
     val annualInflation: Double,
     val months: Int,
+    // Ativos reais (opcionais; 0 = sem efeito): imóvel valoriza, veículos depreciam.
+    val initialPropertyValue: Double = 0.0,
+    val annualPropertyAppreciation: Double = 0.0,
+    val initialVehiclesValue: Double = 0.0,
+    val annualVehicleDepreciation: Double = 0.0,
+    // Custo de filhos por faixa etária (opcional): idades atuais + tabela de custos.
+    val childrenAges: List<Int> = emptyList(),
+    val childCostByAge: List<ChildCostBracket> = emptyList(),
 )
 
 data class ProjectionSeries(

@@ -113,6 +113,10 @@ fun DashboardScreen(
                         riskProfile = state.user?.riskProfile,
                         referenceData = state.referenceData,
                     )
+                    FinancialIndependenceCard(
+                        snapshot = snapshot,
+                        referenceData = state.referenceData,
+                    )
                 }
 
                 // Recorrências detectadas automaticamente no histórico.
