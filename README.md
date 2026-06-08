@@ -1,113 +1,97 @@
-# LifeForge Android — Sprint 4
+# LifeForge — App Android
 
-Módulo Android nativo (Kotlin + Jetpack Compose) do TCC LifeForge.
+Aplicativo Android nativo (Kotlin + Jetpack Compose) do TCC **LifeForge** —
+planejamento de vida com modelagem probabilística, Simulação de Monte Carlo,
+otimização e IA preditiva. Consome a API REST do backend Ktor (repositório
+`LifeForge---BackEnd`).
 
-> **Status atual:** Fase 4.0 — Fundação concluída.
-> **Próxima:** Fase 4.1 — Camada de dados (Retrofit + Room + Hilt modules).
+## Stack
 
----
+| Camada | Tecnologia |
+| --- | --- |
+| Linguagem / Build | Kotlin (K2) 2.1.0 · AGP 8.7.3 · JVM 17 |
+| UI | Jetpack Compose (BOM 2025.01.00) · Material 3 |
+| Gráficos | Vico (histograma, *fan chart*, gauge de probabilidade) |
+| Injeção de dependência | Hilt 2.54 (+ KSP) |
+| Rede | Retrofit + OkHttp + conversor kotlinx.serialization |
+| Persistência local | Room (cache offline-first) |
+| Navegação | Navigation Compose (rotas type-safe `@Serializable`) |
+| Assíncrono | Coroutines + Flow |
+| Testes | JUnit · Truth · MockK · Turbine · coroutines-test · Room testing |
 
-## Stack desta fase
+`minSdk = 26` (Android 8.0) · `targetSdk = compileSdk = 35`.
 
-| Camada | Tecnologia | Versão |
-|--------|------------|--------|
-| Build  | Android Gradle Plugin | 8.7.3 |
-| Linguagem | Kotlin (K2) | 2.1.0 |
-| UI | Jetpack Compose (BOM) | 2025.01.00 |
-| DI | Hilt | 2.54 |
-| Annotation processing | KSP | 2.1.0-1.0.29 |
-| Logging | Timber | 5.0.1 |
-
-`minSdk = 26` (Android 8.0) · `targetSdk = compileSdk = 35` · `JVM target = 17`
-
-## Estrutura de pastas (Clean Architecture)
+## Arquitetura (Clean Architecture, offline-first)
 
 ```
 app/src/main/java/com/lifeforge/
-├── LifeForgeApplication.kt        ← entrypoint Hilt + Timber
-├── di/                            ← módulos Hilt (Fase 4.1)
 ├── data/
-│   ├── api/                       ← Retrofit interfaces
-│   ├── db/                        ← Room entities + DAOs
-│   ├── repository/                ← RepositoryImpl
-│   └── model/                     ← DTOs de rede e mappers
+│   ├── api/          ← interfaces Retrofit (auth, goals, finance, simulation,
+│   │                   optimization, prediction, profile, reference-data, import)
+│   ├── db/           ← Room: entities, DAOs, converters
+│   ├── repository/   ← RepositoryImpl (rede + cache Room)
+│   ├── mapper/       ← DTO ↔ domínio
+│   └── model/dto/    ← DTOs de rede
 ├── domain/
-│   ├── model/                     ← entidades de domínio puras
-│   ├── repository/                ← interfaces de repositório
-│   └── usecase/                   ← casos de uso (Fase 4.2)
+│   ├── model/        ← entidades puras + regras (WealthProjection, ReferenceData…)
+│   ├── repository/   ← interfaces de repositório
+│   └── usecase/      ← casos de uso
+├── di/               ← módulos Hilt (Network, Database, Repository)
 └── presentation/
-    ├── MainActivity.kt            ← single-activity host
-    ├── screens/
-    │   ├── dashboard/
-    │   ├── goals/
-    │   ├── simulation/
-    │   └── profile/
-    ├── components/                ← componentes reutilizáveis
-    ├── navigation/                ← grafo Navigation Compose
-    └── theme/                     ← tema Material 3 do LifeForge
+    ├── screen/       ← auth, dashboard, finance, goal, simulation, optimization,
+    │                   prediction, profile, imports
+    ├── navigation/   ← grafo Navigation Compose
+    └── common/       ← componentes e formatadores reutilizáveis
 ```
 
-Toda pasta vazia carrega um `.gitkeep` para sobreviver ao versionamento.
+Padrão **offline-first**: `observeXxx()` expõe `Flow` do Room (fonte única);
+`refreshXxx()` sincroniza com a API e atualiza o cache. `DataResult<T>`
+(Success/Failure) + `safeApiCall` padronizam o tratamento de erro.
 
-## Como instalar os arquivos
+## Telas
 
-1. Crie um diretório `android/` na raiz do repositório do TCC (ao lado da pasta `backend/`).
-2. Copie todo o conteúdo deste pacote para dentro de `android/`.
-3. Abra o Android Studio (Hedgehog ou superior) e selecione **Open** apontando para `android/`.
-4. Aguarde o Gradle sync. Será necessário baixar o wrapper (~150 MB na primeira execução).
-5. Crie um arquivo `local.properties` em `android/` (não versionado) com:
+- **Autenticação** — login e registro (com essenciais do perfil).
+- **Dashboard** — métricas, evolução patrimonial real × projetada (personalizada
+  pelo perfil), **índice FI/RE** (independência financeira) e predição de patrimônio.
+- **Finanças** — Receitas / Despesas / Ativos, lançamentos recorrentes, navegador de
+  mês e **importação de extratos/faturas** (Nubank).
+- **Metas** — lista, detalhe e edição.
+- **Simulação** — Monte Carlo clássico e **"Simular com IA" de 1 toque** (premissas
+  calibradas pelo perfil), com **cenários** pessimista/realista/otimista, *fan chart*,
+  gauge de probabilidade e histograma.
+- **Otimização** — aporte ideal, prazo e rebalanceamento.
+- **Predições** — projeções de renda/despesa/patrimônio (microsserviço de ML).
+- **Perfil** — dados opcionais que refinam as projeções (sobrepõem a base estatística).
+
+## Como rodar
+
+1. Abra a pasta do projeto no **Android Studio** (Ladybug ou superior) e aguarde o
+   Gradle sync.
+2. Suba o backend localmente (`docker compose up` no repositório do backend) —
+   `http://localhost:8080`.
+3. Rode em um **emulador** (o app aponta para `http://10.0.2.2:8080/api/v1/` em
+   debug, que é o loopback do host no emulador).
+
+```bash
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug        # com emulador rodando
+./gradlew :app:testDebugUnitTest   # testes unitários
+```
+
+A URL do backend pode ser sobrescrita em `local.properties` (não versionado):
 
 ```properties
-sdk.dir=/caminho/para/seu/Android/sdk
-# Opcional — sobrescreve a URL padrão do backend
+sdk.dir=/caminho/para/o/Android/sdk
+# Opcional:
 # API_BASE_URL_DEBUG=http://10.0.2.2:8080/api/v1/
 ```
 
-> O Android Studio gera o `sdk.dir` automaticamente ao abrir o projeto.
+`networkSecurityConfig` bloqueia *cleartext* em produção mas libera `10.0.2.2`
+para desenvolvimento local sem TLS.
 
-## Verificando o build
+## Testes
 
-Com o backend Ktor rodando localmente em `http://localhost:8080`:
-
-```bash
-# Na pasta android/
-./gradlew :app:assembleDebug
-./gradlew :app:installDebug   # com emulador rodando
-```
-
-O app deve abrir mostrando a tela de boot **"LifeForge — Fase 4.0 OK"**.
-Isso valida que: AGP, Kotlin K2, Compose Compiler, KSP, Hilt e
-Kotlinx Serialization estão todos integrados corretamente.
-
-## Decisões arquiteturais desta fase
-
-- **Single-activity** com `MainActivity` hospedando todo o grafo Compose. Evita complexidade de fragments/intents internos.
-- **Version catalog** (`gradle/libs.versions.toml`) centraliza todas as versões e bundles, facilitando upgrades futuros e mantendo o `build.gradle.kts` enxuto.
-- **Bundles** agrupam dependências relacionadas (`compose`, `lifecycle`, `network`, `room`, `vico`, `unit-test`, `android-test`) para diminuir ruído no app module.
-- **KSP** sobre KAPT — Hilt e Room usam KSP, que é ~2x mais rápido em projetos K2.
-- **`networkSecurityConfig`** bloqueia cleartext em produção mas libera para `10.0.2.2` (loopback do emulador), permitindo dev local sem TLS.
-- **`local.properties`** isola `API_BASE_URL` por ambiente sem expor segredos no Git.
-- **ProGuard rules** mínimas mas suficientes para Kotlinx Serialization, Retrofit, OkHttp e Hilt — suficiente para R8 release builds.
-- **`HiltViewModel` + `hiltNavigationCompose`** já no catálogo: ViewModels serão criados via `hiltViewModel()` direto nas Composables na Fase 4.2.
-
-## O que NÃO está nesta fase
-
-Itens deliberadamente adiados — entram nas próximas fases:
-
-- Módulos Hilt (`NetworkModule`, `DatabaseModule`, `RepositoryModule`) → Fase 4.1
-- Retrofit API interfaces, Room entities/DAOs, repositórios → Fase 4.1
-- Tema Material 3 LifeForge (cores, tipografia) e grafo de navegação → Fase 4.2
-- UseCases e domain models → Fase 4.2
-- Telas Compose reais → Fases 4.3 e 4.4
-- Gráficos Vico (histograma, fan chart, gauge) → Fase 4.4
-- Wrapper do Gradle (`gradlew`, `gradlew.bat`, `gradle/wrapper/`) — gerado automaticamente pelo Android Studio na primeira abertura
-
-## Roadmap da Sprint 4
-
-| Fase | Status | Escopo |
-|------|--------|--------|
-| 4.0 — Fundação | ✅ | Gradle, manifest, Application, estrutura |
-| 4.1 — Camada de dados | ⏳ | Retrofit, Room, RepositoryImpl, módulos Hilt |
-| 4.2 — Domínio + UI foundation | ⏳ | UseCases, tema MD3, navegação |
-| 4.3 — Telas básicas | ⏳ | Auth, Dashboard, Goals, Profile |
-| 4.4 — Simulação + gráficos | ⏳ | SimulationScreen, ResultScreen, Vico |
+Testes unitários cobrem mapeadores, conversores do banco local, o interceptador de
+autenticação, utilitários (chamada segura de API), o repositório de metas, casos de
+uso representativos e a lógica de domínio (projeção patrimonial, base de referência).
+Execução: `./gradlew :app:testDebugUnitTest`.
