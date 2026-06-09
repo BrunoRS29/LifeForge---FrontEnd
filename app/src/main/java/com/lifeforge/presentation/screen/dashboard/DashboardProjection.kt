@@ -76,6 +76,7 @@ fun WealthProjectionCard(
     // (custo por idade) — só entram quando o usuário informa; taxas vêm da base.
     val propertyValue = profile?.propertyValue?.let { parseCurrencyInput(it)?.toDouble() } ?: 0.0
     val vehiclesValue = profile?.vehiclesValue?.let { parseCurrencyInput(it)?.toDouble() } ?: 0.0
+    val totalDebt = profile?.totalDebt?.let { parseCurrencyInput(it)?.toDouble() } ?: 0.0
     val childrenAges = parseAges(profile?.childrenAges)
 
     val inputs = ProjectionInputs(
@@ -92,6 +93,7 @@ fun WealthProjectionCard(
         annualVehicleDepreciation = referenceData?.vehicleDepreciationAnnual ?: 0.0,
         childrenAges = childrenAges,
         childCostByAge = referenceData?.childCostByAge ?: emptyList(),
+        initialDebt = totalDebt,
     )
     val proj = remember(inputs) { WealthProjection.projectDynamic(inputs) }
 
@@ -108,7 +110,7 @@ fun WealthProjectionCard(
     val years = (months / 12.0).roundToInt().coerceAtLeast(1)
     val childCost0 = childrenAges.sumOf { referenceData?.childMonthlyCost(it) ?: 0.0 }
     val contribution0 = (monthlySalary - monthlyExpenses - childCost0).coerceAtLeast(0.0)
-    val initialNetWorth = snapshot.totalAssets.toDouble() + propertyValue + vehiclesValue
+    val initialNetWorth = snapshot.totalAssets.toDouble() + propertyValue + vehiclesValue - totalDebt
     val personalized = horizonMonths != null ||
         profile?.monthlySalary != null || profile?.expectedSalaryGrowth != null
 

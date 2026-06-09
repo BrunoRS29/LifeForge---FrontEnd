@@ -165,4 +165,17 @@ class WealthProjectionTest {
         val comFilhoFinal = WealthProjection.projectDynamic(comFilho).finalProjected
         assertThat(comFilhoFinal).isLessThan(semFilho)
     }
+
+    @Test
+    fun `divida reduz o patrimonio liquido projetado`() {
+        val base = ProjectionInputs(
+            initialWealth = 10_000.0, monthlyIncome = 5_000.0, monthlyExpenses = 3_000.0,
+            annualReturn = 0.08, annualSalaryGrowth = 0.0, annualInflation = 0.0, months = 60,
+        )
+        val comDivida = base.copy(initialDebt = 20_000.0)
+        val semDivida = WealthProjection.projectDynamic(base).finalProjected
+        val comDividaFinal = WealthProjection.projectDynamic(comDivida).finalProjected
+        // Passivo estatico: reduz o liquido em exatamente o valor da divida.
+        assertThat(comDividaFinal).isWithin(1e-6).of(semDivida - 20_000.0)
+    }
 }

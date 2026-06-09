@@ -73,8 +73,8 @@ object WealthProjection {
         var property = inputs.initialPropertyValue
         var vehicles = inputs.initialVehiclesValue
         var accumulatedLiquid = inputs.initialWealth
-        projected.add(liquid + property + vehicles)
-        contributionsOnly.add(accumulatedLiquid + realAssetsBaseline)
+        projected.add(liquid + property + vehicles - inputs.initialDebt)
+        contributionsOnly.add(accumulatedLiquid + realAssetsBaseline - inputs.initialDebt)
 
         for (m in 1..inputs.months) {
             val inflationFactor = (1.0 + gInf).pow((m - 1).toDouble())
@@ -91,8 +91,8 @@ object WealthProjection {
             property *= propMonthlyFactor
             vehicles *= vehMonthlyFactor
             accumulatedLiquid += contribution
-            projected.add(liquid + property + vehicles)
-            contributionsOnly.add(accumulatedLiquid + realAssetsBaseline)
+            projected.add(liquid + property + vehicles - inputs.initialDebt)
+            contributionsOnly.add(accumulatedLiquid + realAssetsBaseline - inputs.initialDebt)
         }
         return ProjectionSeries(projected, contributionsOnly)
     }
@@ -134,6 +134,8 @@ data class ProjectionInputs(
     // Custo de filhos por faixa etária (opcional): idades atuais + tabela de custos.
     val childrenAges: List<Int> = emptyList(),
     val childCostByAge: List<ChildCostBracket> = emptyList(),
+    // Dívida total (opcional): reduz o patrimônio líquido (passivo estático).
+    val initialDebt: Double = 0.0,
 )
 
 data class ProjectionSeries(
