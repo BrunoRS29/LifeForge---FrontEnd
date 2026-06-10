@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.YearMonth
 import java.util.Locale
 
 /**
@@ -11,6 +12,9 @@ import java.util.Locale
  * identificar receitas/despesas recorrentes a partir dos extratos importados).
  */
 class RecurrenceDetectorTest {
+
+    /** Mês de referência fixo para os cenários (datas dos itens: 2026). */
+    private val reference = YearMonth.of(2026, 3)
 
     private fun instant(year: Int, month: Int): Instant =
         Instant.parse(String.format(Locale.US, "%04d-%02d-10T12:00:00Z", year, month))
@@ -34,7 +38,7 @@ class RecurrenceDetectorTest {
             income("16800.00", "Transferencia Recebida - GABRIEL CONSULTORIA 57.423", 2026, 2),
             income("17000.00", "Transferencia Recebida - GABRIEL CONSULTORIA 57.423", 2026, 3),
         )
-        val res = RecurrenceDetector.detectIncome(incomes)
+        val res = RecurrenceDetector.detectIncome(incomes, reference)
 
         assertThat(res).hasSize(1)
         assertThat(res[0].months).isEqualTo(3)
@@ -47,7 +51,7 @@ class RecurrenceDetectorTest {
             expense("63.98", "SEMAE PIRACICABA", 2026, 2),
             expense("63.98", "SEMAE PIRACICABA", 2026, 3),
         )
-        assertThat(RecurrenceDetector.detectExpense(expenses)).isEmpty()
+        assertThat(RecurrenceDetector.detectExpense(expenses, reference)).isEmpty()
     }
 
     @Test
@@ -57,9 +61,33 @@ class RecurrenceDetectorTest {
             expense("100.00", "PIX TRANSF FORNECEDOR 12/02", 2026, 2),
             expense("100.00", "PIX TRANSF FORNECEDOR 08/03", 2026, 3),
         )
-        val res = RecurrenceDetector.detectExpense(expenses)
+        val res = RecurrenceDetector.detectExpense(expenses, reference)
 
         assertThat(res).hasSize(1)
         assertThat(res[0].months).isEqualTo(3)
+    }
+
+    @Test
+    fun `recorrencia encerrada ha meses nao aparece mais`() {
+        // Assinatura presente em 3 meses, mas o último foi em 2025-08 —
+        // mais de 2 meses antes da referência (2026-03): não é mais ativa.
+        val expenses = listOf(
+            expense("99.90", "ACADEMIA SMARTFIT", 2025, 6),
+            expense("99.90", "ACADEMIA SMARTFIT", 2025, 7),
+            expense("99.90", "ACADEMIA SMARTFIT", 2025, 8),
+        )
+        assertThat(RecurrenceDetector.detectExpense(expenses, reference)).isEmpty()
+    }
+
+    @Test
+    fun `ocorrencias antigas fora da janela de 12 meses nao contam`() {
+        // Só 2 ocorrências dentro da janela recente: insuficiente.
+        val expenses = listOf(
+            expense("63.98", "SEMAE PIRACICABA", 2024, 1),
+            expense("63.98", "SEMAE PIRACICABA", 2024, 2),
+            expense("63.98", "SEMAE PIRACICABA", 2026, 2),
+            expense("63.98", "SEMAE PIRACICABA", 2026, 3),
+        )
+        assertThat(RecurrenceDetector.detectExpense(expenses, reference)).isEmpty()
     }
 }
