@@ -8,6 +8,7 @@ import com.lifeforge.data.util.safeApiCall
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.User
 import com.lifeforge.domain.model.mapCatching
+import com.lifeforge.data.model.dto.UpdateNameRequestDto
 import com.lifeforge.data.model.dto.UpdateRiskProfileRequestDto
 import com.lifeforge.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
@@ -54,4 +55,12 @@ class UserRepositoryImpl @Inject constructor(
                 dto.toDomain()
             }
     }
+
+    override suspend fun updateName(name: String): DataResult<User> =
+        safeApiCall(json) { userApi.updateName(UpdateNameRequestDto(name)) }
+            .mapCatching { dto ->
+                // Atualiza o Room — a UI (header do perfil) reage sozinha.
+                userDao.upsert(dto.toEntity())
+                dto.toDomain()
+            }
 }

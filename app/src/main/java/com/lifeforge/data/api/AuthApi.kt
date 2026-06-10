@@ -3,6 +3,7 @@ package com.lifeforge.data.api
 import com.lifeforge.data.model.dto.AuthResponseDto
 import com.lifeforge.data.model.dto.LoginRequestDto
 import com.lifeforge.data.model.dto.RegisterRequestDto
+import com.lifeforge.data.model.dto.UpdateNameRequestDto
 import com.lifeforge.data.model.dto.UpdateRiskProfileRequestDto
 import com.lifeforge.data.model.dto.UserDto
 import retrofit2.Response
@@ -39,5 +40,10 @@ interface UserApi {
     @PATCH("users/me/risk-profile")
     suspend fun updateRiskProfile(
         @Body body: UpdateRiskProfileRequestDto,
+    ): Response<UserDto>
+
+    @PATCH("users/me/name")
+    suspend fun updateName(
+        @Body body: UpdateNameRequestDto,
     ): Response<UserDto>
 }

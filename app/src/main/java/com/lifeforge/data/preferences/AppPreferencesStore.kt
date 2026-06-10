@@ -49,8 +49,24 @@ class AppPreferencesStore @Inject constructor(
         }
     }
 
+    /**
+     * Caminho do arquivo local com a foto de perfil (copiada do picker para
+     * o armazenamento interno do app). Foto é uma preferência do DISPOSITIVO
+     * — não sobe para o backend; null = sem foto (avatar com ícone padrão).
+     */
+    val avatarPathFlow: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[KEY_AVATAR_PATH]
+    }
+
+    suspend fun setAvatarPath(path: String?) {
+        dataStore.edit { prefs ->
+            if (path == null) prefs.remove(KEY_AVATAR_PATH) else prefs[KEY_AVATAR_PATH] = path
+        }
+    }
+
     companion object {
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        private val KEY_AVATAR_PATH = stringPreferencesKey("avatar_path")
     }
 }
 

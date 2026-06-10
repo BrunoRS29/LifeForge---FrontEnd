@@ -69,6 +69,9 @@ interface UserRepository {
     suspend fun refreshCurrentUser(): DataResult<User>
 
     suspend fun updateRiskProfile(profile: RiskProfile): DataResult<User>
+
+    /** Troca o nome de exibição do usuário (PATCH /users/me/name). */
+    suspend fun updateName(name: String): DataResult<User>
 }
 
 // ===========================================================================

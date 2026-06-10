@@ -31,3 +31,10 @@ class UpdateRiskProfileUseCase @Inject constructor(
     suspend operator fun invoke(profile: RiskProfile): DataResult<User> =
         repository.updateRiskProfile(profile)
 }
+
+class UpdateUserNameUseCase @Inject constructor(
+    private val repository: UserRepository,
+) {
+    suspend operator fun invoke(name: String): DataResult<User> =
+        repository.updateName(name)
+}

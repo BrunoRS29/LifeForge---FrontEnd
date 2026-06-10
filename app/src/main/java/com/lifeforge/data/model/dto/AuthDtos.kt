@@ -73,3 +73,9 @@ data class UserDto(
 data class UpdateRiskProfileRequestDto(
     val riskProfile: String,  // CONSERVATIVE | MODERATE | AGGRESSIVE
 )
+
+/** Body do PATCH /users/me/name — troca do nome de exibição. */
+@Serializable
+data class UpdateNameRequestDto(
+    val name: String,
+)

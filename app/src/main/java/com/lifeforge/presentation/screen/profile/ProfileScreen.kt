@@ -1,5 +1,10 @@
 package com.lifeforge.presentation.screen.profile
 
+import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Refresh
@@ -51,7 +57,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.data.preferences.ThemeMode
@@ -120,7 +128,12 @@ fun ProfileScreen(
                 if (user == null) {
                     LoadingIndicator()
                 } else {
-                    HeaderCard(user = user)
+                    HeaderCard(
+                        user = user,
+                        avatarPath = state.avatarPath,
+                        onAvatarPicked = viewModel::onAvatarPicked,
+                        onEditName = viewModel::openNameDialog,
+                    )
                     RiskProfileCard(
                         user = user,
                         onEditClick = viewModel::openRiskProfileDialog,
@@ -173,6 +186,14 @@ fun ProfileScreen(
         if (state.showAboutDialog) {
             AboutDialog(onDismiss = viewModel::closeAboutDialog)
         }
+        if (state.showNameDialog) {
+            EditNameDialog(
+                currentName = state.user?.name.orEmpty(),
+                isUpdating = state.isUpdatingName,
+                onConfirm = viewModel::confirmNameChange,
+                onDismiss = viewModel::closeNameDialog,
+            )
+        }
     }
 }
 
@@ -181,7 +202,23 @@ fun ProfileScreen(
 // ============================================================================
 
 @Composable
-private fun HeaderCard(user: User) {
+private fun HeaderCard(
+    user: User,
+    avatarPath: String? = null,
+    onAvatarPicked: (android.net.Uri) -> Unit = {},
+    onEditName: () -> Unit = {},
+) {
+    // Foto de perfil via Photo Picker do Android (sem permissão de storage).
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> uri?.let(onAvatarPicked) }
+
+    // Decodifica o bitmap fora de cada recomposição; o caminho muda a cada
+    // troca (timestamp no nome), então remember(avatarPath) recarrega.
+    val avatarBitmap = remember(avatarPath) {
+        avatarPath?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() }
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -189,19 +226,43 @@ private fun HeaderCard(user: User) {
         Surface(
             modifier = Modifier.size(72.dp).clip(CircleShape),
             color = MaterialTheme.colorScheme.primaryContainer,
+            onClick = {
+                photoPicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.Rounded.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
+                if (avatarBitmap != null) {
+                    Image(
+                        bitmap = avatarBitmap.asImageBitmap(),
+                        contentDescription = "Foto de perfil (toque para trocar)",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(
+                        Icons.Rounded.Person,
+                        contentDescription = "Adicionar foto de perfil",
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
             }
         }
         Spacer(Modifier.size(16.dp))
-        Column {
-            Text(user.name, style = MaterialTheme.typography.titleLarge)
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(user.name, style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = onEditName) {
+                    Icon(
+                        Icons.Outlined.Edit,
+                        contentDescription = "Editar nome",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Text(
                 user.email,
                 style = MaterialTheme.typography.bodyMedium,
@@ -212,8 +273,49 @@ private fun HeaderCard(user: User) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+                "Toque na foto para trocá-la",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
+}
+
+@Composable
+private fun EditNameDialog(
+    currentName: String,
+    isUpdating: Boolean,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = { if (!isUpdating) onDismiss() },
+        title = { Text("Editar nome") },
+        text = {
+            com.lifeforge.presentation.common.LifeForgeTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = "Nome",
+                enabled = !isUpdating,
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(name) },
+                enabled = !isUpdating && name.trim().isNotEmpty(),
+            ) {
+                Text(if (isUpdating) "Salvando..." else "Salvar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isUpdating) {
+                Text("Cancelar")
+            }
+        },
+    )
 }
 
 // ============================================================================
@@ -245,8 +347,8 @@ private fun RiskProfileDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "O perfil de risco influencia as sugestoes de " +
-                        "carteira no modo Otimizacao.",
+                    "O perfil de risco influencia as sugestões de " +
+                        "carteira no modo Otimização.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(4.dp))
@@ -385,7 +487,7 @@ private fun AboutCard(onClick: () -> Unit) {
     SettingsItemCard(
         icon = Icons.Outlined.Info,
         title = "Sobre o LifeForge",
-        subtitle = "Versao, creditos e detalhes do TCC",
+        subtitle = "Versão, créditos e detalhes do TCC",
         onClick = onClick,
     )
 }
@@ -397,27 +499,27 @@ private fun AboutDialog(onDismiss: () -> Unit) {
         title = { Text("Sobre o LifeForge") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Versao 1.0.0", style = MaterialTheme.typography.titleSmall)
+                Text("Versão 1.0.0", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Plataforma de planejamento de vida com simulacao de " +
-                        "Monte Carlo, otimizacao financeira e modelo preditivo.",
+                    "Plataforma de planejamento de vida com simulação de " +
+                        "Monte Carlo, otimização financeira e modelo preditivo.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "TCC — Trabalho de Conclusao de Curso",
+                    "TCC — Trabalho de Conclusão de Curso",
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Text(
-                    "Autor: Gabriel\n" +
-                        "Orientador: Prof. Jose Martins Junior",
+                    "Autores: Gabriel Innocêncio e Bruno Rodrigues dos Santos\n" +
+                        "Orientador: Prof. José Martins Junior",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "Stack: Android (Kotlin + Jetpack Compose), " +
-                        "Backend (Ktor), Microsservico ML (Python/FastAPI), " +
+                        "Backend (Ktor), Microsserviço ML (Python/FastAPI), " +
                         "Postgres, Docker.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
