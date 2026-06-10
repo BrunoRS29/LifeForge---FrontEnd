@@ -132,7 +132,7 @@ class RunCalibratedSimulationUseCase @Inject constructor(
         // que ainda sao aplicaveis - sem `monthlyContribution` (derivado).
         if (p.numSimulations < MIN_SIMULATIONS) {
             return DataResult.Failure(
-                AppError.Validation("numSimulations", "minimo de $MIN_SIMULATIONS iteracoes")
+                AppError.Validation("numSimulations", "mínimo de $MIN_SIMULATIONS iterações")
             )
         }
         if (p.horizonMonths <= 0) {
@@ -149,7 +149,7 @@ class RunCalibratedSimulationUseCase @Inject constructor(
         // validamos quando o app de fato envia um valor.
         if (p.volatilityAnnual != null && p.volatilityAnnual < 0.0) {
             return DataResult.Failure(
-                AppError.Validation("volatilityAnnual", "volatilidade nao pode ser negativa")
+                AppError.Validation("volatilityAnnual", "volatilidade não pode ser negativa")
             )
         }
         if (p.unemploymentProbAnnual != null && p.unemploymentProbAnnual !in 0.0..1.0) {

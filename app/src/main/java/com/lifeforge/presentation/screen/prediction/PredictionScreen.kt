@@ -202,8 +202,8 @@ private fun IntroCard() {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "As predicoes sao geradas a partir do SEU historico de " +
-                        "renda e despesa. Quanto mais registros voce tem, mais " +
+                    text = "As predições são geradas a partir do SEU histórico de " +
+                        "renda e despesa. Quanto mais registros você tem, mais " +
                         "precisa fica.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -233,11 +233,11 @@ fun IncomePredictionCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Predicao de renda",
+                text = "Predição de renda",
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                text = "Regressao linear sobre os recebimentos historicos.",
+                text = "Regressão linear sobre os recebimentos históricos.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -279,7 +279,7 @@ private fun IncomeResultBlock(prediction: IncomePrediction) {
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SummaryRow(
-            label = "Renda mensal media projetada",
+            label = "Renda mensal média projetada",
             value = formatBrl(prediction.expectedMonthlyIncome),
             highlight = true,
         )
@@ -296,7 +296,7 @@ private fun IncomeResultBlock(prediction: IncomePrediction) {
         // a UI em horizontes longos
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "Projecao mes a mes",
+            text = "Projeção mês a mês",
             style = MaterialTheme.typography.titleSmall,
         )
         prediction.projection.takeProjectionSnippet().forEach { point ->
@@ -344,11 +344,11 @@ fun ExpensePredictionCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Predicao de despesas",
+                text = "Predição de despesas",
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                text = "Random Forest por categoria sobre o historico de gastos.",
+                text = "Random Forest por categoria sobre o histórico de gastos.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -446,12 +446,12 @@ fun WealthPredictionCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Predicao de patrimonio",
+                text = "Predição de patrimônio",
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                text = "Serie temporal (ARIMA) sobre o patrimonio acumulado " +
-                    "reconstruido do seu historico de receitas e despesas.",
+                text = "Série temporal (ARIMA) sobre o patrimônio acumulado " +
+                    "reconstruído do seu histórico de receitas e despesas.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -474,7 +474,7 @@ fun WealthPredictionCard(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Text("Prever patrimonio")
+                    Text("Prever patrimônio")
                 }
             }
 
@@ -492,18 +492,18 @@ private fun WealthResultBlock(prediction: WealthPrediction) {
     HorizontalDivider()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SummaryRow(
-            label = "Patrimonio projetado (fim do horizonte)",
+            label = "Patrimônio projetado (fim do horizonte)",
             value = formatBrl(prediction.expectedFinalWealth),
             highlight = true,
         )
         SummaryRow(
-            label = "Crescimento mensal medio",
+            label = "Crescimento mensal médio",
             value = formatGrowthRate(prediction.monthlyGrowthRate),
         )
 
         Spacer(Modifier.height(4.dp))
         Text(
-            "Patrimonio: realizado (azul) x projetado",
+            "Patrimônio: realizado (azul) x projetado",
             style = MaterialTheme.typography.titleSmall,
         )
         WealthChart(prediction)

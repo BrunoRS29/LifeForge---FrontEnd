@@ -14,10 +14,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 
@@ -49,9 +51,24 @@ fun LifeForgeTextField(
     enabled: Boolean = true,
     singleLine: Boolean = true,
 ) {
+    // Estado interno com TextFieldValue: a região de composição do IME
+    // (acentos via dead key/long-press, ex.: "~"+"a" → "ã") precisa viver
+    // junto com a seleção, de forma síncrona. Quando o texto era re-emitido
+    // pelo ViewModel (String via StateFlow), o round-trip assíncrono
+    // cancelava a composição e impedia digitar acentos.
+    var fieldValue by remember { mutableStateOf(TextFieldValue(value)) }
+    if (fieldValue.text != value) {
+        // Mudança vinda de fora (carregamento, sanitização ou botão de
+        // preenchimento): adota o texto externo e move o cursor para o fim.
+        fieldValue = fieldValue.copy(text = value, selection = TextRange(value.length))
+    }
+
     OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = fieldValue,
+        onValueChange = { newValue ->
+            fieldValue = newValue
+            if (newValue.text != value) onValueChange(newValue.text)
+        },
         label = { Text(label) },
         isError = error != null,
         supportingText = if (error != null) {
