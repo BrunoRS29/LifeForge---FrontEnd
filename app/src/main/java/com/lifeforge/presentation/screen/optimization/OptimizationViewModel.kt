@@ -4,9 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeforge.domain.model.AppError
 import com.lifeforge.domain.model.DataResult
+import com.lifeforge.domain.model.Goal
 import com.lifeforge.domain.model.OptimizationResult
 import com.lifeforge.domain.model.RebalanceResult
 import com.lifeforge.domain.model.RiskProfile
+import com.lifeforge.domain.usecase.GetReferenceDataUseCase
+import com.lifeforge.domain.usecase.ObserveAssetsUseCase
+import com.lifeforge.domain.usecase.ObserveGoalsUseCase
 import com.lifeforge.domain.usecase.OptimizeContributionUseCase
 import com.lifeforge.domain.usecase.OptimizeHorizonUseCase
 import com.lifeforge.domain.usecase.RebalanceUseCase
@@ -19,7 +23,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
+import kotlin.math.max
 
 /**
  * ViewModel da tela de Otimização.
@@ -39,10 +47,107 @@ class OptimizationViewModel @Inject constructor(
     private val optimizeContribution: OptimizeContributionUseCase,
     private val optimizeHorizon: OptimizeHorizonUseCase,
     private val rebalance: RebalanceUseCase,
+    observeGoals: ObserveGoalsUseCase,
+    observeAssets: ObserveAssetsUseCase,
+    private val getReferenceData: GetReferenceDataUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OptimizationUiState())
     val state: StateFlow<OptimizationUiState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            observeGoals().collect { goals -> _state.update { it.copy(goals = goals) } }
+        }
+        viewModelScope.launch {
+            observeAssets().collect { assets ->
+                val total = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
+                _state.update { it.copy(totalAssets = total) }
+            }
+        }
+        loadCdiDefaults()
+    }
+
+    /**
+     * Retorno/volatilidade padrão = 100% do CDI (base de referência), o
+     * cenário mais seguro hoje. Só substitui campos ainda nos defaults
+     * estáticos — nunca o que o usuário digitou.
+     */
+    private fun loadCdiDefaults() {
+        viewModelScope.launch {
+            val ref = (getReferenceData() as? DataResult.Success)?.data ?: return@launch
+            val cdi = fraction(ref.cdiAnnual)
+            val cdiVol = fraction(ref.cdiVolatilityAnnual)
+            val cDef = ContributionForm()
+            val hDef = HorizonForm()
+            _state.update { s ->
+                s.copy(
+                    contributionForm = s.contributionForm.copy(
+                        expectedReturnAnnual = s.contributionForm.expectedReturnAnnual
+                            .ifDefault(cDef.expectedReturnAnnual, cdi),
+                        volatilityAnnual = s.contributionForm.volatilityAnnual
+                            .ifDefault(cDef.volatilityAnnual, cdiVol),
+                    ),
+                    horizonForm = s.horizonForm.copy(
+                        expectedReturnAnnual = s.horizonForm.expectedReturnAnnual
+                            .ifDefault(hDef.expectedReturnAnnual, cdi),
+                        volatilityAnnual = s.horizonForm.volatilityAnnual
+                            .ifDefault(hDef.volatilityAnnual, cdiVol),
+                    ),
+                )
+            }
+        }
+    }
+
+    /** Preenche o capital do modo ativo com o patrimônio total (soma dos ativos). */
+    fun useTotalAssets(mode: OptimizationMode) {
+        val total = _state.value.totalAssets ?: return
+        val input = total.toPlainString().replace('.', ',')
+        _state.update { s ->
+            when (mode) {
+                OptimizationMode.CONTRIBUTION ->
+                    s.copy(contributionForm = s.contributionForm.copy(initialCapital = input))
+                OptimizationMode.HORIZON ->
+                    s.copy(horizonForm = s.horizonForm.copy(initialCapital = input))
+                OptimizationMode.REBALANCE ->
+                    s.copy(rebalanceForm = s.rebalanceForm.copy(currentCapital = input))
+            }
+        }
+    }
+
+    /**
+     * Importa uma meta para o modo ativo: valor da meta e, quando o modo tem
+     * horizonte como ENTRADA (Aporte/Carteira), os meses até a data alvo.
+     * No modo Horizonte o prazo é a SAÍDA do cálculo — só o valor entra.
+     */
+    fun applyGoal(mode: OptimizationMode, goal: Goal) {
+        val amount = goal.targetAmount.toPlainString().replace('.', ',')
+        val months = monthsBetween(Instant.now(), goal.targetDate).toString()
+        _state.update { s ->
+            when (mode) {
+                OptimizationMode.CONTRIBUTION -> s.copy(
+                    contributionForm = s.contributionForm.copy(
+                        targetAmount = amount,
+                        horizonMonths = months,
+                        selectedGoalName = goal.name,
+                    ),
+                )
+                OptimizationMode.HORIZON -> s.copy(
+                    horizonForm = s.horizonForm.copy(
+                        targetAmount = amount,
+                        selectedGoalName = goal.name,
+                    ),
+                )
+                OptimizationMode.REBALANCE -> s.copy(
+                    rebalanceForm = s.rebalanceForm.copy(
+                        targetAmount = amount,
+                        monthsToGoal = months,
+                        selectedGoalName = goal.name,
+                    ),
+                )
+            }
+        }
+    }
 
     fun selectMode(mode: OptimizationMode) {
         _state.update { it.copy(selectedMode = mode, errorBanner = null) }
@@ -191,6 +296,22 @@ class OptimizationViewModel @Inject constructor(
         is AppError.Validation -> error.message ?: "Dados inválidos"
         else -> error.toUserMessage()
     }
+
+    companion object {
+        /** Fração anual → input com vírgula decimal (0.005 → "0,005"). */
+        private fun fraction(value: Double): String =
+            BigDecimal.valueOf(value).stripTrailingZeros().toPlainString().replace('.', ',')
+
+        /** Troca pelo [calibrated] apenas se o campo ainda está no default estático. */
+        private fun String.ifDefault(default: String, calibrated: String): String =
+            if (this == default) calibrated else this
+
+        /** Calcula meses entre dois instantes (mínimo 1). */
+        private fun monthsBetween(from: Instant, to: Instant): Int {
+            val days = Duration.between(from, to).toDays()
+            return max(1, (days / 30).toInt())
+        }
+    }
 }
 
 enum class OptimizationMode { CONTRIBUTION, HORIZON, REBALANCE }
@@ -205,6 +326,10 @@ data class OptimizationUiState(
     val horizonResult: OptimizationResult? = null,
     val rebalanceForm: RebalanceForm = RebalanceForm(),
     val rebalanceResult: RebalanceResult? = null,
+    /** Metas do usuário — para importar valor/prazo nos forms. */
+    val goals: List<Goal> = emptyList(),
+    /** Soma dos ativos cadastrados — habilita "usar patrimônio total". */
+    val totalAssets: BigDecimal? = null,
 )
 
 /**
@@ -221,6 +346,8 @@ data class ContributionForm(
     val targetAmount: String = "500000",
     val horizonMonths: String = "120",
     val targetSuccessProbability: String = "0,90",
+    /** Nome da meta importada (só exibição). */
+    val selectedGoalName: String? = null,
 ) {
     val canRun: Boolean
         get() = expectedReturnAnnual.isNotBlank() && volatilityAnnual.isNotBlank() &&
@@ -235,6 +362,8 @@ data class HorizonForm(
     val targetAmount: String = "500000",
     val monthlyContribution: String = "2000",
     val targetSuccessProbability: String = "0,90",
+    /** Nome da meta importada (só exibição). */
+    val selectedGoalName: String? = null,
 ) {
     val canRun: Boolean
         get() = expectedReturnAnnual.isNotBlank() && volatilityAnnual.isNotBlank() &&
@@ -247,6 +376,8 @@ data class RebalanceForm(
     val currentCapital: String = "50000",
     val targetAmount: String = "500000",
     val monthsToGoal: String = "120",
+    /** Nome da meta importada (só exibição). */
+    val selectedGoalName: String? = null,
 ) {
     val canRun: Boolean
         get() = targetAmount.isNotBlank() && monthsToGoal.isNotBlank()

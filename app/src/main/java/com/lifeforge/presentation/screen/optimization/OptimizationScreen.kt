@@ -32,11 +32,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.AssetType
+import com.lifeforge.domain.model.Goal
 import com.lifeforge.domain.model.OptimizationResult
 import com.lifeforge.domain.model.RebalanceResult
 import com.lifeforge.domain.model.RiskProfile
+import java.math.BigDecimal
 import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.ErrorBanner
@@ -104,6 +107,14 @@ fun OptimizationScreen(viewModel: OptimizationViewModel = hiltViewModel()) {
                             isRunning = state.isRunning,
                             onChange = viewModel::onContributionForm,
                             onRun = viewModel::runContribution,
+                            goals = state.goals,
+                            totalAssets = state.totalAssets,
+                            onApplyGoal = { goal ->
+                                viewModel.applyGoal(OptimizationMode.CONTRIBUTION, goal)
+                            },
+                            onUseTotalAssets = {
+                                viewModel.useTotalAssets(OptimizationMode.CONTRIBUTION)
+                            },
                         )
                         OptimizationMode.HORIZON -> HorizonSection(
                             form = state.horizonForm,
@@ -111,6 +122,14 @@ fun OptimizationScreen(viewModel: OptimizationViewModel = hiltViewModel()) {
                             isRunning = state.isRunning,
                             onChange = viewModel::onHorizonForm,
                             onRun = viewModel::runHorizon,
+                            goals = state.goals,
+                            totalAssets = state.totalAssets,
+                            onApplyGoal = { goal ->
+                                viewModel.applyGoal(OptimizationMode.HORIZON, goal)
+                            },
+                            onUseTotalAssets = {
+                                viewModel.useTotalAssets(OptimizationMode.HORIZON)
+                            },
                         )
                         OptimizationMode.REBALANCE -> RebalanceSection(
                             form = state.rebalanceForm,
@@ -118,6 +137,14 @@ fun OptimizationScreen(viewModel: OptimizationViewModel = hiltViewModel()) {
                             isRunning = state.isRunning,
                             onChange = viewModel::onRebalanceForm,
                             onRun = viewModel::runRebalance,
+                            goals = state.goals,
+                            totalAssets = state.totalAssets,
+                            onApplyGoal = { goal ->
+                                viewModel.applyGoal(OptimizationMode.REBALANCE, goal)
+                            },
+                            onUseTotalAssets = {
+                                viewModel.useTotalAssets(OptimizationMode.REBALANCE)
+                            },
                         )
                     }
                 }
@@ -144,11 +171,22 @@ private fun ContributionSection(
     isRunning: Boolean,
     onChange: ((ContributionForm) -> ContributionForm) -> Unit,
     onRun: () -> Unit,
+    goals: List<Goal> = emptyList(),
+    totalAssets: BigDecimal? = null,
+    onApplyGoal: (Goal) -> Unit = {},
+    onUseTotalAssets: () -> Unit = {},
 ) {
     Text(
         "Calcule o aporte mensal mínimo para atingir uma meta no horizonte definido.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    GoalImportPicker(
+        goals = goals,
+        selectedGoalName = form.selectedGoalName,
+        enabled = !isRunning,
+        onApply = onApplyGoal,
     )
 
     CurrencyField(
@@ -157,6 +195,7 @@ private fun ContributionSection(
         label = "Capital inicial (R$)",
         enabled = !isRunning,
     )
+    UseTotalAssetsButton(totalAssets, !isRunning, onUseTotalAssets)
     CurrencyField(
         value = form.targetAmount,
         onValueChange = { v -> onChange { it.copy(targetAmount = v.asMonetaryInput()) } },
@@ -217,11 +256,22 @@ private fun HorizonSection(
     isRunning: Boolean,
     onChange: ((HorizonForm) -> HorizonForm) -> Unit,
     onRun: () -> Unit,
+    goals: List<Goal> = emptyList(),
+    totalAssets: BigDecimal? = null,
+    onApplyGoal: (Goal) -> Unit = {},
+    onUseTotalAssets: () -> Unit = {},
 ) {
     Text(
         "Dado um aporte mensal, calcule em quantos meses a meta é atingida.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    GoalImportPicker(
+        goals = goals,
+        selectedGoalName = form.selectedGoalName,
+        enabled = !isRunning,
+        onApply = onApplyGoal,
     )
 
     CurrencyField(
@@ -230,6 +280,7 @@ private fun HorizonSection(
         label = "Capital inicial (R$)",
         enabled = !isRunning,
     )
+    UseTotalAssetsButton(totalAssets, !isRunning, onUseTotalAssets)
     CurrencyField(
         value = form.monthlyContribution,
         onValueChange = { v -> onChange { it.copy(monthlyContribution = v.asMonetaryInput()) } },
@@ -299,11 +350,22 @@ private fun RebalanceSection(
     isRunning: Boolean,
     onChange: ((RebalanceForm) -> RebalanceForm) -> Unit,
     onRun: () -> Unit,
+    goals: List<Goal> = emptyList(),
+    totalAssets: BigDecimal? = null,
+    onApplyGoal: (Goal) -> Unit = {},
+    onUseTotalAssets: () -> Unit = {},
 ) {
     Text(
         "Sugestão de mix de ativos baseado no seu perfil de risco e horizonte.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    GoalImportPicker(
+        goals = goals,
+        selectedGoalName = form.selectedGoalName,
+        enabled = !isRunning,
+        onApply = onApplyGoal,
     )
 
     EnumDropdown(
@@ -320,6 +382,7 @@ private fun RebalanceSection(
         label = "Capital disponível (R$)",
         enabled = !isRunning,
     )
+    UseTotalAssetsButton(totalAssets, !isRunning, onUseTotalAssets)
     CurrencyField(
         value = form.targetAmount,
         onValueChange = { v -> onChange { it.copy(targetAmount = v.asMonetaryInput()) } },
@@ -434,6 +497,41 @@ private fun RebalanceResultCard(result: RebalanceResult) {
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/**
+ * Dropdown que importa uma meta para o form: valor (e prazo, quando o modo
+ * usa horizonte como entrada). Não aparece quando o usuário não tem metas.
+ */
+@Composable
+private fun GoalImportPicker(
+    goals: List<Goal>,
+    selectedGoalName: String?,
+    enabled: Boolean,
+    onApply: (Goal) -> Unit,
+) {
+    if (goals.isEmpty()) return
+    EnumDropdown<Goal?>(
+        label = "Importar de uma meta",
+        options = goals,
+        selected = goals.firstOrNull { it.name == selectedGoalName },
+        onSelect = { goal -> goal?.let(onApply) },
+        labelOf = { goal -> goal?.name ?: "Escolher meta…" },
+        enabled = enabled,
+    )
+}
+
+/** Atalho que preenche o capital com o patrimônio total (soma dos ativos). */
+@Composable
+private fun UseTotalAssetsButton(
+    totalAssets: BigDecimal?,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    if (totalAssets == null || totalAssets.signum() <= 0) return
+    TextButton(onClick = onClick, enabled = enabled) {
+        Text("Usar patrimônio total (${formatBrl(totalAssets.toDouble())})")
+    }
+}
 
 @Composable
 private fun IntField(
