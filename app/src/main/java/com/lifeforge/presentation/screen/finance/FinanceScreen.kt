@@ -27,9 +27,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import java.time.YearMonth
 
 /**
  * Tela host de Finanças. TabRow alterna entre Receitas, Despesas e Ativos.
@@ -48,6 +50,12 @@ fun FinanceScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     var menuOpen by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf<ConfirmAction?>(null) }
+    // Mês de visualização COMPARTILHADO entre Receitas e Despesas: alternar
+    // de aba não volta para o mês atual. Saveable (como String — YearMonth
+    // não é Parcelable) para sobreviver à recriação da Activity.
+    var selectedMonthRaw by rememberSaveable { mutableStateOf(YearMonth.now().toString()) }
+    val selectedMonth = remember(selectedMonthRaw) { YearMonth.parse(selectedMonthRaw) }
+    val onMonthChange: (YearMonth) -> Unit = { selectedMonthRaw = it.toString() }
     val state by viewModel.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
@@ -103,8 +111,14 @@ fun FinanceScreen(
             }
 
             when (FinanceTab.entries[selectedTab]) {
-                FinanceTab.INCOMES -> IncomeTab()
-                FinanceTab.EXPENSES -> ExpenseTab()
+                FinanceTab.INCOMES -> IncomeTab(
+                    selectedMonth = selectedMonth,
+                    onMonthChange = onMonthChange,
+                )
+                FinanceTab.EXPENSES -> ExpenseTab(
+                    selectedMonth = selectedMonth,
+                    onMonthChange = onMonthChange,
+                )
                 FinanceTab.ASSETS -> AssetTab()
             }
         }

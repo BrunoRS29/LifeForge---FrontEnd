@@ -70,9 +70,12 @@ import java.time.Instant
  * mais direta.
  */
 @Composable
-fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
+fun ExpenseTab(
+    selectedMonth: java.time.YearMonth,
+    onMonthChange: (java.time.YearMonth) -> Unit,
+    viewModel: ExpenseViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsState()
-    var selectedMonth by remember { mutableStateOf(yearMonthOf(Instant.now())) }
     var categoryFilter by remember { mutableStateOf<ExpenseCategory?>(null) }
 
     val monthExpenses = remember(state.expenses, selectedMonth) {
@@ -108,11 +111,13 @@ fun ExpenseTab(viewModel: ExpenseViewModel = hiltViewModel()) {
         emptyIcon = Icons.Outlined.TrendingDown,
         header = {
             MonthNavigator(
-                monthLabel = formatMonthYear(selectedMonth),
+                month = selectedMonth,
+                onMonthChange = { newMonth ->
+                    categoryFilter = null
+                    onMonthChange(newMonth)
+                },
                 total = monthTotal,
                 count = visibleExpenses.size,
-                onPrev = { selectedMonth = selectedMonth.minusMonths(1); categoryFilter = null },
-                onNext = { selectedMonth = selectedMonth.plusMonths(1); categoryFilter = null },
             )
         },
     ) {

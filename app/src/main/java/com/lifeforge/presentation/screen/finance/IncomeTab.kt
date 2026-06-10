@@ -68,9 +68,12 @@ import java.time.Instant
  * tornavam a navegação cansativa.
  */
 @Composable
-fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
+fun IncomeTab(
+    selectedMonth: java.time.YearMonth,
+    onMonthChange: (java.time.YearMonth) -> Unit,
+    viewModel: IncomeViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsState()
-    var selectedMonth by remember { mutableStateOf(yearMonthOf(Instant.now())) }
 
     val monthIncomes = remember(state.incomes, selectedMonth) {
         state.incomes
@@ -98,11 +101,10 @@ fun IncomeTab(viewModel: IncomeViewModel = hiltViewModel()) {
         emptyIcon = Icons.Outlined.TrendingUp,
         header = {
             MonthNavigator(
-                monthLabel = formatMonthYear(selectedMonth),
+                month = selectedMonth,
+                onMonthChange = onMonthChange,
                 total = monthTotal,
                 count = monthIncomes.size,
-                onPrev = { selectedMonth = selectedMonth.minusMonths(1) },
-                onNext = { selectedMonth = selectedMonth.plusMonths(1) },
             )
         },
     ) {
