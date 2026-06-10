@@ -171,8 +171,10 @@ fun FanChart(
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                "Faixa P10–P90 (linha central = mediana). O leque abre conforme " +
-                    "a incerteza cresce no horizonte.",
+                "Cada linha é um percentil dos cenários simulados — de baixo " +
+                    "para cima: P10, P25, mediana (P50), P75 e P90. Eixo X em " +
+                    "meses, eixo Y em R$. O leque abre conforme a incerteza " +
+                    "cresce no horizonte.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
+import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 
 /**
  * Tema raiz do LifeForge. Envolve toda a hierarquia de Compose para
@@ -110,6 +112,11 @@ fun LifeForgeTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = LifeForgeTypography,
-        content = content,
-    )
+    ) {
+        // Os gráficos (Vico) NÃO seguem o MaterialTheme automaticamente: sem
+        // isto, eixos e legendas usam o tema do SISTEMA — forçando o tema
+        // escuro no app com o sistema claro, os rótulos ficavam pretos sobre
+        // fundo escuro. O tema M3 do Vico amarra os gráficos ao colorScheme.
+        ProvideVicoTheme(rememberM3VicoTheme(), content)
+    }
 }

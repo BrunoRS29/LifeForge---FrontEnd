@@ -160,6 +160,15 @@ fun WealthProjectionCard(
 
             Spacer(Modifier.height(8.dp))
             Text(
+                "Linha de cima: patrimônio investindo (juros compostos). Linha de " +
+                    "baixo: apenas acumulando os aportes, sem rendimento. Eixo X em " +
+                    "meses, eixo Y em R$ — a distância entre as linhas é o que os " +
+                    "juros fazem por você.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
                 "Em $years anos: projetado ${formatBrlCompact(proj.finalProjected.toBigDecimal())} " +
                     "vs. ${formatBrlCompact(proj.finalContributionsOnly.toBigDecimal())} sem investir.",
                 style = MaterialTheme.typography.bodySmall,
