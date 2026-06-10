@@ -13,6 +13,14 @@ data class ReferenceData(
     val inflationAnnualMean: Double,
     val salaryGrowthAnnualMean: Double,
     val selicAnnual: Double,
+    /** Retorno livre de risco (CDI/Tesouro Selic) — "100% do CDI". */
+    val cdiAnnual: Double,
+    /** Volatilidade anual do CDI (quase nula; cenário mais seguro). */
+    val cdiVolatilityAnnual: Double,
+    /** Probabilidade anual de desemprego por vínculo (chaves do EmploymentType). */
+    val unemploymentProbByEmploymentType: Map<String, Double>,
+    val defaultUnemploymentProbAnnual: Double,
+    val unemploymentDurationMonths: Int,
     val unexpectedExpenseAnnualFrequency: Double,
     val unexpectedExpenseMeanFractionOfIncome: Double,
     val lifeExpectancyYears: Int,
@@ -35,6 +43,14 @@ data class ReferenceData(
     /** Custo mensal medio de um filho na idade [ageYears]; 0 quando independente. */
     fun childMonthlyCost(ageYears: Int): Double =
         childCostByAge.firstOrNull { ageYears <= it.ageMaxInclusive }?.monthlyCost ?: 0.0
+
+    /**
+     * Probabilidade anual de desemprego para o vinculo informado (nome do
+     * enum EmploymentType); cai no default da base quando desconhecido/nulo.
+     */
+    fun unemploymentProbFor(employmentType: String?): Double =
+        employmentType?.let { unemploymentProbByEmploymentType[it] }
+            ?: defaultUnemploymentProbAnnual
 }
 
 /** Faixa etaria (ate [ageMaxInclusive] anos) e custo mensal medio associado. */

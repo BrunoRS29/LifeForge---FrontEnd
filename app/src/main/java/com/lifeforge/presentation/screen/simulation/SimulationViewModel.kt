@@ -9,6 +9,10 @@ import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.SimulationParameters
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.SimulationSummary
+import com.lifeforge.domain.usecase.GetReferenceDataUseCase
+import com.lifeforge.domain.usecase.GetSimulationUseCase
+import com.lifeforge.domain.usecase.GetUserProfileUseCase
+import com.lifeforge.domain.usecase.ObserveAssetsUseCase
 import com.lifeforge.domain.usecase.ObserveGoalUseCase
 import com.lifeforge.domain.usecase.ObserveSimulationsByGoalUseCase
 import com.lifeforge.domain.usecase.RefreshSimulationsByGoalUseCase
@@ -26,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
@@ -55,6 +60,10 @@ class SimulationViewModel @Inject constructor(
     observeSimulations: ObserveSimulationsByGoalUseCase,
     private val refreshSimulations: RefreshSimulationsByGoalUseCase,
     private val runSimulation: RunSimulationUseCase,
+    private val getSimulation: GetSimulationUseCase,
+    private val observeAssets: ObserveAssetsUseCase,
+    private val getReferenceData: GetReferenceDataUseCase,
+    private val getUserProfile: GetUserProfileUseCase,
 ) : ViewModel() {
 
     private val goalId: Long = savedStateHandle.toRoute<Simulation>().goalId
@@ -72,6 +81,7 @@ class SimulationViewModel @Inject constructor(
             result = local.result,
             history = history,
             errorBanner = local.errorBanner,
+            totalAssets = local.totalAssets,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -81,7 +91,62 @@ class SimulationViewModel @Inject constructor(
 
     init {
         loadGoalAndPrepopulate()
+        loadSafestScenarioDefaults()
+        observeTotalAssets()
         viewModelScope.launch { refreshSimulations(goalId) }
+    }
+
+    /**
+     * Premissas padrão = "cenário mais seguro": retorno de 100% do CDI com a
+     * volatilidade do CDI (base de referência) e probabilidade de desemprego
+     * do vínculo do usuário (PNAD/base). Só sobrescreve campos que ainda
+     * estão nos defaults estáticos — nunca o que o usuário já digitou.
+     */
+    private fun loadSafestScenarioDefaults() {
+        viewModelScope.launch {
+            val ref = (getReferenceData() as? DataResult.Success)?.data ?: return@launch
+            val employmentType =
+                (getUserProfile() as? DataResult.Success)?.data?.employmentType?.name
+            val defaults = defaultForm()
+            localState.update { current ->
+                val f = current.form
+                current.copy(
+                    form = f.copy(
+                        expectedReturnInput = f.expectedReturnInput
+                            .ifDefault(defaults.expectedReturnInput, fraction(ref.cdiAnnual)),
+                        volatilityInput = f.volatilityInput
+                            .ifDefault(defaults.volatilityInput, fraction(ref.cdiVolatilityAnnual)),
+                        inflationInput = f.inflationInput
+                            .ifDefault(defaults.inflationInput, fraction(ref.inflationAnnualMean)),
+                        unemploymentProbInput = f.unemploymentProbInput.ifDefault(
+                            defaults.unemploymentProbInput,
+                            fraction(ref.unemploymentProbFor(employmentType)),
+                        ),
+                        unemploymentDurationMonths = ref.unemploymentDurationMonths,
+                    ),
+                )
+            }
+        }
+    }
+
+    /** Observa os ativos para oferecer "usar patrimônio total" no capital inicial. */
+    private fun observeTotalAssets() {
+        viewModelScope.launch {
+            observeAssets().collect { assets ->
+                val total = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
+                localState.update { it.copy(totalAssets = total) }
+            }
+        }
+    }
+
+    /** Preenche o capital inicial com o patrimônio total (soma dos ativos). */
+    fun useTotalAssetsAsInitialCapital() {
+        val total = localState.value.totalAssets ?: return
+        localState.update { current ->
+            current.copy(
+                form = current.form.copy(initialCapitalInput = total.toInputString()),
+            )
+        }
     }
 
     /**
@@ -122,6 +187,27 @@ class SimulationViewModel @Inject constructor(
 
     fun onErrorBannerDismiss() {
         localState.update { it.copy(errorBanner = null) }
+    }
+
+    /**
+     * Reabre uma rodada do histórico: carrega o resultado completo (cache
+     * local ou backend) e o exibe na mesma seção de resultado da tela.
+     * Obs.: rodadas vindas do cache não guardam a trajetória do fan chart —
+     * os demais gráficos e estatísticas aparecem normalmente.
+     */
+    fun openHistoryEntry(simulationId: Long) {
+        if (localState.value.isRunning) return
+        viewModelScope.launch {
+            localState.update { it.copy(isRunning = true, errorBanner = null) }
+            when (val result = getSimulation(simulationId)) {
+                is DataResult.Success -> localState.update {
+                    it.copy(isRunning = false, result = result.data)
+                }
+                is DataResult.Failure -> localState.update {
+                    it.copy(isRunning = false, errorBanner = mapError(result.error))
+                }
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -197,6 +283,7 @@ class SimulationViewModel @Inject constructor(
         val isRunning: Boolean = false,
         val result: SimulationResult? = null,
         val errorBanner: String? = null,
+        val totalAssets: BigDecimal? = null,
     )
 
     companion object {
@@ -225,6 +312,17 @@ class SimulationViewModel @Inject constructor(
             val days = Duration.between(from, to).toDays()
             return max(1, (days / 30).toInt())
         }
+
+        /** Fração anual → input com vírgula decimal (0.005 → "0,005"). */
+        private fun fraction(value: Double): String =
+            BigDecimal.valueOf(value).stripTrailingZeros().toPlainString().replace('.', ',')
+
+        /** BigDecimal → input monetário com vírgula decimal. */
+        private fun BigDecimal.toInputString(): String = toPlainString().replace('.', ',')
+
+        /** Troca pelo [calibrated] apenas se o campo ainda está no default estático. */
+        private fun String.ifDefault(default: String, calibrated: String): String =
+            if (this == default) calibrated else this
     }
 }
 
@@ -261,6 +359,8 @@ data class SimulationUiState(
     val result: SimulationResult? = null,
     val history: List<SimulationSummary> = emptyList(),
     val errorBanner: String? = null,
+    /** Soma dos ativos cadastrados — habilita "usar patrimônio total". */
+    val totalAssets: java.math.BigDecimal? = null,
 )
 
 /** Helper de sanitização — usado nos callbacks dos campos. */

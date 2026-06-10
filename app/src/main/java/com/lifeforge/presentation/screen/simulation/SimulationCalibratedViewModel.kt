@@ -9,6 +9,7 @@ import com.lifeforge.domain.model.CalibratedSimulationParameters
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.domain.usecase.GetReferenceDataUseCase
+import com.lifeforge.domain.usecase.ObserveAssetsUseCase
 import com.lifeforge.domain.usecase.ObserveCurrentUserUseCase
 import com.lifeforge.domain.usecase.ObserveGoalUseCase
 import com.lifeforge.domain.usecase.RunCalibratedSimulationUseCase
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
@@ -48,6 +50,7 @@ class SimulationCalibratedViewModel @Inject constructor(
     private val runCalibratedSimulation: RunCalibratedSimulationUseCase,
     private val observeCurrentUser: ObserveCurrentUserUseCase,
     private val getReferenceData: GetReferenceDataUseCase,
+    private val observeAssets: ObserveAssetsUseCase,
 ) : ViewModel() {
 
     private val goalId: Long = savedStateHandle.toRoute<SimulationCalibrated>().goalId
@@ -58,6 +61,29 @@ class SimulationCalibratedViewModel @Inject constructor(
     init {
         loadGoalAndPrepopulate()
         loadPremises()
+        observeTotalAssets()
+    }
+
+    /** Observa os ativos para oferecer "usar patrimônio total" no capital inicial. */
+    private fun observeTotalAssets() {
+        viewModelScope.launch {
+            observeAssets().collect { assets ->
+                val total = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
+                _state.update { it.copy(totalAssets = total) }
+            }
+        }
+    }
+
+    /** Preenche o capital inicial com o patrimônio total (soma dos ativos). */
+    fun useTotalAssetsAsInitialCapital() {
+        val total = _state.value.totalAssets ?: return
+        _state.update { current ->
+            current.copy(
+                form = current.form.copy(
+                    initialCapitalInput = total.toPlainString().replace('.', ','),
+                ),
+            )
+        }
     }
 
     /**
@@ -89,7 +115,7 @@ class SimulationCalibratedViewModel @Inject constructor(
     private fun loadGoalAndPrepopulate() {
         viewModelScope.launch {
             val goal = observeGoal(goalId).first() ?: run {
-                _state.update { it.copy(errorBanner = "Meta nao encontrada") }
+                _state.update { it.copy(errorBanner = "Meta não encontrada") }
                 return@launch
             }
             val months = monthsBetween(Instant.now(), goal.targetDate)
@@ -169,7 +195,7 @@ class SimulationCalibratedViewModel @Inject constructor(
 
         if (initialCapital == null || targetAmount == null || horizon == null) {
             _state.update {
-                it.copy(errorBanner = "Verifique os valores numericos do formulario")
+                it.copy(errorBanner = "Verifique os valores numéricos do formulário")
             }
             return null
         }
@@ -194,7 +220,7 @@ class SimulationCalibratedViewModel @Inject constructor(
     }
 
     companion object {
-        const val STAGE_PREDICTING = "Treinando modelos de IA e calibrando parametros..."
+        const val STAGE_PREDICTING = "Treinando modelos de IA e calibrando parâmetros..."
 
         /** Defaults: capital/alvo/horizonte. Premissas de mercado vem do perfil. */
         private fun defaultForm() = CalibratedSimulationForm(
@@ -229,6 +255,8 @@ data class CalibratedSimulationUiState(
     val errorBanner: String? = null,
     /** Premissas (retorno/inflacao) que o backend usara - para transparencia. */
     val premises: SimulationPremises? = null,
+    /** Soma dos ativos cadastrados — habilita "usar patrimônio total". */
+    val totalAssets: BigDecimal? = null,
 )
 
 /**

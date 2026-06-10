@@ -15,6 +15,13 @@ fun ReferenceDataResponseDto.toDomain(): ReferenceData = ReferenceData(
     inflationAnnualMean = inflationAnnualMean,
     salaryGrowthAnnualMean = salaryGrowthAnnualMean,
     selicAnnual = selicAnnual,
+    cdiAnnual = riskFreeAnnual,
+    cdiVolatilityAnnual = cdiVolatilityAnnual,
+    unemploymentProbByEmploymentType = byEmploymentType.mapValues { (_, stats) ->
+        stats.unemploymentProbAnnual
+    },
+    defaultUnemploymentProbAnnual = defaultUnemploymentProbAnnual,
+    unemploymentDurationMonths = unemploymentDurationMonths,
     unexpectedExpenseAnnualFrequency = unexpectedExpenseAnnualFrequency,
     unexpectedExpenseMeanFractionOfIncome = unexpectedExpenseMeanFractionOfIncome,
     lifeExpectancyYears = lifeExpectancyYears,

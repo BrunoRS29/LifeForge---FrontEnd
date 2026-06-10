@@ -26,7 +26,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -117,6 +119,8 @@ fun SimulationCalibratedScreen(
                     form = state.form,
                     isRunning = state.isRunning,
                     onChange = viewModel::onFormChange,
+                    totalAssets = state.totalAssets,
+                    onUseTotalAssets = viewModel::useTotalAssetsAsInitialCapital,
                 )
 
                 Button(
@@ -174,10 +178,10 @@ private fun AiCalloutCard() {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Voce nao estima nada de mercado: a IA preve sua renda e " +
-                        "despesas pelo seu historico (e calcula o aporte mensal), e o " +
-                        "retorno, a volatilidade, a inflacao e o risco de desemprego vem " +
-                        "da base de referencia calibrada ao seu perfil de risco e vinculo.",
+                    text = "Você não estima nada de mercado: a IA prevê sua renda e " +
+                        "despesas pelo seu histórico (e calcula o aporte mensal), e o " +
+                        "retorno, a volatilidade, a inflação e o risco de desemprego vêm " +
+                        "da base de referência calibrada ao seu perfil de risco e vínculo.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -199,7 +203,7 @@ private fun PremisesNote(premises: SimulationPremises) {
     }
     Text(
         text = "Premissas do seu perfil ($perfil): retorno ~${formatProbability(premises.expectedReturnAnnual)} a.a. " +
-            "e inflacao ~${formatProbability(premises.inflationAnnual)} a.a., calibradas automaticamente.",
+            "e inflação ~${formatProbability(premises.inflationAnnual)} a.a., calibradas automaticamente.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth(),
@@ -215,6 +219,8 @@ private fun CalibratedParameterForm(
     form: CalibratedSimulationForm,
     isRunning: Boolean,
     onChange: ((CalibratedSimulationForm) -> CalibratedSimulationForm) -> Unit,
+    totalAssets: java.math.BigDecimal? = null,
+    onUseTotalAssets: () -> Unit = {},
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -223,7 +229,7 @@ private fun CalibratedParameterForm(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Parametros da simulacao", style = MaterialTheme.typography.titleMedium)
+            Text("Parâmetros da simulação", style = MaterialTheme.typography.titleMedium)
 
             CurrencyField(
                 value = form.initialCapitalInput,
@@ -233,6 +239,14 @@ private fun CalibratedParameterForm(
                 label = "Capital inicial (R$)",
                 enabled = !isRunning,
             )
+            if (totalAssets != null && totalAssets.signum() > 0) {
+                TextButton(
+                    onClick = onUseTotalAssets,
+                    enabled = !isRunning,
+                ) {
+                    Text("Usar patrimônio total (${formatBrl(totalAssets.toDouble())})")
+                }
+            }
 
             // monthlyContribution AUSENTE intencionalmente (derivado pela IA).
             // Premissas de mercado (retorno, volatilidade, inflacao, desemprego)
@@ -253,6 +267,29 @@ private fun CalibratedParameterForm(
                     onChange { it.copy(horizonMonthsInput = v.filter(Char::isDigit)) }
                 },
                 label = "Horizonte (meses)",
+                enabled = !isRunning,
+            )
+
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Cenários simulados: ${form.numSimulations}",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                "Mínimo 10.000 (especificação do TCC). " +
+                    "Mais cenários = resultado mais estável, mais tempo.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Slider(
+                value = form.numSimulations.toFloat(),
+                onValueChange = { v ->
+                    // Múltiplos de 1000 para o slider ficar discreto.
+                    val rounded = (v.toInt() / 1000) * 1000
+                    onChange { it.copy(numSimulations = rounded.coerceAtLeast(10_000)) }
+                },
+                valueRange = 10_000f..50_000f,
+                steps = 39,  // 40 valores: 10k, 11k, ..., 50k
                 enabled = !isRunning,
             )
         }
@@ -295,7 +332,7 @@ fun CalibrationSummaryCard(summary: CalibrationSummary) {
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Como a IA calibrou os parametros",
+                    text = "Como a IA calibrou os parâmetros",
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
@@ -343,14 +380,14 @@ fun CalibrationSummaryCard(summary: CalibrationSummary) {
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "Volatilidade aplicada: ${formatProbability(summary.appliedVolatilityAnnual)} " +
-                    "(combina mercado + variacao da renda)",
+                    "(combina mercado + variação da renda)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Text(
-                text = "Predicao de renda #${summary.incomePredictionId} • " +
-                    "Predicao de despesa #${summary.expensePredictionId}",
+                text = "Predição de renda #${summary.incomePredictionId} • " +
+                    "Predição de despesa #${summary.expensePredictionId}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

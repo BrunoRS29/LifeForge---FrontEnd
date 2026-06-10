@@ -16,6 +16,7 @@ data class ReferenceDataResponseDto(
     val salaryGrowthAnnualStdDev: Double,
     val selicAnnual: Double,
     val riskFreeAnnual: Double,
+    val cdiVolatilityAnnual: Double = 0.005,
     val unemploymentDurationMonths: Int,
     val defaultUnemploymentProbAnnual: Double,
     val unexpectedExpenseAnnualFrequency: Double,

@@ -1,5 +1,6 @@
 package com.lifeforge.presentation.screen.simulation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -57,6 +59,7 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 
@@ -127,6 +130,8 @@ fun SimulationScreen(
                     form = state.form,
                     isRunning = state.isRunning,
                     onChange = viewModel::onFormChange,
+                    totalAssets = state.totalAssets,
+                    onUseTotalAssets = viewModel::useTotalAssetsAsInitialCapital,
                 )
 
                 Button(
@@ -147,7 +152,10 @@ fun SimulationScreen(
 
                 if (state.history.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    HistorySection(history = state.history)
+                    HistorySection(
+                        history = state.history,
+                        onOpen = viewModel::openHistoryEntry,
+                    )
                 }
             }
         }
@@ -163,6 +171,8 @@ private fun ParameterForm(
     form: SimulationForm,
     isRunning: Boolean,
     onChange: ((SimulationForm) -> SimulationForm) -> Unit,
+    totalAssets: java.math.BigDecimal? = null,
+    onUseTotalAssets: () -> Unit = {},
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -184,6 +194,14 @@ private fun ParameterForm(
                 label = "Capital inicial (R$)",
                 enabled = !isRunning,
             )
+            if (totalAssets != null && totalAssets.signum() > 0) {
+                TextButton(
+                    onClick = onUseTotalAssets,
+                    enabled = !isRunning,
+                ) {
+                    Text("Usar patrimônio total (${formatBrl(totalAssets.toDouble())})")
+                }
+            }
             CurrencyField(
                 value = form.monthlyContributionInput,
                 onValueChange = { v ->
@@ -211,6 +229,14 @@ private fun ParameterForm(
             Text(
                 "Premissas de mercado",
                 style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Pré-preenchidas com o cenário mais seguro hoje: 100% do CDI " +
+                    "(retorno e volatilidade da base de referência) e risco de " +
+                    "desemprego típico do seu vínculo de trabalho. Ajuste se " +
+                    "quiser simular outra carteira.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             CurrencyField(
@@ -349,7 +375,11 @@ internal fun ResultSection(result: SimulationResult) {
         }
 
         FanChart(trajectory = result.trajectory)
-        HistogramChart(buckets = result.histogram, targetAmount = result.targetAmount)
+        HistogramChart(
+            buckets = result.histogram,
+            targetAmount = result.targetAmount,
+            successProbability = result.successProbability,
+        )
         PercentilesChart(percentiles = result.percentiles)
     }
 }
@@ -453,7 +483,11 @@ private fun StatBox(
  * — Vico recompõe o gráfico automaticamente.
  */
 @Composable
-private fun HistogramChart(buckets: List<HistogramBucket>, targetAmount: Double) {
+internal fun HistogramChart(
+    buckets: List<HistogramBucket>,
+    targetAmount: Double,
+    successProbability: Double? = null,
+) {
     if (buckets.isEmpty()) return
 
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -463,6 +497,15 @@ private fun HistogramChart(buckets: List<HistogramBucket>, targetAmount: Double)
             columnSeries {
                 series(y = buckets.map { it.count })
             }
+        }
+    }
+
+    // Eixo X em R$: cada coluna é uma faixa de patrimônio; sem isto o eixo
+    // mostrava apenas o índice do bucket (0..49), ilegível para o usuário.
+    val bottomFormatter = remember(buckets) {
+        CartesianValueFormatter { _, value, _ ->
+            val index = value.toInt().coerceIn(0, buckets.lastIndex)
+            formatBrlCompact(buckets[index].rangeStart.toBigDecimal())
         }
     }
 
@@ -478,17 +521,30 @@ private fun HistogramChart(buckets: List<HistogramBucket>, targetAmount: Double)
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                "Linha pontilhada indica a meta (${formatBrl(targetAmount)})",
+                "Cada coluna conta quantos cenários simulados terminaram com o " +
+                    "patrimônio daquela faixa (eixo X, em R$). Colunas mais altas = " +
+                    "desfechos mais prováveis; quanto mais espalhadas, maior a " +
+                    "incerteza. Use para ver onde os resultados se concentram em " +
+                    "relação à meta de ${formatBrl(targetAmount)}.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (successProbability != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "A parte da distribuição à direita da meta corresponde à " +
+                        "probabilidade de sucesso (${formatProbability(successProbability)}).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(12.dp))
 
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberColumnCartesianLayer(),
                     startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(),
+                    bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
                 ),
                 modelProducer = modelProducer,
                 scrollState = rememberVicoScrollState(scrollEnabled = true),
@@ -510,7 +566,8 @@ private fun HistogramChart(buckets: List<HistogramBucket>, targetAmount: Double)
 @Composable
 private fun PercentilesChart(percentiles: Map<String, Double>) {
     val orderedKeys = listOf("P5", "P10", "P25", "P50", "P75", "P90", "P95")
-    val values = orderedKeys.mapNotNull { key -> percentiles[key] }
+    val presentKeys = orderedKeys.filter { it in percentiles }
+    val values = presentKeys.map { percentiles.getValue(it) }
 
     if (values.size < 2) return
 
@@ -524,6 +581,13 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
         }
     }
 
+    // Eixo X com os nomes dos percentis (P5..P95) em vez do índice 0..6.
+    val bottomFormatter = remember(presentKeys) {
+        CartesianValueFormatter { _, value, _ ->
+            presentKeys.getOrElse(value.toInt()) { "" }
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -532,11 +596,14 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Percentiles dos resultados",
+                "Percentis dos resultados",
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                "Patrimônio final em diferentes cenários (do pessimista ao otimista)",
+                "A linha mostra o patrimônio final do cenário pessimista (P5) ao " +
+                    "otimista (P95). Leia \"P25 = R$ X\" como: 25% dos cenários " +
+                    "terminaram abaixo de X. Curva mais íngreme = resultados mais " +
+                    "espalhados (mais incerteza).",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -546,7 +613,7 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
                     startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(),
+                    bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
                 ),
                 modelProducer = modelProducer,
                 modifier = Modifier
@@ -564,7 +631,10 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
 // ============================================================================
 
 @Composable
-private fun HistorySection(history: List<SimulationSummary>) {
+private fun HistorySection(
+    history: List<SimulationSummary>,
+    onOpen: (Long) -> Unit = {},
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -576,10 +646,18 @@ private fun HistorySection(history: List<SimulationSummary>) {
                 "Simulações anteriores",
                 style = MaterialTheme.typography.titleMedium,
             )
+            Text(
+                "Toque numa rodada para reabrir o resultado e os gráficos dela.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(8.dp))
             history.forEach { sim ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpen(sim.id) }
+                        .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
