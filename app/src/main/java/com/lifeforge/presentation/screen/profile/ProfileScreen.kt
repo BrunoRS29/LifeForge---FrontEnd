@@ -44,13 +44,13 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -98,24 +98,15 @@ fun ProfileScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Perfil") },
-                actions = {
-                    IconButton(
-                        onClick = viewModel::refresh,
-                        enabled = !state.isRefreshing,
-                    ) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Atualizar")
-                    }
-                },
-            )
+            TopAppBar(title = { Text("Perfil") })
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isRefreshing) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-
+        // Atualização por gesto (puxar para baixo), como nos apps modernos.
+        PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()

@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.AssistChip
@@ -24,12 +23,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -63,17 +61,7 @@ fun GoalsListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Metas") },
-                actions = {
-                    IconButton(
-                        onClick = viewModel::refresh,
-                        enabled = !state.isRefreshing,
-                    ) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Atualizar")
-                    }
-                },
-            )
+            TopAppBar(title = { Text("Metas") })
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -83,11 +71,12 @@ fun GoalsListScreen(
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isRefreshing) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-
+        // Atualização por gesto (puxar para baixo), como nos apps modernos.
+        PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 if (state.errorBanner != null) {
                     ErrorBanner(
@@ -99,11 +88,18 @@ fun GoalsListScreen(
 
                 when {
                     state.goals.isEmpty() && !state.isRefreshing -> {
-                        EmptyState(
-                            title = "Nenhuma meta ainda",
-                            description = "Crie sua primeira meta e simule seu plano financeiro.",
-                            icon = Icons.Outlined.Flag,
-                        )
+                        // LazyColumn + fillParentMaxSize mantém o gesto de
+                        // puxar funcionando mesmo sem metas cadastradas.
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            item {
+                                EmptyState(
+                                    title = "Nenhuma meta ainda",
+                                    description = "Crie sua primeira meta e simule seu plano financeiro.",
+                                    icon = Icons.Outlined.Flag,
+                                    modifier = Modifier.fillParentMaxSize(),
+                                )
+                            }
+                        }
                     }
                     else -> GoalsList(state.goals, onGoalClick)
                 }

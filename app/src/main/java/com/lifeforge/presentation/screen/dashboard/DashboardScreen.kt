@@ -1,5 +1,6 @@
 package com.lifeforge.presentation.screen.dashboard
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,10 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.TrendingDown
 import androidx.compose.material.icons.outlined.TrendingUp
@@ -22,19 +23,21 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,25 +70,16 @@ fun DashboardScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("LifeForge") },
-                actions = {
-                    IconButton(
-                        onClick = viewModel::refresh,
-                        enabled = !state.isRefreshing,
-                    ) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Atualizar")
-                    }
-                },
-            )
+            TopAppBar(title = { Text("LifeForge") })
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Progress bar fina no topo durante refresh.
-            if (state.isRefreshing) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-
+        // Atualização por gesto (puxar para baixo) — padrão dos apps atuais;
+        // o indicador circular do Material 3 substitui o botão de refresh.
+        PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -152,26 +146,15 @@ private fun String.firstName(): String = trim().substringBefore(' ')
 
 @Composable
 private fun FinancialSnapshotSection(snapshot: FinancialSnapshot?) {
-    // 4 cards em grid 2x2. Quando snapshot é null (carregando),
-    // mostramos os mesmos cards com "—" — evita layout shift quando
-    // os dados chegam.
+    // Hierarquia moderna: card-herói com o patrimônio (a informação mais
+    // importante) em destaque com gradiente, e abaixo as métricas do mês.
+    // Quando snapshot é null (carregando), mostramos "—" — evita layout
+    // shift quando os dados chegam.
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Patrimônio total",
-                value = snapshot?.totalAssets?.let(::formatBrl) ?: "—",
-                icon = Icons.Outlined.AccountBalanceWallet,
-                accent = MaterialTheme.colorScheme.primary,
-            )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Taxa de poupança",
-                value = snapshot?.savingsRate?.let(::formatPercent) ?: "—",
-                icon = Icons.Outlined.Savings,
-                accent = MaterialTheme.colorScheme.secondary,
-            )
-        }
+        WealthHeroCard(
+            totalAssets = snapshot?.totalAssets?.let(::formatBrl) ?: "—",
+            savingsRate = snapshot?.savingsRate?.let(::formatPercent),
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MetricCard(
                 modifier = Modifier.weight(1f),
@@ -187,6 +170,77 @@ private fun FinancialSnapshotSection(snapshot: FinancialSnapshot?) {
                 icon = Icons.Outlined.TrendingDown,
                 accent = MaterialTheme.colorScheme.tertiary,
             )
+        }
+    }
+}
+
+/**
+ * Card-herói do dashboard: patrimônio total sobre um gradiente suave
+ * (primaryContainer → tertiaryContainer) com a taxa de poupança num
+ * "chip" translúcido. É o ponto focal visual da tela.
+ */
+@Composable
+private fun WealthHeroCard(totalAssets: String, savingsRate: String?) {
+    val gradient = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(gradient)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.AccountBalanceWallet,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                "Patrimônio total",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+        AutoSizeText(
+            text = totalAssets,
+            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (savingsRate != null) {
+            Spacer(Modifier.height(2.dp))
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Outlined.Savings,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.height(16.dp),
+                    )
+                    Text(
+                        "Taxa de poupança: $savingsRate",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
         }
     }
 }

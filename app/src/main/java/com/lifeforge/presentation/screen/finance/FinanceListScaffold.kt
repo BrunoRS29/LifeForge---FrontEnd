@@ -9,14 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,9 +31,9 @@ import com.lifeforge.presentation.common.ErrorBanner
  * - `listContent`: o que renderizar quando há itens (LazyListScope para
  *   o caller emitir `items(...)` direto)
  *
- * O scaffold cuida do progress bar no topo durante refresh, banner de
- * erro dismissable, FAB que dispara `onAddClick`, e o botão de refresh
- * no canto superior direito.
+ * Atualizar é por GESTO: puxe a lista para baixo (swipe-to-refresh, padrão
+ * dos apps modernos) — o indicador circular do Material 3 dá o feedback.
+ * O scaffold ainda cuida do banner de erro e do FAB de adicionar.
  */
 @Composable
 fun FinanceListScaffold(
@@ -52,22 +50,12 @@ fun FinanceListScaffold(
     header: (@Composable () -> Unit)? = null,
     listContent: LazyListScope.() -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (isRefreshing) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-
-            // Barra de ação topo (refresh).
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                IconButton(onClick = onRefresh, enabled = !isRefreshing) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = "Atualizar")
-                }
-            }
-
             if (errorBanner != null) {
                 ErrorBanner(
                     message = errorBanner,
@@ -78,11 +66,18 @@ fun FinanceListScaffold(
 
             when {
                 isEmpty && !isRefreshing -> {
-                    EmptyState(
-                        title = emptyTitle,
-                        description = emptyDescription,
-                        icon = emptyIcon,
-                    )
+                    // LazyColumn + fillParentMaxSize: o gesto de puxar continua
+                    // funcionando mesmo sem itens e o EmptyState fica centrado.
+                    LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                        item {
+                            EmptyState(
+                                title = emptyTitle,
+                                description = emptyDescription,
+                                icon = emptyIcon,
+                                modifier = Modifier.fillParentMaxSize(),
+                            )
+                        }
+                    }
                 }
                 else -> {
                     header?.invoke()
