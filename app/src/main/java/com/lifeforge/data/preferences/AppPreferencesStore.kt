@@ -2,6 +2,7 @@ package com.lifeforge.data.preferences
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -50,6 +51,22 @@ class AppPreferencesStore @Inject constructor(
     }
 
     /**
+     * Cores dinâmicas (Material You, Android 12+): deriva a paleta do papel
+     * de parede do usuário. Padrão DESLIGADO — o tema da marca LifeForge é o
+     * fallback recomendado e mantém a identidade visual nas apresentações;
+     * o usuário pode ativar para personalização (diretriz de Temas do M3).
+     */
+    val dynamicColorFlow: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[KEY_DYNAMIC_COLOR] ?: false
+    }
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[KEY_DYNAMIC_COLOR] = enabled
+        }
+    }
+
+    /**
      * Caminho do arquivo local com a foto de perfil (copiada do picker para
      * o armazenamento interno do app). Foto é uma preferência do DISPOSITIVO
      * — não sobe para o backend; null = sem foto (avatar com ícone padrão).
@@ -67,6 +84,7 @@ class AppPreferencesStore @Inject constructor(
     companion object {
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_AVATAR_PATH = stringPreferencesKey("avatar_path")
+        private val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
     }
 }
 

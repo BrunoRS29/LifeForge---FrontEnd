@@ -78,18 +78,33 @@ class ProfileViewModel @Inject constructor(
         )
     }
 
+    /** Preferências do app agrupadas — `combine` só aceita 5 fontes type-safe. */
+    private data class AppPrefs(
+        val themeMode: ThemeMode,
+        val avatarPath: String?,
+        val dynamicColor: Boolean,
+    )
+
+    private val prefsFlow = combine(
+        appPreferences.themeModeFlow,
+        appPreferences.avatarPathFlow,
+        appPreferences.dynamicColorFlow,
+    ) { themeMode, avatarPath, dynamicColor ->
+        AppPrefs(themeMode, avatarPath, dynamicColor)
+    }
+
     val state: StateFlow<ProfileUiState> = combine(
         observeCurrentUser(),
         countsFlow,
-        appPreferences.themeModeFlow,
-        appPreferences.avatarPathFlow,
+        prefsFlow,
         localState,
-    ) { user, counts, themeMode, avatarPath, local ->
+    ) { user, counts, prefs, local ->
         ProfileUiState(
             user = user,
             counts = counts,
-            themeMode = themeMode,
-            avatarPath = avatarPath,
+            themeMode = prefs.themeMode,
+            avatarPath = prefs.avatarPath,
+            dynamicColor = prefs.dynamicColor,
             isRefreshing = local.isRefreshing,
             isUpdatingRiskProfile = local.isUpdatingRiskProfile,
             isUpdatingName = local.isUpdatingName,
@@ -244,6 +259,11 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    /** Cores dinâmicas (Material You) — personalização opcional do Android 12+. */
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { appPreferences.setDynamicColor(enabled) }
+    }
+
     // ------------------------------------------------------------------------
     // Sobre
     // ------------------------------------------------------------------------
@@ -274,6 +294,8 @@ data class ProfileUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Caminho local da foto de perfil; null = avatar padrão. */
     val avatarPath: String? = null,
+    /** Cores dinâmicas (Material You) ativadas. */
+    val dynamicColor: Boolean = false,
     val isRefreshing: Boolean = false,
     val isUpdatingRiskProfile: Boolean = false,
     val isUpdatingName: Boolean = false,

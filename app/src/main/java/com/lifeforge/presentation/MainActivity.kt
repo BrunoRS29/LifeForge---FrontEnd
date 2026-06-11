@@ -35,12 +35,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val themeMode by themeViewModel.themeMode.collectAsState()
+            val dynamicColor by themeViewModel.dynamicColor.collectAsState()
             val darkTheme = when (themeMode) {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
-            LifeForgeTheme(darkTheme = darkTheme) {
+            LifeForgeTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
                 Surface {
                     LifeForgeNavGraph()
                 }

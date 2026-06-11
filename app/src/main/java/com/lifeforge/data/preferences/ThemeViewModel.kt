@@ -28,4 +28,12 @@ class ThemeViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = ThemeMode.SYSTEM,
         )
+
+    /** Cores dinâmicas (Material You); default desligado = tema da marca. */
+    val dynamicColor: StateFlow<Boolean> = appPreferences.dynamicColorFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false,
+        )
 }

@@ -1,6 +1,8 @@
 package com.lifeforge.presentation.screen.profile
 
+import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,11 +21,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -45,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -60,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.data.preferences.ThemeMode
@@ -149,6 +155,11 @@ fun ProfileScreen(
                         themeMode = state.themeMode,
                         onThemeClick = viewModel::openThemeDialog,
                     )
+                    DynamicColorCard(
+                        enabled = state.dynamicColor,
+                        onToggle = viewModel::setDynamicColor,
+                    )
+                    HelpAndFeedbackCard()
                     AboutCard(onClick = viewModel::openAboutDialog)
 
                     Spacer(Modifier.height(16.dp))
@@ -474,6 +485,72 @@ private fun ThemeDialog(
             TextButton(onClick = onDismiss) {
                 Text("Fechar")
             }
+        },
+    )
+}
+
+// ============================================================================
+// Cores dinâmicas (Material You)
+// ============================================================================
+
+/**
+ * Personalização opcional: deriva a paleta do papel de parede (Material You).
+ * Só aparece no Android 12+; o padrão desligado preserva o tema da marca.
+ */
+@Composable
+private fun DynamicColorCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.Palette,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.size(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Cores dinâmicas", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Usa as cores do seu papel de parede (Material You)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = enabled, onCheckedChange = onToggle)
+        }
+    }
+}
+
+// ============================================================================
+// Ajuda e feedback
+// ============================================================================
+
+/**
+ * Padrão "Ajuda e feedback": canal direto com os autores por e-mail, com
+ * assunto e versão pré-preenchidos para facilitar o relato.
+ */
+@Composable
+private fun HelpAndFeedbackCard() {
+    val context = LocalContext.current
+    SettingsItemCard(
+        icon = Icons.AutoMirrored.Outlined.HelpOutline,
+        title = "Ajuda e feedback",
+        subtitle = "Encontrou um problema ou tem uma sugestão? Fale com a gente",
+        onClick = {
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("mailto:")
+                putExtra(Intent.EXTRA_EMAIL, arrayOf("gabrielinnocencio22@gmail.com"))
+                putExtra(Intent.EXTRA_SUBJECT, "LifeForge — Ajuda e feedback (v1.0.0)")
+            }
+            runCatching { context.startActivity(intent) }
         },
     )
 }
