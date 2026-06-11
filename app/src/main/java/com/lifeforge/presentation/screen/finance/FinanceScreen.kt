@@ -47,7 +47,9 @@ fun FinanceScreen(
     onNavigateToImport: () -> Unit = {},
     viewModel: FinanceViewModel = hiltViewModel(),
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Saveable: voltar do app (Recents/recriação) preserva a aba ativa
+    // (diretriz State_Preservation do core app quality).
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var menuOpen by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf<ConfirmAction?>(null) }
     // Mês de visualização COMPARTILHADO entre Receitas e Despesas: alternar
