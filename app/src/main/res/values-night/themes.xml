@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Variante NOTURNA do tema de janela. Sem ela, a janela usava
+        Theme.Material.Light também no modo escuro e o usuário via um
+        "flash" branco na abertura do app antes de o Compose desenhar
+        (diretriz Theme_Support do core app quality).
+    -->
+    <style name="Theme.LifeForge" parent="android:Theme.Material.NoActionBar" />
+</resources>
