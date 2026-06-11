@@ -36,6 +36,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -519,6 +522,7 @@ internal fun HistogramChart(
             Text(
                 "Distribuição dos patrimônios finais",
                 style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
                 "Cada coluna conta quantos cenários simulados terminaram com o " +
@@ -540,6 +544,12 @@ internal fun HistogramChart(
             }
             Spacer(Modifier.height(12.dp))
 
+            // Resumo textual do histograma para leitores de tela (TalkBack).
+            val chartDescription =
+                "Histograma da distribuição dos patrimônios finais, de " +
+                    "${formatBrlCompact(buckets.first().rangeStart.toBigDecimal())} a " +
+                    "${formatBrlCompact(buckets.last().rangeEnd.toBigDecimal())}, " +
+                    "meta de ${formatBrl(targetAmount)}"
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberColumnCartesianLayer(),
@@ -550,7 +560,8 @@ internal fun HistogramChart(
                 scrollState = rememberVicoScrollState(scrollEnabled = true),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(220.dp)
+                    .semantics { contentDescription = chartDescription },
             )
         }
     }
@@ -598,6 +609,7 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
             Text(
                 "Percentis dos resultados",
                 style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
                 "A linha mostra o patrimônio final do cenário pessimista (P5) ao " +
@@ -609,6 +621,11 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
             )
             Spacer(Modifier.height(12.dp))
 
+            // Resumo textual dos percentis para leitores de tela (TalkBack).
+            val chartDescription = "Percentis do patrimônio final: " +
+                presentKeys.zip(values).joinToString { (key, value) ->
+                    "$key ${formatBrlCompact(value.toBigDecimal())}"
+                }
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
@@ -618,7 +635,8 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
                 modelProducer = modelProducer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(220.dp)
+                    .semantics { contentDescription = chartDescription },
             )
         }
     }
@@ -656,7 +674,9 @@ private fun HistorySection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onOpen(sim.id) }
+                        .clickable(onClickLabel = "Reabrir resultado desta rodada") {
+                            onOpen(sim.id)
+                        }
                         .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {

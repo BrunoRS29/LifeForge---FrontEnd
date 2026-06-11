@@ -22,6 +22,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lifeforge.domain.model.TrajectoryBand
@@ -169,6 +172,7 @@ fun FanChart(
             Text(
                 "Projeção do patrimônio ao longo do tempo",
                 style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
                 "Cada linha é um percentil dos cenários simulados — de baixo " +
@@ -189,6 +193,12 @@ fun FanChart(
             )
             Spacer(Modifier.height(12.dp))
 
+            // Descrição para leitores de tela (TalkBack): o gráfico em si é
+            // só desenho — o resumo textual carrega a informação.
+            val chartDescription = "Gráfico de leque da projeção em ${last.monthIndex} meses: " +
+                "cenário pessimista ${formatBrlCompact(last.p10.toBigDecimal())}, " +
+                "mediana ${formatBrlCompact(last.p50.toBigDecimal())}, " +
+                "otimista ${formatBrlCompact(last.p90.toBigDecimal())}"
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
@@ -199,7 +209,8 @@ fun FanChart(
                 scrollState = rememberVicoScrollState(scrollEnabled = true),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(240.dp),
+                    .height(240.dp)
+                    .semantics { contentDescription = chartDescription },
             )
         }
     }

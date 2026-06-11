@@ -57,7 +57,7 @@ fun MonthNavigator(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable {
+                .clickable(onClickLabel = "Escolher mês e ano") {
                     // Picker nativo do Android: o dia escolhido é ignorado,
                     // só o mês/ano interessam.
                     DatePickerDialog(

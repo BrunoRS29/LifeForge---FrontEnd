@@ -13,6 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lifeforge.domain.model.ProjectionInputs
 import com.lifeforge.domain.model.ReferenceData
@@ -125,6 +128,7 @@ fun WealthProjectionCard(
                 if (horizonMonths != null) "Evolução do patrimônio até a aposentadoria"
                 else "Evolução do patrimônio ($years anos)",
                 style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
                 buildString {
@@ -146,6 +150,10 @@ fun WealthProjectionCard(
             }
             Spacer(Modifier.height(12.dp))
 
+            // Resumo textual para leitores de tela (TalkBack).
+            val chartDescription = "Gráfico de evolução em $years anos: " +
+                "investindo, ${formatBrlCompact(proj.finalProjected.toBigDecimal())}; " +
+                "apenas guardando, ${formatBrlCompact(proj.finalContributionsOnly.toBigDecimal())}"
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
@@ -155,7 +163,8 @@ fun WealthProjectionCard(
                 modelProducer = modelProducer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(200.dp)
+                    .semantics { contentDescription = chartDescription },
             )
 
             Spacer(Modifier.height(8.dp))
