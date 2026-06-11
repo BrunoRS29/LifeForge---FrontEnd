@@ -1,5 +1,8 @@
 package com.lifeforge.presentation.screen.simulation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -148,9 +151,18 @@ fun SimulationScreen(
                     )
                 }
 
-                state.result?.let { result ->
-                    Spacer(Modifier.height(8.dp))
-                    ResultSection(result = result)
+                // Entrada animada do resultado — o bloco "desliza" para a tela
+                // quando a simulação termina (motion sutil do Material 3).
+                AnimatedVisibility(
+                    visible = state.result != null,
+                    enter = fadeIn() + expandVertically(),
+                ) {
+                    state.result?.let { result ->
+                        Column {
+                            Spacer(Modifier.height(8.dp))
+                            ResultSection(result = result)
+                        }
+                    }
                 }
 
                 if (state.history.isNotEmpty()) {

@@ -1,5 +1,8 @@
 package com.lifeforge.presentation.screen.simulation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -135,13 +138,21 @@ fun SimulationCalibratedScreen(
                     )
                 }
 
-                state.result?.let { result ->
-                    Spacer(Modifier.height(8.dp))
-                    CalibrationSummaryCard(summary = result.calibration)
-                    Spacer(Modifier.height(8.dp))
-                    // Chamada DIRETA ao ResultSection do SimulationScreen.kt
-                    // (mesmo pacote). Requer visibilidade `internal` la.
-                    ResultSection(result = result.simulation)
+                // Entrada animada do resultado (mesmo motion da SimulationScreen).
+                AnimatedVisibility(
+                    visible = state.result != null,
+                    enter = fadeIn() + expandVertically(),
+                ) {
+                    state.result?.let { result ->
+                        Column {
+                            Spacer(Modifier.height(8.dp))
+                            CalibrationSummaryCard(summary = result.calibration)
+                            Spacer(Modifier.height(8.dp))
+                            // Chamada DIRETA ao ResultSection do SimulationScreen.kt
+                            // (mesmo pacote). Requer visibilidade `internal` la.
+                            ResultSection(result = result.simulation)
+                        }
+                    }
                 }
             }
         }

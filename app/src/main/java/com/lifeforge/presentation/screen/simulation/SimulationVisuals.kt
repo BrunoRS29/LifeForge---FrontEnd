@@ -1,5 +1,7 @@
 package com.lifeforge.presentation.screen.simulation
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +62,13 @@ fun ProbabilityGauge(
     modifier: Modifier = Modifier,
 ) {
     val p = probability.coerceIn(0.0, 1.0).toFloat()
+    // O arco "preenche" suavemente até o valor final — dá vida ao resultado
+    // sem atrapalhar a leitura (o número aparece imediatamente).
+    val animatedP by animateFloatAsState(
+        targetValue = p,
+        animationSpec = tween(durationMillis = 900),
+        label = "gauge-progress",
+    )
 
     val arcColor = when {
         p >= 0.70f -> MaterialTheme.colorScheme.primary
@@ -100,11 +110,11 @@ fun ProbabilityGauge(
                 style = Stroke(width = strokePx, cap = StrokeCap.Round),
             )
 
-            // Arco de valor proporcional a probabilidade.
+            // Arco de valor proporcional a probabilidade (animado).
             drawArc(
                 color = arcColor,
                 startAngle = 180f,
-                sweepAngle = 180f * p,
+                sweepAngle = 180f * animatedP,
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
