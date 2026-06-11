@@ -92,6 +92,8 @@ android {
 dependencies {
     // AndroidX core
     implementation(libs.androidx.core.ktx)
+    // Splash screen nativa (API 31+) com compat até o minSdk
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(libs.androidx.activity.compose)
     implementation(libs.bundles.lifecycle)
 

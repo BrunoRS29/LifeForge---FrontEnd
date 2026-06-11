@@ -7,4 +7,11 @@
         (diretriz Theme_Support do core app quality).
     -->
     <style name="Theme.LifeForge" parent="android:Theme.Material.NoActionBar" />
+
+    <!-- Splash escura para quem usa o sistema em modo escuro. -->
+    <style name="Theme.LifeForge.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#101418</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.LifeForge</item>
+    </style>
 </resources>
