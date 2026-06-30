@@ -20,6 +20,15 @@ val apiBaseUrlDebug: String =
 val apiBaseUrlRelease: String =
     localProps.getProperty("API_BASE_URL_RELEASE") ?: "https://api.lifeforge.app/api/v1/"
 
+// Credenciais de assinatura do release (keystore.properties NÃO versionado).
+// Sem o arquivo, o release sai sem assinatura — assim o build em CI/outra
+// máquina não quebra; quem vai gerar o APK instalável cria o keystore.properties.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) load(keystorePropsFile.inputStream())
+}
+val hasReleaseSigning = keystorePropsFile.exists()
+
 android {
     namespace = "com.lifeforge"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -33,6 +42,17 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -49,6 +69,10 @@ android {
                 "proguard-rules.pro",
             )
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrlRelease\"")
+            // Assina o release quando o keystore.properties existe.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

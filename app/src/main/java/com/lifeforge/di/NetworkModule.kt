@@ -73,6 +73,16 @@ object NetworkModule {
         loggingInterceptor: HttpLoggingInterceptor,
     ): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
+        // Quando o backend e exposto por um tunel ngrok gratuito, a primeira
+        // visita recebe uma pagina HTML de aviso em vez do JSON. Este cabecalho
+        // pula esse aviso. E inofensivo em qualquer outro backend (cabecalho
+        // desconhecido e ignorado pelo Ktor).
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("ngrok-skip-browser-warning", "true")
+                .build()
+            chain.proceed(request)
+        }
         .addInterceptor(loggingInterceptor)
         .connectTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)

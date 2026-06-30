@@ -44,3 +44,13 @@
 # Engine de Monte Carlo / Otimização — preserva nomes para logs legíveis
 # ============================================================================
 -keep class com.lifeforge.domain.model.** { *; }
+
+# ============================================================================
+# Enums serializados por nome (RiskProfile, EmploymentType, etc.)
+# Sem isto, o R8 pode renomear constantes/remover values()/valueOf e quebrar
+# a (de)serializacao JSON em release.
+# ============================================================================
+-keepclassmembers enum com.lifeforge.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
