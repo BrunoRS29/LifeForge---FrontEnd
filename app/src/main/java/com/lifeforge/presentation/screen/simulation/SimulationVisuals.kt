@@ -42,10 +42,13 @@ import com.lifeforge.presentation.common.rememberFitToWidthZoom
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 
@@ -193,9 +196,9 @@ fun FanChart(
             )
             Text(
                 "Cada linha é um percentil dos cenários simulados — de baixo " +
-                    "para cima: P10, P25, mediana (P50), P75 e P90. Eixo X em " +
-                    "meses, eixo Y em R$. O leque abre conforme a incerteza " +
-                    "cresce no horizonte.",
+                    "para cima: P10, P25, mediana (P50, a linha mais forte), P75 e " +
+                    "P90. Eixo X em meses, eixo Y em R$. O leque abre conforme a " +
+                    "incerteza cresce no horizonte.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -218,9 +221,26 @@ fun FanChart(
                 "otimista ${formatBrlCompact(last.p90.toBigDecimal())}"
             // Horizonte inteiro na largura da tela, com rótulos espaçados.
             val itemPlacer = remember(last.monthIndex) { monthItemPlacer(monthAxisSpacing(last.monthIndex)) }
+            // Cores simétricas, como num fan chart clássico: extremos (P10/P90)
+            // claros, faixa interna (P25/P75) média e a mediana forte. Com as
+            // cores do tema em ciclo, P10 e P75 saíam iguais.
+            val primary = MaterialTheme.colorScheme.primary
+            val outerLine = LineCartesianLayer.rememberLine(
+                remember(primary) { LineCartesianLayer.LineFill.single(fill(primary.copy(alpha = 0.35f))) },
+            )
+            val innerLine = LineCartesianLayer.rememberLine(
+                remember(primary) { LineCartesianLayer.LineFill.single(fill(primary.copy(alpha = 0.65f))) },
+            )
+            val medianLine = LineCartesianLayer.rememberLine(
+                remember(primary) { LineCartesianLayer.LineFill.single(fill(primary)) },
+            )
             CartesianChartHost(
                 chart = rememberCartesianChart(
-                    rememberLineCartesianLayer(),
+                    rememberLineCartesianLayer(
+                        lineProvider = LineCartesianLayer.LineProvider.series(
+                            outerLine, innerLine, medianLine, innerLine, outerLine,
+                        ),
+                    ),
                     startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
                     bottomAxis = HorizontalAxis.rememberBottom(itemPlacer = itemPlacer),
                 ),

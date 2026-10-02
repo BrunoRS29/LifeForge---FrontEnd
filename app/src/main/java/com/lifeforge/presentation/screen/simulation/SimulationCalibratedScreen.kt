@@ -46,6 +46,7 @@ import com.lifeforge.domain.model.CalibrationSummary
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.ErrorBanner
+import com.lifeforge.presentation.common.formatCount
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
@@ -284,7 +285,7 @@ private fun CalibratedParameterForm(
 
             Spacer(Modifier.height(4.dp))
             Text(
-                "Cenários simulados: ${form.numSimulations}",
+                "Cenários simulados: ${formatCount(form.numSimulations)}",
                 style = MaterialTheme.typography.titleSmall,
             )
             Text(

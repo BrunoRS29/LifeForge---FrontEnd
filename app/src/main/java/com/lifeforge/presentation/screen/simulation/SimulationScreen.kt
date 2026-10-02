@@ -58,7 +58,10 @@ import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.BrlAxisFormatter
 import com.lifeforge.presentation.common.formatAnnualRate
+import com.lifeforge.presentation.common.formatCount
+import com.lifeforge.presentation.common.formatAxisBrl
 import com.lifeforge.presentation.common.formatBrl
+import com.lifeforge.presentation.common.rememberFitToWidthZoom
 import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatDateTime
 import com.lifeforge.presentation.common.formatProbability
@@ -68,7 +71,6 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -154,7 +156,7 @@ fun SimulationScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
-                        if (state.isRunning) "Simulando ${state.form.numSimulations} cenários…"
+                        if (state.isRunning) "Simulando ${formatCount(state.form.numSimulations)} cenários…"
                         else "Executar simulação",
                     )
                 }
@@ -314,7 +316,7 @@ private fun ParameterForm(
 
             Spacer(Modifier.height(4.dp))
             Text(
-                "Iterações: ${form.numSimulations}",
+                "Iterações: ${formatCount(form.numSimulations)}",
                 style = MaterialTheme.typography.titleSmall,
             )
             Text(
@@ -381,7 +383,7 @@ internal fun ResultSection(result: SimulationResult) {
                 ProbabilityGauge(probability = result.successProbability)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "${result.numSimulations} cenários · " +
+                    "${formatCount(result.numSimulations)} cenários · " +
                         "executado em ${result.executionTimeMs} ms",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -534,10 +536,14 @@ internal fun HistogramChart(
 
     // Eixo X em R$: cada coluna é uma faixa de patrimônio; sem isto o eixo
     // mostrava apenas o índice do bucket (0..49), ilegível para o usuário.
+    // Três rótulos de faixa (início, meio e fim da distribuição) cabem sem sobrepor.
+    val bottomItemPlacer = remember(buckets.size) {
+        HorizontalAxis.ItemPlacer.aligned(spacing = { (buckets.size + 2) / 3 })
+    }
     val bottomFormatter = remember(buckets) {
         CartesianValueFormatter { _, value, _ ->
             val index = value.toInt().coerceIn(0, buckets.lastIndex)
-            formatBrlCompact(buckets[index].rangeStart.toBigDecimal())
+            formatAxisBrl(buckets[index].rangeStart)
         }
     }
 
@@ -583,10 +589,15 @@ internal fun HistogramChart(
                 chart = rememberCartesianChart(
                     rememberColumnCartesianLayer(),
                     startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
+                    bottomAxis = HorizontalAxis.rememberBottom(
+                        valueFormatter = bottomFormatter,
+                        itemPlacer = bottomItemPlacer,
+                    ),
                 ),
                 modelProducer = modelProducer,
-                scrollState = rememberVicoScrollState(scrollEnabled = true),
+                // Distribuição inteira na tela: rolando, abria na cauda esquerda
+                // e o grosso dos cenários ficava fora da vista.
+                zoomState = rememberFitToWidthZoom(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)

@@ -65,6 +65,9 @@ private fun formatNumber(value: BigDecimal): String =
         maximumFractionDigits = 1
     }.format(value)
 
+/** Inteiro com separador de milhar: 10000 → "10.000". */
+fun formatCount(value: Int): String = NumberFormat.getIntegerInstance(ptBR).format(value)
+
 /** Formata BigDecimal como percentual: `85,4%`. Espera valor em % (ex.: 85.4 = 85,4%). */
 fun formatPercent(value: BigDecimal): String =
     NumberFormat.getNumberInstance(ptBR).apply {
