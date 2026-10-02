@@ -149,14 +149,27 @@ data class CalibratedSimulation(
  *   informada pelo usuario e a sigma anualizada da renda
  */
 data class CalibrationSummary(
-    val incomePredictionId: Long,
-    val expensePredictionId: Long,
+    val incomePredictionId: Long?,
+    val expensePredictionId: Long?,
     val predictedMonthlyIncome: Double,
     val predictedMonthlyExpense: Double,
     val rawMonthlyContribution: Double,
     val appliedMonthlyContribution: Double,
     val appliedVolatilityAnnual: Double,
+    /** Origem da renda usada (modelo de IA, perfil ou média do histórico). */
+    val incomeSource: CalibrationSource? = CalibrationSource.ML_MODEL,
+    /** Origem da despesa usada. */
+    val expenseSource: CalibrationSource? = CalibrationSource.ML_MODEL,
+    /** true quando o aporte veio do valor declarado no perfil (último recurso). */
+    val contributionFromProfile: Boolean = false,
+    /** Motivos do recuo (vazio quando os dois modelos de IA rodaram). */
+    val fallbackNotes: List<String> = emptyList(),
 ) {
+    /** Houve recuo: algum insumo não veio dos modelos de IA. */
+    val usedFallback: Boolean
+        get() = incomeSource != CalibrationSource.ML_MODEL ||
+            expenseSource != CalibrationSource.ML_MODEL || contributionFromProfile
+
     /** True quando o capping zerou a contribuicao (despesa >= renda). */
     val cappedToZero: Boolean get() = rawMonthlyContribution < 0.0
 
@@ -191,3 +204,13 @@ data class CalibratedSimulationParameters(
     /** Horizonte usado APENAS para calcular a media da renda projetada. */
     val incomeHorizonMonths: Int = 12,
 )
+
+/**
+ * Origem de um insumo da simulação calibrada. Sem histórico suficiente para os
+ * modelos (partida a frio), o backend recua para o perfil e para médias simples.
+ */
+enum class CalibrationSource(val label: String) {
+    ML_MODEL("modelo de IA"),
+    PROFILE("seu perfil"),
+    HISTORY_AVERAGE("média dos seus lançamentos"),
+}

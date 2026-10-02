@@ -11,6 +11,7 @@ import com.lifeforge.data.model.dto.RunCalibratedSimulationRequestDto
 import com.lifeforge.data.model.dto.RunCalibratedSimulationResponseDto
 import com.lifeforge.domain.model.CalibratedSimulation
 import com.lifeforge.domain.model.CalibratedSimulationParameters
+import com.lifeforge.domain.model.CalibrationSource
 import com.lifeforge.domain.model.CalibrationSummary
 import com.lifeforge.domain.model.ExpenseCategory
 import com.lifeforge.domain.model.ExpenseCategoryPrediction
@@ -123,7 +124,18 @@ fun CalibrationSummaryResponseDto.toDomain(): CalibrationSummary = CalibrationSu
     rawMonthlyContribution = rawMonthlyContribution,
     appliedMonthlyContribution = appliedMonthlyContribution,
     appliedVolatilityAnnual = appliedVolatilityAnnual,
+    // Backend sem os campos de origem: havendo id de predição, o insumo veio do modelo.
+    incomeSource = incomeSource.toCalibrationSource()
+        ?: CalibrationSource.ML_MODEL.takeIf { incomePredictionId != null },
+    expenseSource = expenseSource.toCalibrationSource()
+        ?: CalibrationSource.ML_MODEL.takeIf { expensePredictionId != null },
+    contributionFromProfile = contributionSource == "PROFILE",
+    fallbackNotes = fallbackNotes,
 )
+
+/** Origem desconhecida (versão futura do backend) cai em null, sem quebrar. */
+private fun String?.toCalibrationSource(): CalibrationSource? =
+    this?.let { name -> CalibrationSource.entries.firstOrNull { it.name == name } }
 
 // ============================================================================
 // Domain -> Request DTO

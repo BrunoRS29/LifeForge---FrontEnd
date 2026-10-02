@@ -18,7 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lifeforge.domain.model.CalibrationSource
 import com.lifeforge.domain.model.CalibrationSummary
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.presentation.common.CurrencyField
@@ -88,7 +89,7 @@ fun SimulationCalibratedScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, enabled = !state.isRunning) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
                     }
                 },
             )
@@ -343,29 +344,44 @@ fun CalibrationSummaryCard(summary: CalibrationSummary) {
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Como a IA calibrou os parâmetros",
+                    text = if (summary.usedFallback) "Como os parâmetros foram calibrados"
+                    else "Como a IA calibrou os parâmetros",
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
 
-            HorizontalDivider()
-
-            CalibrationLine(
-                label = "Renda mensal projetada",
-                value = formatBrl(summary.predictedMonthlyIncome),
-            )
-            CalibrationLine(
-                label = "(−) Despesa mensal projetada",
-                value = formatBrl(summary.predictedMonthlyExpense),
-            )
+            // Partida a frio: sem histórico para os modelos, o servidor recua para o
+            // perfil, médias simples e a base de referência — e explica o porquê.
+            if (summary.usedFallback) {
+                FallbackNotice(summary)
+            }
 
             HorizontalDivider()
 
-            CalibrationLine(
-                label = "(=) Aporte derivado",
-                value = formatBrl(summary.appliedMonthlyContribution),
-                highlight = true,
-            )
+            if (summary.contributionFromProfile) {
+                CalibrationLine(
+                    label = "Aporte mensal (do seu perfil)",
+                    value = formatBrl(summary.appliedMonthlyContribution),
+                    highlight = true,
+                )
+            } else {
+                CalibrationLine(
+                    label = "Renda mensal" + summary.incomeSource.sourceSuffix(),
+                    value = formatBrl(summary.predictedMonthlyIncome),
+                )
+                CalibrationLine(
+                    label = "(−) Despesa mensal" + summary.expenseSource.sourceSuffix(),
+                    value = formatBrl(summary.predictedMonthlyExpense),
+                )
+
+                HorizontalDivider()
+
+                CalibrationLine(
+                    label = "(=) Aporte derivado",
+                    value = formatBrl(summary.appliedMonthlyContribution),
+                    highlight = true,
+                )
+            }
 
             if (summary.cappedToZero) {
                 Spacer(Modifier.height(4.dp))
@@ -396,14 +412,56 @@ fun CalibrationSummaryCard(summary: CalibrationSummary) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Text(
-                text = "Predição de renda #${summary.incomePredictionId} • " +
-                    "Predição de despesa #${summary.expensePredictionId}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            val predictionIds = listOfNotNull(
+                summary.incomePredictionId?.let { "Predição de renda #$it" },
+                summary.expensePredictionId?.let { "Predição de despesa #$it" },
             )
+            if (predictionIds.isNotEmpty()) {
+                Text(
+                    text = predictionIds.joinToString(" • "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
+}
+
+/** Aviso de recuo: o que não veio dos modelos de IA e por quê. */
+@Composable
+private fun FallbackNotice(summary: CalibrationSummary) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            Icons.Outlined.Info,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.secondary,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "Nem tudo veio dos modelos de IA: sem histórico suficiente (6 receitas e 12 " +
+                    "despesas) ou com o serviço indisponível, usamos os dados do seu perfil e as " +
+                    "médias dos seus lançamentos; a variação de renda vem da base de referência " +
+                    "para o seu vínculo de trabalho.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            summary.fallbackNotes.forEach { note ->
+                Text(
+                    "• $note",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun CalibrationSource?.sourceSuffix(): String = when (this) {
+    null -> ""
+    CalibrationSource.ML_MODEL -> " projetada (IA)"
+    else -> " (${label})"
 }
 
 @Composable

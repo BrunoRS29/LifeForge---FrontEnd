@@ -152,13 +152,20 @@ data class RunCalibratedSimulationRequestDto(
 
 @Serializable
 data class CalibrationSummaryResponseDto(
-    val incomePredictionId: Long,
-    val expensePredictionId: Long,
+    // Nulos quando o respectivo modelo não rodou (recuo de partida a frio).
+    val incomePredictionId: Long? = null,
+    val expensePredictionId: Long? = null,
     val predictedMonthlyIncome: Double,
     val predictedMonthlyExpense: Double,
     val rawMonthlyContribution: Double,
     val appliedMonthlyContribution: Double,
     val appliedVolatilityAnnual: Double,
+    // ML_MODEL | PROFILE | HISTORY_AVERAGE (null = não estimado)
+    val incomeSource: String? = null,
+    val expenseSource: String? = null,
+    // PREDICTIONS | PROFILE
+    val contributionSource: String = "PREDICTIONS",
+    val fallbackNotes: List<String> = emptyList(),
 )
 
 /**
