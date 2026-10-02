@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        Tema XML mínimo apenas para satisfazer o AndroidManifest.
-        O tema visual real (Material 3 com cores LifeForge) é declarado
-        em código Compose dentro de presentation/theme/.
+        Tema XML mínimo da janela. O tema visual real (Material 3 Expressive com
+        as cores da marca) é declarado em código Compose em presentation/theme/.
+        O fundo da janela já é a superfície do tema, para não haver "flash" de
+        outra cor entre a splash e a primeira tela.
     -->
-    <style name="Theme.LifeForge" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.LifeForge" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/lifeforge_window_background</item>
+    </style>
 
     <!--
-        Splash screen nativa (androidx.core:core-splashscreen): mostra o
-        ícone do app centralizado enquanto a primeira tela carrega e faz a
-        transição suave para o tema real (postSplashScreenTheme).
+        Splash screen nativa (androidx.core:core-splashscreen): o ícone do app
+        sobre a superfície do tema, com transição para o tema real.
     -->
     <style name="Theme.LifeForge.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="windowSplashScreenBackground">@color/lifeforge_window_background</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <item name="postSplashScreenTheme">@style/Theme.LifeForge</item>
     </style>

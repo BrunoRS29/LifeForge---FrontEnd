@@ -49,7 +49,7 @@ import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.StrategyComparison
 import com.lifeforge.domain.model.StrategyMetric
 import com.lifeforge.domain.model.StrategySide
-import com.lifeforge.presentation.common.LoadingIndicator
+import com.lifeforge.presentation.common.ScreenLoading
 import com.lifeforge.presentation.common.AutoSizeText
 import com.lifeforge.presentation.common.BrlAxisFormatter
 import com.lifeforge.presentation.common.formatAnnualRate
@@ -99,7 +99,7 @@ fun SimulationCompareScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             val comparison = state.comparison
             when {
-                state.isLoading -> LoadingIndicator()
+                state.isLoading -> ScreenLoading()
                 comparison != null -> CompareContent(comparison)
                 else -> Column(
                     modifier = Modifier.fillMaxSize().padding(24.dp),

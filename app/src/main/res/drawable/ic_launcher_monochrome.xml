@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Marca do LifeForge: três barras crescentes (o plano que evolui) e uma
-    centelha dourada sobre a mais alta (o "forjar"). Tudo dentro da zona
-    segura de 66dp do ícone adaptativo (centro em 54,54).
--->
+<!-- Camada monocromática (ícones temáticos do Android 13+): a mesma marca, numa cor só. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -19,6 +15,6 @@
         android:fillColor="#FFFFFFFF"
         android:pathData="M65.5,43h4a2.5,2.5 0,0 1,2.5 2.5v24a2.5,2.5 0,0 1,-2.5 2.5h-4a2.5,2.5 0,0 1,-2.5 -2.5v-24a2.5,2.5 0,0 1,2.5 -2.5z" />
     <path
-        android:fillColor="#FFFFB86C"
+        android:fillColor="#FFFFFFFF"
         android:pathData="M67.5,24.5Q68.7,30.8 75,32Q68.7,33.2 67.5,39.5Q66.3,33.2 60,32Q66.3,30.8 67.5,24.5Z" />
 </vector>

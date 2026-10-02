@@ -48,7 +48,7 @@ import com.lifeforge.presentation.common.GoalHealthChip
 import com.lifeforge.presentation.common.formatMonthsLeft
 import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.ErrorBanner
-import com.lifeforge.presentation.common.LoadingIndicator
+import com.lifeforge.presentation.common.ScreenLoading
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatDate
@@ -107,7 +107,7 @@ fun GoalDetailScreen(
                     onSimulateWithAi = { onSimulateWithAi(goal.id) },
                     onDeleteClick = { showDeleteDialog = true },
                 )
-                else -> LoadingIndicator()
+                else -> ScreenLoading()
             }
 
             LoadingOverlay(visible = state.isDeleting)

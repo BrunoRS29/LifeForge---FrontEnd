@@ -46,7 +46,7 @@ import com.lifeforge.domain.model.GoalCategory
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.LifeForgeTextField
-import com.lifeforge.presentation.common.LoadingIndicator
+import com.lifeforge.presentation.common.ScreenLoading
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.formatDate
 import com.lifeforge.presentation.common.instantToPickerMillis
@@ -100,7 +100,7 @@ fun GoalEditScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (state.isLoading) {
-                LoadingIndicator()
+                ScreenLoading()
             } else {
                 Column(
                     modifier = Modifier

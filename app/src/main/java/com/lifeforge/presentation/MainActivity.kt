@@ -5,13 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.lifeforge.data.preferences.ThemeMode
 import com.lifeforge.presentation.navigation.LifeForgeNavGraph
+import com.lifeforge.presentation.navigation.RootSessionViewModel
+import com.lifeforge.presentation.navigation.SessionUiState
 import com.lifeforge.presentation.theme.LifeForgeTheme
 import com.lifeforge.presentation.theme.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -19,8 +20,9 @@ import dagger.hilt.android.AndroidEntryPoint
 /**
  * Activity unica do app (single-activity architecture).
  *
- * - [AndroidEntryPoint]: Hilt injeta nos ViewModels descendentes
- *   (RootSessionViewModel e ViewModels de tela).
+ * - [AndroidEntryPoint]: Hilt injeta nos ViewModels descendentes.
+ * - Splash nativa: o ícone fica na tela até a sessão ser lida (token no
+ *   DataStore) — sem um spinner intermediário entre a splash e a primeira tela.
  * - [enableEdgeToEdge]: conteudo desenha sob status/navigation bars.
  * - [ThemeViewModel]: observa preferencia de tema (SYSTEM/LIGHT/DARK)
  *   e a [LifeForgeTheme] aplica. Pertence ao escopo do Activity, nao
@@ -31,10 +33,13 @@ class MainActivity : ComponentActivity() {
 
     private val themeViewModel: ThemeViewModel by viewModels()
 
+    /** O mesmo ViewModel que o NavGraph usa (escopo da Activity). */
+    private val rootViewModel: RootSessionViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Splash nativa: ícone centralizado enquanto o app inicializa,
-        // com transição suave para o tema real (Theme.LifeForge.Starting).
-        installSplashScreen()
+        installSplashScreen().setKeepOnScreenCondition {
+            rootViewModel.state.value is SessionUiState.Loading
+        }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -46,9 +51,7 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
             LifeForgeTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
-                Surface {
-                    LifeForgeNavGraph()
-                }
+                LifeForgeNavGraph(rootViewModel)
             }
         }
     }

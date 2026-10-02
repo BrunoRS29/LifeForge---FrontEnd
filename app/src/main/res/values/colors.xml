@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Cores de janela/splash, antes de o Compose desenhar: a superfície e a
+        primária do esquema da marca (presentation/theme/Color.kt). O tema
+        escuro sobrepõe em values-night.
+    -->
+    <color name="lifeforge_window_background">#FFF4FBF9</color>
+    <color name="lifeforge_brand">#FF1B5E5C</color>
+</resources>

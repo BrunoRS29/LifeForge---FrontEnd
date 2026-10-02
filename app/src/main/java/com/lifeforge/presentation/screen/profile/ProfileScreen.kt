@@ -78,7 +78,7 @@ import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.domain.model.User
 import com.lifeforge.domain.repository.SyncStatus
 import com.lifeforge.presentation.common.ErrorBanner
-import com.lifeforge.presentation.common.LoadingIndicator
+import com.lifeforge.presentation.common.ScreenLoading
 import com.lifeforge.presentation.common.formatDate
 import com.lifeforge.presentation.common.formatDateTime
 import com.lifeforge.presentation.common.syncStatusMessage
@@ -133,7 +133,7 @@ fun ProfileScreen(
 
                 val user = state.user
                 if (user == null) {
-                    LoadingIndicator()
+                    ScreenLoading()
                 } else {
                     HeaderCard(
                         user = user,

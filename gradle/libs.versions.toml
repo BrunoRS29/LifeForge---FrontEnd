@@ -15,7 +15,12 @@ lifecycle = "2.8.7"
 activityCompose = "1.9.3"
 
 # Compose (BOM gerencia as versões internas)
-composeBom = "2025.01.00"
+composeBom = "2025.10.00"
+# Material 3 Expressive (ButtonGroup, LoadingIndicator, FloatingToolbar, MotionScheme
+# expressivo...): ainda só na linha 1.5.0-alpha. A alpha14 é a mais nova que mantém
+# compileSdk 35 e AGP 8.x — as seguintes exigem compileSdk 37 e AGP 9.1.
+material3 = "1.5.0-alpha14"
+material3Adaptive = "1.2.0"
 navigationCompose = "2.8.5"
 
 # Hilt (DI)
@@ -71,7 +76,9 @@ androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
-androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-compose-material3-navigation-suite = { group = "androidx.compose.material3", name = "material3-adaptive-navigation-suite", version.ref = "material3" }
+androidx-compose-material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version.ref = "material3Adaptive" }
 androidx-compose-material-icons = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 # Navigation Compose
@@ -138,6 +145,8 @@ compose = [
     "androidx-compose-ui-graphics",
     "androidx-compose-ui-tooling-preview",
     "androidx-compose-material3",
+    "androidx-compose-material3-navigation-suite",
+    "androidx-compose-material3-adaptive",
     "androidx-compose-material-icons",
 ]
 lifecycle = [

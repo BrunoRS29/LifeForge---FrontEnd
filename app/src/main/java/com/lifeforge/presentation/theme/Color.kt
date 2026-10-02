@@ -1,84 +1,335 @@
 package com.lifeforge.presentation.theme
 
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Paleta de cores LifeForge.
+ * Esquemas de cor do LifeForge — todas as funções do Material 3, em claro e escuro,
+ * nos contrastes padrão, médio e alto (preferência de contraste do Android 14+).
  *
- * Filosofia visual:
- * - **Primary teal** (#1B5E5C — verde-azulado profundo): transmite
- *   confiança e crescimento, valores centrais para um app financeiro.
- * - **Secondary gold** (#C77800): acento para conquistas, valores
- *   alvo atingidos, CTAs principais. Conecta com a metáfora do nome
- *   "LifeForge" (forjar — calor, ouro).
- * - **Tertiary slate** (#4D5360): neutro de apoio para metadados,
- *   timestamps, texto auxiliar.
+ * Gerados com o algoritmo oficial do Material 3 (Material Color Utilities, espaço
+ * HCT) a partir das três cores-chave da marca:
  *
- * Os tokens seguem a convenção Material 3 — para cada cor "main", há
- * `OnX` (texto/ícone sobre ela), `XContainer` (container preenchido)
- * e `OnXContainer` (texto/ícone no container).
+ * - primária `#1B5E5C` — verde-azulado: confiança e crescimento;
+ * - secundária `#C77800` — ouro: conquistas, o "forjar" do nome;
+ * - terciária `#4D5360` — ardósia: apoio neutro.
+ *
+ * Cada cor-chave vira uma paleta tonal; os neutros usam o matiz da primária com
+ * croma baixo (6 e 8) e o mapeamento de tons é o do esquema Tonal Spot
+ * (`DynamicScheme`, contrastes 0, 0,5 e 1). Assim:
+ *
+ * - todos os pares de texto/fundo do esquema têm contraste ≥ 4,5:1 (o ouro puro
+ *   `#C77800` dava 3,3:1 sobre a superfície — vira `#895100` no tema claro);
+ * - as superfícies em camadas (`surfaceContainerLowest` … `Highest`) são tons
+ *   neutros da marca — antes caíam no padrão lilás do Material, porque só os
+ *   papéis antigos estavam definidos.
+ *
+ * Não edite à mão: para mudar a marca, troque as cores-chave e gere de novo.
  */
 
-// ============================================================================
-// Light scheme
-// ============================================================================
+internal val LifeForgeLightColorScheme = lightColorScheme(
+    primary = Color(0xFF276866),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFAFEEEB),
+    onPrimaryContainer = Color(0xFF02504E),
+    inversePrimary = Color(0xFF93D2CF),
+    secondary = Color(0xFF895100),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFFFDCBC),
+    onSecondaryContainer = Color(0xFF683C00),
+    tertiary = Color(0xFF585E6C),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFDDE2F2),
+    onTertiaryContainer = Color(0xFF414753),
+    background = Color(0xFFF4FBF9),
+    onBackground = Color(0xFF161D1C),
+    surface = Color(0xFFF4FBF9),
+    onSurface = Color(0xFF161D1C),
+    surfaceVariant = Color(0xFFDAE5E3),
+    onSurfaceVariant = Color(0xFF3F4948),
+    surfaceTint = Color(0xFF276866),
+    inverseSurface = Color(0xFF2B3231),
+    inverseOnSurface = Color(0xFFECF2F1),
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF93000A),
+    outline = Color(0xFF6F7978),
+    outlineVariant = Color(0xFFBEC9C7),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFFF4FBF9),
+    surfaceContainer = Color(0xFFE9EFEE),
+    surfaceContainerHigh = Color(0xFFE3E9E8),
+    surfaceContainerHighest = Color(0xFFDDE4E3),
+    surfaceContainerLow = Color(0xFFEFF5F4),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFD5DBDA),
+    primaryFixed = Color(0xFFAFEEEB),
+    primaryFixedDim = Color(0xFF93D2CF),
+    onPrimaryFixed = Color(0xFF00201F),
+    onPrimaryFixedVariant = Color(0xFF02504E),
+    secondaryFixed = Color(0xFFFFDCBC),
+    secondaryFixedDim = Color(0xFFFFB86C),
+    onSecondaryFixed = Color(0xFF2C1600),
+    onSecondaryFixedVariant = Color(0xFF683C00),
+    tertiaryFixed = Color(0xFFDDE2F2),
+    tertiaryFixedDim = Color(0xFFC1C6D6),
+    onTertiaryFixed = Color(0xFF161C27),
+    onTertiaryFixedVariant = Color(0xFF414753),
+)
 
-internal val LightPrimary = Color(0xFF1B5E5C)
-internal val LightOnPrimary = Color(0xFFFFFFFF)
-internal val LightPrimaryContainer = Color(0xFFA8F2EC)
-internal val LightOnPrimaryContainer = Color(0xFF00201E)
+internal val LifeForgeLightMediumContrastColorScheme = lightColorScheme(
+    primary = Color(0xFF003D3C),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFF387775),
+    onPrimaryContainer = Color(0xFFFFFFFF),
+    inversePrimary = Color(0xFF93D2CF),
+    secondary = Color(0xFF512E00),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFF9E5E00),
+    onSecondaryContainer = Color(0xFFFFFFFF),
+    tertiary = Color(0xFF303642),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFF676D7B),
+    onTertiaryContainer = Color(0xFFFFFFFF),
+    background = Color(0xFFF4FBF9),
+    onBackground = Color(0xFF161D1C),
+    surface = Color(0xFFF4FBF9),
+    onSurface = Color(0xFF0C1212),
+    surfaceVariant = Color(0xFFDAE5E3),
+    onSurfaceVariant = Color(0xFF2E3837),
+    surfaceTint = Color(0xFF276866),
+    inverseSurface = Color(0xFF2B3231),
+    inverseOnSurface = Color(0xFFECF2F1),
+    error = Color(0xFF740006),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFCF2C27),
+    onErrorContainer = Color(0xFFFFFFFF),
+    outline = Color(0xFF4A5454),
+    outlineVariant = Color(0xFF656F6E),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFFF4FBF9),
+    surfaceContainer = Color(0xFFE3E9E8),
+    surfaceContainerHigh = Color(0xFFD8DEDD),
+    surfaceContainerHighest = Color(0xFFCCD3D2),
+    surfaceContainerLow = Color(0xFFEFF5F4),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFC1C8C7),
+    primaryFixed = Color(0xFF387775),
+    primaryFixedDim = Color(0xFF1B5E5C),
+    onPrimaryFixed = Color(0xFFFFFFFF),
+    onPrimaryFixedVariant = Color(0xFFFFFFFF),
+    secondaryFixed = Color(0xFF9E5E00),
+    secondaryFixedDim = Color(0xFF7C4900),
+    onSecondaryFixed = Color(0xFFFFFFFF),
+    onSecondaryFixedVariant = Color(0xFFFFFFFF),
+    tertiaryFixed = Color(0xFF676D7B),
+    tertiaryFixedDim = Color(0xFF4F5562),
+    onTertiaryFixed = Color(0xFFFFFFFF),
+    onTertiaryFixedVariant = Color(0xFFFFFFFF),
+)
 
-internal val LightSecondary = Color(0xFFC77800)
-internal val LightOnSecondary = Color(0xFFFFFFFF)
-internal val LightSecondaryContainer = Color(0xFFFFDDB6)
-internal val LightOnSecondaryContainer = Color(0xFF2A1700)
+internal val LifeForgeLightHighContrastColorScheme = lightColorScheme(
+    primary = Color(0xFF003231),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFF075250),
+    onPrimaryContainer = Color(0xFFFFFFFF),
+    inversePrimary = Color(0xFF93D2CF),
+    secondary = Color(0xFF432500),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFF6C3F00),
+    onSecondaryContainer = Color(0xFFFFFFFF),
+    tertiary = Color(0xFF262C38),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFF434956),
+    onTertiaryContainer = Color(0xFFFFFFFF),
+    background = Color(0xFFF4FBF9),
+    onBackground = Color(0xFF161D1C),
+    surface = Color(0xFFF4FBF9),
+    onSurface = Color(0xFF000000),
+    surfaceVariant = Color(0xFFDAE5E3),
+    onSurfaceVariant = Color(0xFF000000),
+    surfaceTint = Color(0xFF276866),
+    inverseSurface = Color(0xFF2B3231),
+    inverseOnSurface = Color(0xFFFFFFFF),
+    error = Color(0xFF600004),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFF98000A),
+    onErrorContainer = Color(0xFFFFFFFF),
+    outline = Color(0xFF242E2D),
+    outlineVariant = Color(0xFF414B4A),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFFF4FBF9),
+    surfaceContainer = Color(0xFFDDE4E3),
+    surfaceContainerHigh = Color(0xFFCFD6D4),
+    surfaceContainerHighest = Color(0xFFC1C8C7),
+    surfaceContainerLow = Color(0xFFECF2F1),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFB3BAB9),
+    primaryFixed = Color(0xFF075250),
+    primaryFixedDim = Color(0xFF003938),
+    onPrimaryFixed = Color(0xFFFFFFFF),
+    onPrimaryFixedVariant = Color(0xFFFFFFFF),
+    secondaryFixed = Color(0xFF6C3F00),
+    secondaryFixedDim = Color(0xFF4C2B00),
+    onSecondaryFixed = Color(0xFFFFFFFF),
+    onSecondaryFixedVariant = Color(0xFFFFFFFF),
+    tertiaryFixed = Color(0xFF434956),
+    tertiaryFixedDim = Color(0xFF2D333F),
+    onTertiaryFixed = Color(0xFFFFFFFF),
+    onTertiaryFixedVariant = Color(0xFFFFFFFF),
+)
 
-internal val LightTertiary = Color(0xFF4D5360)
-internal val LightOnTertiary = Color(0xFFFFFFFF)
-internal val LightTertiaryContainer = Color(0xFFD0D6E5)
-internal val LightOnTertiaryContainer = Color(0xFF09111D)
+internal val LifeForgeDarkColorScheme = darkColorScheme(
+    primary = Color(0xFF93D2CF),
+    onPrimary = Color(0xFF003736),
+    primaryContainer = Color(0xFF02504E),
+    onPrimaryContainer = Color(0xFFAFEEEB),
+    inversePrimary = Color(0xFF276866),
+    secondary = Color(0xFFFFB86C),
+    onSecondary = Color(0xFF492900),
+    secondaryContainer = Color(0xFF683C00),
+    onSecondaryContainer = Color(0xFFFFDCBC),
+    tertiary = Color(0xFFC1C6D6),
+    onTertiary = Color(0xFF2A313C),
+    tertiaryContainer = Color(0xFF414753),
+    onTertiaryContainer = Color(0xFFDDE2F2),
+    background = Color(0xFF0E1514),
+    onBackground = Color(0xFFDDE4E3),
+    surface = Color(0xFF0E1514),
+    onSurface = Color(0xFFDDE4E3),
+    surfaceVariant = Color(0xFF3F4948),
+    onSurfaceVariant = Color(0xFFBEC9C7),
+    surfaceTint = Color(0xFF93D2CF),
+    inverseSurface = Color(0xFFDDE4E3),
+    inverseOnSurface = Color(0xFF2B3231),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
+    outline = Color(0xFF889392),
+    outlineVariant = Color(0xFF3F4948),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFF343A3A),
+    surfaceContainer = Color(0xFF1A2120),
+    surfaceContainerHigh = Color(0xFF252B2B),
+    surfaceContainerHighest = Color(0xFF2F3635),
+    surfaceContainerLow = Color(0xFF161D1C),
+    surfaceContainerLowest = Color(0xFF090F0F),
+    surfaceDim = Color(0xFF0E1514),
+    primaryFixed = Color(0xFFAFEEEB),
+    primaryFixedDim = Color(0xFF93D2CF),
+    onPrimaryFixed = Color(0xFF00201F),
+    onPrimaryFixedVariant = Color(0xFF02504E),
+    secondaryFixed = Color(0xFFFFDCBC),
+    secondaryFixedDim = Color(0xFFFFB86C),
+    onSecondaryFixed = Color(0xFF2C1600),
+    onSecondaryFixedVariant = Color(0xFF683C00),
+    tertiaryFixed = Color(0xFFDDE2F2),
+    tertiaryFixedDim = Color(0xFFC1C6D6),
+    onTertiaryFixed = Color(0xFF161C27),
+    onTertiaryFixedVariant = Color(0xFF414753),
+)
 
-internal val LightError = Color(0xFFBA1A1A)
-internal val LightOnError = Color(0xFFFFFFFF)
-internal val LightErrorContainer = Color(0xFFFFDAD6)
-internal val LightOnErrorContainer = Color(0xFF410002)
+internal val LifeForgeDarkMediumContrastColorScheme = darkColorScheme(
+    primary = Color(0xFFA9E8E5),
+    onPrimary = Color(0xFF002B2A),
+    primaryContainer = Color(0xFF5E9B99),
+    onPrimaryContainer = Color(0xFF000000),
+    inversePrimary = Color(0xFF04514F),
+    secondary = Color(0xFFFFD5AC),
+    onSecondary = Color(0xFF3A1F00),
+    secondaryContainer = Color(0xFFCE7E0B),
+    onSecondaryContainer = Color(0xFF000000),
+    tertiary = Color(0xFFD7DCEC),
+    onTertiary = Color(0xFF202631),
+    tertiaryContainer = Color(0xFF8B919F),
+    onTertiaryContainer = Color(0xFF000000),
+    background = Color(0xFF0E1514),
+    onBackground = Color(0xFFDDE4E3),
+    surface = Color(0xFF0E1514),
+    onSurface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFF3F4948),
+    onSurfaceVariant = Color(0xFFD4DEDD),
+    surfaceTint = Color(0xFF93D2CF),
+    inverseSurface = Color(0xFFDDE4E3),
+    inverseOnSurface = Color(0xFF252B2B),
+    error = Color(0xFFFFD2CC),
+    onError = Color(0xFF540003),
+    errorContainer = Color(0xFFFF5449),
+    onErrorContainer = Color(0xFF000000),
+    outline = Color(0xFFAAB4B3),
+    outlineVariant = Color(0xFF889291),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFF3F4645),
+    surfaceContainer = Color(0xFF232929),
+    surfaceContainerHigh = Color(0xFF2D3433),
+    surfaceContainerHighest = Color(0xFF383F3E),
+    surfaceContainerLow = Color(0xFF181F1E),
+    surfaceContainerLowest = Color(0xFF040808),
+    surfaceDim = Color(0xFF0E1514),
+    primaryFixed = Color(0xFFAFEEEB),
+    primaryFixedDim = Color(0xFF93D2CF),
+    onPrimaryFixed = Color(0xFF001414),
+    onPrimaryFixedVariant = Color(0xFF003D3C),
+    secondaryFixed = Color(0xFFFFDCBC),
+    secondaryFixedDim = Color(0xFFFFB86C),
+    onSecondaryFixed = Color(0xFF1D0D00),
+    onSecondaryFixedVariant = Color(0xFF512E00),
+    tertiaryFixed = Color(0xFFDDE2F2),
+    tertiaryFixedDim = Color(0xFFC1C6D6),
+    onTertiaryFixed = Color(0xFF0B111C),
+    onTertiaryFixedVariant = Color(0xFF303642),
+)
 
-internal val LightBackground = Color(0xFFF6FBFA)
-internal val LightOnBackground = Color(0xFF161C1C)
-internal val LightSurface = Color(0xFFF6FBFA)
-internal val LightOnSurface = Color(0xFF161C1C)
-internal val LightSurfaceVariant = Color(0xFFDBE5E4)
-internal val LightOnSurfaceVariant = Color(0xFF3F4948)
-internal val LightOutline = Color(0xFF6F7978)
-
-// ============================================================================
-// Dark scheme
-// ============================================================================
-
-internal val DarkPrimary = Color(0xFF8CD5D0)
-internal val DarkOnPrimary = Color(0xFF003735)
-internal val DarkPrimaryContainer = Color(0xFF00504D)
-internal val DarkOnPrimaryContainer = Color(0xFFA8F2EC)
-
-internal val DarkSecondary = Color(0xFFFFB876)
-internal val DarkOnSecondary = Color(0xFF482900)
-internal val DarkSecondaryContainer = Color(0xFF673D00)
-internal val DarkOnSecondaryContainer = Color(0xFFFFDDB6)
-
-internal val DarkTertiary = Color(0xFFB4BBC9)
-internal val DarkOnTertiary = Color(0xFF1F2632)
-internal val DarkTertiaryContainer = Color(0xFF353C48)
-internal val DarkOnTertiaryContainer = Color(0xFFD0D6E5)
-
-internal val DarkError = Color(0xFFFFB4AB)
-internal val DarkOnError = Color(0xFF690005)
-internal val DarkErrorContainer = Color(0xFF93000A)
-internal val DarkOnErrorContainer = Color(0xFFFFDAD6)
-
-internal val DarkBackground = Color(0xFF0E1414)
-internal val DarkOnBackground = Color(0xFFDDE4E3)
-internal val DarkSurface = Color(0xFF0E1414)
-internal val DarkOnSurface = Color(0xFFDDE4E3)
-internal val DarkSurfaceVariant = Color(0xFF3F4948)
-internal val DarkOnSurfaceVariant = Color(0xFFBFC9C8)
-internal val DarkOutline = Color(0xFF899392)
+internal val LifeForgeDarkHighContrastColorScheme = darkColorScheme(
+    primary = Color(0xFFBCFCF8),
+    onPrimary = Color(0xFF000000),
+    primaryContainer = Color(0xFF8FCECB),
+    onPrimaryContainer = Color(0xFF000E0D),
+    inversePrimary = Color(0xFF04514F),
+    secondary = Color(0xFFFFEDDE),
+    onSecondary = Color(0xFF000000),
+    secondaryContainer = Color(0xFFFFB35F),
+    onSecondaryContainer = Color(0xFF150800),
+    tertiary = Color(0xFFEBF0FF),
+    onTertiary = Color(0xFF000000),
+    tertiaryContainer = Color(0xFFBDC2D2),
+    onTertiaryContainer = Color(0xFF060B16),
+    background = Color(0xFF0E1514),
+    onBackground = Color(0xFFDDE4E3),
+    surface = Color(0xFF0E1514),
+    onSurface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFF3F4948),
+    onSurfaceVariant = Color(0xFFFFFFFF),
+    surfaceTint = Color(0xFF93D2CF),
+    inverseSurface = Color(0xFFDDE4E3),
+    inverseOnSurface = Color(0xFF000000),
+    error = Color(0xFFFFECE9),
+    onError = Color(0xFF000000),
+    errorContainer = Color(0xFFFFAEA4),
+    onErrorContainer = Color(0xFF220001),
+    outline = Color(0xFFE8F2F1),
+    outlineVariant = Color(0xFFBAC5C3),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFF4B5151),
+    surfaceContainer = Color(0xFF2B3231),
+    surfaceContainerHigh = Color(0xFF363D3C),
+    surfaceContainerHighest = Color(0xFF414847),
+    surfaceContainerLow = Color(0xFF1A2120),
+    surfaceContainerLowest = Color(0xFF000000),
+    surfaceDim = Color(0xFF0E1514),
+    primaryFixed = Color(0xFFAFEEEB),
+    primaryFixedDim = Color(0xFF93D2CF),
+    onPrimaryFixed = Color(0xFF000000),
+    onPrimaryFixedVariant = Color(0xFF001414),
+    secondaryFixed = Color(0xFFFFDCBC),
+    secondaryFixedDim = Color(0xFFFFB86C),
+    onSecondaryFixed = Color(0xFF000000),
+    onSecondaryFixedVariant = Color(0xFF1D0D00),
+    tertiaryFixed = Color(0xFFDDE2F2),
+    tertiaryFixedDim = Color(0xFFC1C6D6),
+    onTertiaryFixed = Color(0xFF000000),
+    onTertiaryFixedVariant = Color(0xFF0B111C),
+)

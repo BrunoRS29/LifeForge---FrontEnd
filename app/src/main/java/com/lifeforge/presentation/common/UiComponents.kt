@@ -5,52 +5,52 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
 
 /**
- * Componentes reutilizáveis usados em várias telas. Mantidos juntos
- * porque são pequenos e relacionados (apresentação de estados de
- * carregamento, erro e vazio).
+ * Componentes de estado reutilizados em várias telas: carregamento, erro e vazio.
+ * Seguem o Material 3 Expressive — indicador de carregamento com formas que se
+ * transformam, contêineres com as formas do Material e textos em português.
  */
 
 /**
- * Overlay semi-transparente com spinner. Usado durante submissão de
- * forms — bloqueia toques na UI subjacente para impedir double-submit
- * sem precisar rastrear cada botão individualmente.
- *
- * Aplica `pointerInput` consumindo todos os toques quando visível.
+ * Véu sobre a tela durante o envio de um formulário: bloqueia toques (sem
+ * precisar desabilitar cada botão) e mostra o indicador expressivo do Material.
+ * Anunciado ao leitor de tela.
  */
 @Composable
 fun LoadingOverlay(visible: Boolean) {
@@ -58,18 +58,18 @@ fun LoadingOverlay(visible: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f))
-            .pointerInput(Unit) { /* consome toques */ },
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+            .pointerInput(Unit) { /* consome toques */ }
+            .semantics { contentDescription = "Processando" },
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+        ContainedLoadingIndicator()
     }
 }
 
 /**
- * Banner de erro inline. Aparece acima do conteúdo quando uma operação
- * falha — diferente do Snackbar (transitório), o banner persiste até o
- * usuário descartar ou refazer a ação que disparou o erro.
+ * Banner de erro inline. Persiste até o usuário descartar ou refazer a ação —
+ * diferente do snackbar, que some sozinho. Anunciado ao leitor de tela.
  */
 @Composable
 fun ErrorBanner(
@@ -77,38 +77,37 @@ fun ErrorBanner(
     onDismiss: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        shape = MaterialTheme.shapes.large,
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.errorContainer)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .semantics { liveRegion = LiveRegionMode.Polite },
     ) {
-        Icon(
-            imageVector = Icons.Outlined.ErrorOutline,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onErrorContainer,
-        )
-        Spacer(Modifier.size(12.dp))
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onErrorContainer,
-            modifier = Modifier.weight(1f),
-        )
-        if (onDismiss != null) {
-            TextButton(onClick = onDismiss) {
-                Text("Ok", color = MaterialTheme.colorScheme.onErrorContainer)
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(imageVector = Icons.Outlined.ErrorOutline, contentDescription = null)
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            if (onDismiss != null) {
+                TextButton(onClick = onDismiss) {
+                    Text("Ok", color = MaterialTheme.colorScheme.onErrorContainer)
+                }
             }
         }
     }
 }
 
 /**
- * Placeholder para listas vazias. Mostra ícone, título, descrição e
- * (opcional) botão de ação — ex.: "Nenhuma meta cadastrada / Comece
- * agora / [+ Nova meta]".
+ * Estado vazio: ícone num contêiner com forma do Material ("biscoito"), título,
+ * explicação e, se houver, a ação que resolve o vazio (ex.: "Nova meta").
  */
 @Composable
 fun EmptyState(
@@ -121,55 +120,62 @@ fun EmptyState(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(horizontal = 32.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(64.dp),
-        )
-        Spacer(Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .size(112.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, MaterialShapes.Cookie9Sided.toShape()),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(48.dp),
+            )
+        }
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .semantics { heading() },
         )
-        Spacer(Modifier.height(8.dp))
         Text(
             text = description,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 360.dp),
         )
         if (action != null) {
-            Spacer(Modifier.height(24.dp))
-            action()
+            Box(Modifier.padding(top = 12.dp)) { action() }
         }
     }
 }
 
-/** Spinner centralizado para estados Loading. */
+/** Carregamento de tela inteira: o indicador expressivo do Material, centralizado. */
 @Composable
-fun LoadingIndicator(modifier: Modifier = Modifier) {
+fun ScreenLoading(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .semantics { contentDescription = "Carregando" },
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator()
+        LoadingIndicator()
     }
 }
 
 /**
- * Texto de uma linha que encolhe a fonte até caber na largura disponível.
- *
- * Usado em cards do dashboard, onde valores monetários longos (ex.:
- * `R$ 1.234.567,89`) eram cortados — aqui a fonte diminui em passos até não
- * estourar, preservando o valor completo em vez de truncar. O conteúdo só é
- * desenhado depois de calibrado para evitar um "salto" visível na primeira
- * composição. O BOM do Compose (1.7.x) ainda não traz o `autoSize` estável,
- * por isso o ajuste é manual via [androidx.compose.ui.text.TextLayoutResult].
+ * Texto de uma linha que reduz a fonte até caber na largura disponível, em vez de
+ * cortar — valores monetários longos (ex.: `R$ 1.234.567,89`) aparecem inteiros.
+ * Usa o ajuste automático de tamanho do próprio Compose (`TextAutoSize`).
  */
 @Composable
 fun AutoSizeText(
@@ -179,24 +185,19 @@ fun AutoSizeText(
     modifier: Modifier = Modifier,
     minFontSizeSp: Float = 12f,
 ) {
-    val baseSp = if (style.fontSize.isUnspecified) 16f else style.fontSize.value
-    var sizeSp by remember(text, baseSp) { mutableStateOf(baseSp) }
-    var readyToDraw by remember(text, baseSp) { mutableStateOf(false) }
-
+    val maxSp = if (style.fontSize.isUnspecified) 16f else style.fontSize.value
     Text(
         text = text,
-        style = style.copy(fontSize = sizeSp.sp),
+        style = style,
         color = color,
         maxLines = 1,
         softWrap = false,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier.drawWithContent { if (readyToDraw) drawContent() },
-        onTextLayout = { result ->
-            if (result.didOverflowWidth && sizeSp > minFontSizeSp) {
-                sizeSp = (sizeSp * 0.92f).coerceAtLeast(minFontSizeSp)
-            } else {
-                readyToDraw = true
-            }
-        },
+        overflow = TextOverflow.Clip,
+        autoSize = TextAutoSize.StepBased(
+            minFontSize = minFontSizeSp.coerceAtMost(maxSp).sp,
+            maxFontSize = maxSp.sp,
+            stepSize = 0.5.sp,
+        ),
+        modifier = modifier,
     )
 }
