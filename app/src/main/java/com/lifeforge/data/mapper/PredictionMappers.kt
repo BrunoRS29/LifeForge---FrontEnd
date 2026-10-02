@@ -124,6 +124,7 @@ fun CalibrationSummaryResponseDto.toDomain(): CalibrationSummary = CalibrationSu
     rawMonthlyContribution = rawMonthlyContribution,
     appliedMonthlyContribution = appliedMonthlyContribution,
     appliedVolatilityAnnual = appliedVolatilityAnnual,
+    contributionVariationMonthly = contributionVariationMonthly,
     // Backend sem os campos de origem: havendo id de predição, o insumo veio do modelo.
     incomeSource = incomeSource.toCalibrationSource()
         ?: CalibrationSource.ML_MODEL.takeIf { incomePredictionId != null },

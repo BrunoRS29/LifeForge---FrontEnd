@@ -159,7 +159,10 @@ data class CalibrationSummaryResponseDto(
     val predictedMonthlyExpense: Double,
     val rawMonthlyContribution: Double,
     val appliedMonthlyContribution: Double,
+    // Volatilidade anual da carteira (mercado, pelo perfil de risco).
     val appliedVolatilityAnnual: Double,
+    // Desvio mensal relativo do aporte pela incerteza da renda (0,25 = ±25%).
+    val contributionVariationMonthly: Double = 0.0,
     // ML_MODEL | PROFILE | HISTORY_AVERAGE (null = não estimado)
     val incomeSource: String? = null,
     val expenseSource: String? = null,

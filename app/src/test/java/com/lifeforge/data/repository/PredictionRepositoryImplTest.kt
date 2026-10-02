@@ -247,6 +247,8 @@ class PredictionRepositoryImplTest {
         assertThat(data.calibration.predictedMonthlyIncome).isEqualTo(5000.0)
         assertThat(data.calibration.predictedMonthlyExpense).isEqualTo(3500.0)
         assertThat(data.calibration.appliedMonthlyContribution).isEqualTo(1500.0)
+        assertThat(data.calibration.appliedVolatilityAnnual).isEqualTo(0.15)
+        assertThat(data.calibration.contributionVariationMonthly).isEqualTo(0.2)
         assertThat(data.calibration.cappedToZero).isFalse()
     }
 
@@ -307,7 +309,8 @@ class PredictionRepositoryImplTest {
             "predictedMonthlyExpense": 3500.0,
             "rawMonthlyContribution": 1500.0,
             "appliedMonthlyContribution": 1500.0,
-            "appliedVolatilityAnnual": 0.15
+            "appliedVolatilityAnnual": 0.15,
+            "contributionVariationMonthly": 0.2
           }
         }
     """.trimIndent()

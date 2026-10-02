@@ -46,8 +46,9 @@ import com.lifeforge.domain.model.CalibrationSummary
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.ErrorBanner
-import com.lifeforge.presentation.common.formatCount
+import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
+import com.lifeforge.presentation.common.formatCount
 import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
 
@@ -407,8 +408,7 @@ fun CalibrationSummaryCard(summary: CalibrationSummary) {
 
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Volatilidade aplicada: ${formatProbability(summary.appliedVolatilityAnnual)} " +
-                    "(combina mercado + variação da renda)",
+                text = calibrationRiskText(summary),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -486,5 +486,19 @@ private fun CalibrationLine(
             else MaterialTheme.typography.bodyMedium,
             fontWeight = if (highlight) FontWeight.Bold else FontWeight.Normal,
         )
+    }
+}
+
+/**
+ * Como a incerteza entra na simulação calibrada: a carteira oscila com a
+ * volatilidade de mercado do perfil; a incerteza da renda prevista faz o
+ * aporte variar mês a mês (não o retorno de todo o patrimônio).
+ */
+internal fun calibrationRiskText(summary: CalibrationSummary): String = buildString {
+    append("Volatilidade da carteira: ${formatAnnualRate(summary.appliedVolatilityAnnual)} a.a. (mercado).")
+    if (summary.contributionVariationMonthly > 0.0) {
+        append(" Incerteza da renda: o aporte varia ±")
+        append(formatAnnualRate(summary.contributionVariationMonthly))
+        append(" ao mês.")
     }
 }

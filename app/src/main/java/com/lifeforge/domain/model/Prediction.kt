@@ -145,8 +145,10 @@ data class CalibratedSimulation(
  *
  * @property rawMonthlyContribution renda - despesa, pode ser negativo
  * @property appliedMonthlyContribution maximo entre raw e zero (capping)
- * @property appliedVolatilityAnnual maximo entre volatilidade de mercado
- *   informada pelo usuario e a sigma anualizada da renda
+ * @property appliedVolatilityAnnual volatilidade anual da carteira (mercado,
+ *   pelo perfil de risco) — a incerteza da renda não entra aqui
+ * @property contributionVariationMonthly desvio mensal relativo do aporte
+ *   causado pela incerteza da renda prevista (0,25 = ±25%; limitado a 100%)
  */
 data class CalibrationSummary(
     val incomePredictionId: Long?,
@@ -156,6 +158,7 @@ data class CalibrationSummary(
     val rawMonthlyContribution: Double,
     val appliedMonthlyContribution: Double,
     val appliedVolatilityAnnual: Double,
+    val contributionVariationMonthly: Double = 0.0,
     /** Origem da renda usada (modelo de IA, perfil ou média do histórico). */
     val incomeSource: CalibrationSource? = CalibrationSource.ML_MODEL,
     /** Origem da despesa usada. */
