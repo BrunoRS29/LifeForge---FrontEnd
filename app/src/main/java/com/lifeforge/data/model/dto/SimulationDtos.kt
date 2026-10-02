@@ -63,6 +63,26 @@ data class SimulationResultResponseDto(
     val trajectory: List<TrajectoryBandDto> = emptyList(),
     val executionTimeMs: Long,
     val createdAt: String,
+    val inputs: SimulationInputsDto? = null,
+)
+
+/** Premissas da rodada (espelha `SimulationInputsDto` do backend). */
+@Serializable
+data class SimulationInputsDto(
+    val initialCapital: Double,
+    val monthlyContribution: Double,
+    val expectedReturnAnnual: Double,
+    val volatilityAnnual: Double,
+    val horizonMonths: Int,
+    val targetAmount: Double,
+    val unemploymentProbAnnual: Double = 0.0,
+    val unemploymentDurationMonths: Int = 6,
+    val inflationAnnual: Double = 0.0,
+    val unexpectedExpenseAnnualFrequency: Double = 0.0,
+    val unexpectedExpenseMeanAmount: Double = 0.0,
+    val incomeVolatilityAnnual: Double = 0.0,
+    val numSimulations: Int = 10_000,
+    val calibrated: Boolean = false,
 )
 
 @Serializable
@@ -74,4 +94,5 @@ data class SimulationSummaryResponseDto(
     val median: Double,
     val targetAmount: Double,
     val createdAt: String,
+    val inputs: SimulationInputsDto? = null,
 )

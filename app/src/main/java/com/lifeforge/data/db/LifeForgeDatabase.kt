@@ -29,7 +29,8 @@ import com.lifeforge.data.db.entity.UserEntity
  *   simulações completas).
  * - **2**: escrita offline — coluna `syncState` nas entidades editáveis, fila
  *   de saída `pending_operations`, histórico resumido de simulações
- *   (`simulation_summaries`) e bandas do fan chart no cache de simulações. Migração explícita em [MIGRATION_1_2]: o banco
+ *   (`simulation_summaries`), bandas do fan chart e premissas de cada rodada
+ *   no cache de simulações (comparação de estratégias). Migração explícita em [MIGRATION_1_2]: o banco
  *   agora guarda alterações que o usuário fez sem conexão e que não podem ser
  *   perdidas numa recriação.
  *
@@ -75,6 +76,7 @@ abstract class LifeForgeDatabase : RoomDatabase() {
                     db.execSQL("ALTER TABLE `$table` ADD COLUMN `syncState` TEXT NOT NULL DEFAULT 'SYNCED'")
                 }
                 db.execSQL("ALTER TABLE `simulations` ADD COLUMN `trajectory` TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL("ALTER TABLE `simulations` ADD COLUMN `inputs` TEXT")
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `pending_operations` (" +
                         "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
@@ -91,7 +93,7 @@ abstract class LifeForgeDatabase : RoomDatabase() {
                         "`id` INTEGER NOT NULL, `goalId` INTEGER NOT NULL, " +
                         "`successProbability` REAL NOT NULL, `mean` REAL NOT NULL, " +
                         "`median` REAL NOT NULL, `targetAmount` REAL NOT NULL, " +
-                        "`createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                        "`createdAt` INTEGER NOT NULL, `inputs` TEXT, PRIMARY KEY(`id`))"
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_simulation_summaries_goalId` " +
@@ -99,8 +101,8 @@ abstract class LifeForgeDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "INSERT OR REPLACE INTO `simulation_summaries` " +
-                        "(`id`, `goalId`, `successProbability`, `mean`, `median`, `targetAmount`, `createdAt`) " +
-                        "SELECT `id`, `goalId`, `successProbability`, `mean`, `median`, `targetAmount`, `createdAt` " +
+                        "(`id`, `goalId`, `successProbability`, `mean`, `median`, `targetAmount`, `createdAt`, `inputs`) " +
+                        "SELECT `id`, `goalId`, `successProbability`, `mean`, `median`, `targetAmount`, `createdAt`, `inputs` " +
                         "FROM `simulations`"
                 )
             }

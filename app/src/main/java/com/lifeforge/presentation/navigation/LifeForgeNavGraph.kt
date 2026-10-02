@@ -36,6 +36,7 @@ import com.lifeforge.presentation.screen.profile.ProfileScreen
 import com.lifeforge.presentation.screen.simulation.SimulationScreen
 import com.lifeforge.presentation.screen.prediction.PredictionScreen
 import com.lifeforge.presentation.screen.simulation.SimulationCalibratedScreen
+import com.lifeforge.presentation.screen.simulation.SimulationCompareScreen
 
 /**
  * Grafo de navegação raiz do LifeForge.
@@ -209,6 +210,14 @@ fun LifeForgeNavGraph(
             }
             composable<Simulation> {
                 SimulationScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onCompare = { goalId, firstId, secondId ->
+                        navController.navigate(SimulationCompare(goalId, firstId, secondId))
+                    },
+                )
+            }
+            composable<SimulationCompare> {
+                SimulationCompareScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }

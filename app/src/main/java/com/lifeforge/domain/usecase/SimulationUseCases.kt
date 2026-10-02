@@ -5,6 +5,8 @@ import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.SimulationParameters
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.SimulationSummary
+import com.lifeforge.domain.model.StrategyComparator
+import com.lifeforge.domain.model.StrategyComparison
 import com.lifeforge.domain.repository.SimulationRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -80,4 +82,23 @@ class DeleteSimulationUseCase @Inject constructor(
     private val repository: SimulationRepository,
 ) {
     suspend operator fun invoke(id: Long): DataResult<Unit> = repository.delete(id)
+}
+
+/**
+ * Carrega duas simulações da mesma meta e as compara lado a lado
+ * (proposta, Seção 8.3). Usa o cache local quando disponível.
+ */
+class CompareSimulationsUseCase @Inject constructor(
+    private val repository: SimulationRepository,
+) {
+    suspend operator fun invoke(firstId: Long, secondId: Long): DataResult<StrategyComparison> {
+        val first = repository.getById(firstId)
+        if (first is DataResult.Failure) return first
+        val second = repository.getById(secondId)
+        if (second is DataResult.Failure) return second
+        // A estratégia A é sempre a rodada mais antiga: a comparação lê como "antes × depois".
+        val (a, b) = listOf((first as DataResult.Success).data, (second as DataResult.Success).data)
+            .sortedBy { it.createdAt }
+        return DataResult.Success(StrategyComparator.compare(a, b))
+    }
 }

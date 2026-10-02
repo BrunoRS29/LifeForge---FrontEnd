@@ -3,6 +3,7 @@ package com.lifeforge.data.db.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.lifeforge.data.model.dto.SimulationInputsDto
 import java.time.Instant
 
 /**
@@ -51,4 +52,6 @@ data class SimulationSummaryEntity(
     val median: Double,
     val targetAmount: Double,
     val createdAt: Instant,
+    /** Premissas da rodada (JSON): identificam a estratégia no histórico. */
+    val inputs: SimulationInputsDto? = null,
 )

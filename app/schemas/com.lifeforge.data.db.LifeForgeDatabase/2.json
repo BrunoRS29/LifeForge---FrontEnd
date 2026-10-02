@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "422a9d07c0e71c7aa94089a8e28f5e0c",
+    "identityHash": "f661c2013e4d037a51808e10617ab893",
     "entities": [
       {
         "tableName": "users",
@@ -366,7 +366,7 @@
       },
       {
         "tableName": "simulations",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `goalId` INTEGER NOT NULL, `numSimulations` INTEGER NOT NULL, `seed` INTEGER NOT NULL, `targetAmount` REAL NOT NULL, `successProbability` REAL NOT NULL, `mean` REAL NOT NULL, `median` REAL NOT NULL, `standardDeviation` REAL NOT NULL, `percentiles` TEXT NOT NULL, `worstCase` REAL NOT NULL, `bestCase` REAL NOT NULL, `meanReal` REAL NOT NULL, `histogram` TEXT NOT NULL, `executionTimeMs` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `trajectory` TEXT NOT NULL DEFAULT '[]', PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `goalId` INTEGER NOT NULL, `numSimulations` INTEGER NOT NULL, `seed` INTEGER NOT NULL, `targetAmount` REAL NOT NULL, `successProbability` REAL NOT NULL, `mean` REAL NOT NULL, `median` REAL NOT NULL, `standardDeviation` REAL NOT NULL, `percentiles` TEXT NOT NULL, `worstCase` REAL NOT NULL, `bestCase` REAL NOT NULL, `meanReal` REAL NOT NULL, `histogram` TEXT NOT NULL, `executionTimeMs` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `trajectory` TEXT NOT NULL DEFAULT '[]', `inputs` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -470,6 +470,12 @@
             "affinity": "TEXT",
             "notNull": true,
             "defaultValue": "'[]'"
+          },
+          {
+            "fieldPath": "inputs",
+            "columnName": "inputs",
+            "affinity": "TEXT",
+            "notNull": false
           }
         ],
         "primaryKey": {
@@ -566,7 +572,7 @@
       },
       {
         "tableName": "simulation_summaries",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `goalId` INTEGER NOT NULL, `successProbability` REAL NOT NULL, `mean` REAL NOT NULL, `median` REAL NOT NULL, `targetAmount` REAL NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `goalId` INTEGER NOT NULL, `successProbability` REAL NOT NULL, `mean` REAL NOT NULL, `median` REAL NOT NULL, `targetAmount` REAL NOT NULL, `createdAt` INTEGER NOT NULL, `inputs` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -609,6 +615,12 @@
             "columnName": "createdAt",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "inputs",
+            "columnName": "inputs",
+            "affinity": "TEXT",
+            "notNull": false
           }
         ],
         "primaryKey": {
@@ -634,7 +646,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '422a9d07c0e71c7aa94089a8e28f5e0c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f661c2013e4d037a51808e10617ab893')"
     ]
   }
 }

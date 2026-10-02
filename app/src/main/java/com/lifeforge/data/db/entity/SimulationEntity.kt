@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.lifeforge.data.model.dto.HistogramBucketDto
+import com.lifeforge.data.model.dto.SimulationInputsDto
 import com.lifeforge.data.model.dto.TrajectoryBandDto
 import java.time.Instant
 
@@ -48,4 +49,6 @@ data class SimulationEntity(
     val executionTimeMs: Long,
     val createdAt: Instant,
     @ColumnInfo(defaultValue = "[]") val trajectory: List<TrajectoryBandDto> = emptyList(),
+    /** Premissas da rodada (JSON) — base da comparação de estratégias. */
+    val inputs: SimulationInputsDto? = null,
 )

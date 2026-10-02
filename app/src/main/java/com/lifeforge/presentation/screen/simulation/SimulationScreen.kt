@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -49,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.HistogramBucket
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.SimulationSummary
+import com.lifeforge.domain.model.SimulationInputs
 import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
@@ -92,6 +97,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 @Composable
 fun SimulationScreen(
     onNavigateBack: () -> Unit,
+    onCompare: (goalId: Long, firstId: Long, secondId: Long) -> Unit = { _, _, _ -> },
     viewModel: SimulationViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -170,6 +176,15 @@ fun SimulationScreen(
                     HistorySection(
                         history = state.history,
                         onOpen = viewModel::openHistoryEntry,
+                        isCompareMode = state.isCompareMode,
+                        selection = state.compareSelection,
+                        onToggleCompareMode = viewModel::toggleCompareMode,
+                        onToggleSelection = viewModel::toggleCompareSelection,
+                        onCompare = {
+                            val (first, second) = state.compareSelection
+                            viewModel.toggleCompareMode()
+                            onCompare(state.goalId, first, second)
+                        },
                     )
                 }
             }
@@ -664,6 +679,11 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
 private fun HistorySection(
     history: List<SimulationSummary>,
     onOpen: (Long) -> Unit = {},
+    isCompareMode: Boolean = false,
+    selection: List<Long> = emptyList(),
+    onToggleCompareMode: () -> Unit = {},
+    onToggleSelection: (Long) -> Unit = {},
+    onCompare: () -> Unit = {},
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -672,31 +692,68 @@ private fun HistorySection(
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Simulações anteriores",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+                // Comparar estratégias lado a lado exige ao menos duas rodadas.
+                if (history.size >= 2) {
+                    TextButton(onClick = onToggleCompareMode) {
+                        Text(if (isCompareMode) "Cancelar" else "Comparar")
+                    }
+                }
+            }
             Text(
-                "Simulações anteriores",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                "Toque numa rodada para reabrir o resultado e os gráficos dela.",
+                if (isCompareMode) {
+                    "Escolha duas rodadas para comparar as estratégias lado a lado."
+                } else {
+                    "Toque numa rodada para reabrir o resultado e os gráficos dela."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
             history.forEach { sim ->
+                val selected = sim.id in selection
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClickLabel = "Reabrir resultado desta rodada") {
-                            onOpen(sim.id)
-                        }
+                        .heightIn(min = 48.dp)
+                        .then(
+                            if (isCompareMode) {
+                                Modifier.toggleable(
+                                    value = selected,
+                                    role = Role.Checkbox,
+                                    onValueChange = { onToggleSelection(sim.id) },
+                                )
+                            } else {
+                                Modifier.clickable(onClickLabel = "Reabrir resultado desta rodada") {
+                                    onOpen(sim.id)
+                                }
+                            }
+                        )
                         .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (isCompareMode) {
+                        // A linha inteira é o alvo de toque (toggleable); o checkbox só sinaliza.
+                        Checkbox(checked = selected, onCheckedChange = null)
+                    }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            formatDateTime(sim.createdAt),
+                            formatDateTime(sim.createdAt) + if (sim.inputs?.calibrated == true) " · com IA" else "",
                             style = MaterialTheme.typography.bodyMedium,
                         )
+                        sim.inputs?.let { inputs ->
+                            Text(
+                                strategyLine(inputs),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         Text(
                             "Mediana: ${formatBrl(sim.median)}",
                             style = MaterialTheme.typography.bodySmall,
@@ -710,6 +767,42 @@ private fun HistorySection(
                     )
                 }
             }
+            if (isCompareMode) {
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onCompare,
+                    enabled = selection.size == 2,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Comparar selecionadas (${selection.size}/2)")
+                }
+            }
         }
     }
+}
+
+/** "Aporte R$ 2.000 · 8% a.a. · vol. 15% · 20 anos": a estratégia em uma linha. */
+internal fun strategyLine(inputs: SimulationInputs): String =
+    "Aporte ${formatBrl(inputs.monthlyContribution)} · ${formatAnnualRate(inputs.expectedReturnAnnual)} a.a. · " +
+        "vol. ${formatAnnualRate(inputs.volatilityAnnual)} · ${formatHorizon(inputs.horizonMonths)}"
+
+/** Taxa anual em percentual com até uma casa: 0.08 → "8%", 0.105 → "10,5%". */
+internal fun formatAnnualRate(fraction: Double): String {
+    // Arredonda a décimos de ponto percentual (0.15 * 100 não é exatamente 15 em Double).
+    val tenths = Math.round(fraction * 1000.0)
+    val text = if (tenths % 10 == 0L) {
+        (tenths / 10).toString()
+    } else {
+        String.format(java.util.Locale("pt", "BR"), "%.1f", tenths / 10.0)
+    }
+    return "$text%"
+}
+
+/** Horizonte legível: 240 → "20 anos", 30 → "2 anos e 6 meses", 8 → "8 meses". */
+internal fun formatHorizon(months: Int): String {
+    val years = months / 12
+    val rest = months % 12
+    val y = when (years) { 0 -> null; 1 -> "1 ano"; else -> "$years anos" }
+    val m = when (rest) { 0 -> null; 1 -> "1 mês"; else -> "$rest meses" }
+    return listOfNotNull(y, m).joinToString(" e ").ifEmpty { "0 meses" }
 }

@@ -74,12 +74,30 @@ data class SimulationResult(
     val bestCase: Double,
     val meanReal: Double,
     val histogram: List<HistogramBucket>,
-    // Trajetória mês a mês para o fan chart. Default vazio: simulações
-    // recuperadas do cache (Room) não guardam a trajetória, só a rodada
-    // fresca vinda da rede a traz.
+    // Trajetória mês a mês para o fan chart (também guardada no cache local).
+    // Vazia apenas para simulações antigas, anteriores ao fan chart.
     val trajectory: List<TrajectoryBand> = emptyList(),
     val executionTimeMs: Long,
     val createdAt: Instant,
+    /** Premissas da rodada — a "estratégia" (null em registros antigos). */
+    val inputs: SimulationInputs? = null,
+)
+
+/**
+ * Premissas com que uma simulação rodou: o que distingue uma estratégia de
+ * outra na comparação lado a lado. [calibrated] = aporte derivado pela IA.
+ */
+data class SimulationInputs(
+    val initialCapital: Double,
+    val monthlyContribution: Double,
+    val expectedReturnAnnual: Double,
+    val volatilityAnnual: Double,
+    val horizonMonths: Int,
+    val targetAmount: Double,
+    val unemploymentProbAnnual: Double = 0.0,
+    val inflationAnnual: Double = 0.0,
+    val numSimulations: Int = 10_000,
+    val calibrated: Boolean = false,
 )
 
 /**
@@ -94,4 +112,5 @@ data class SimulationSummary(
     val median: Double,
     val targetAmount: Double,
     val createdAt: Instant,
+    val inputs: SimulationInputs? = null,
 )

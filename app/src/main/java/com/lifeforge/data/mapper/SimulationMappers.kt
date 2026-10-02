@@ -4,10 +4,12 @@ import com.lifeforge.data.db.entity.SimulationEntity
 import com.lifeforge.data.db.entity.SimulationSummaryEntity
 import com.lifeforge.data.model.dto.HistogramBucketDto
 import com.lifeforge.data.model.dto.RunSimulationRequestDto
+import com.lifeforge.data.model.dto.SimulationInputsDto
 import com.lifeforge.data.model.dto.SimulationResultResponseDto
 import com.lifeforge.data.model.dto.SimulationSummaryResponseDto
 import com.lifeforge.data.model.dto.TrajectoryBandDto
 import com.lifeforge.domain.model.HistogramBucket
+import com.lifeforge.domain.model.SimulationInputs
 import com.lifeforge.domain.model.SimulationParameters
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.SimulationSummary
@@ -44,6 +46,7 @@ fun SimulationResultResponseDto.toEntity(): SimulationEntity = SimulationEntity(
     executionTimeMs = executionTimeMs,
     createdAt = Instant.parse(createdAt),
     trajectory = trajectory,
+    inputs = inputs,
 )
 
 /** Resumo para o histórico local, a partir do resultado completo de uma rodada. */
@@ -55,6 +58,7 @@ fun SimulationResultResponseDto.toSummaryEntity(): SimulationSummaryEntity = Sim
     median = median,
     targetAmount = targetAmount,
     createdAt = Instant.parse(createdAt),
+    inputs = inputs,
 )
 
 // ============================================================================
@@ -80,6 +84,7 @@ fun SimulationResultResponseDto.toDomain(): SimulationResult = SimulationResult(
     trajectory = trajectory.map { it.toDomain() },
     executionTimeMs = executionTimeMs,
     createdAt = Instant.parse(createdAt),
+    inputs = inputs?.toDomain(),
 )
 
 fun TrajectoryBandDto.toDomain(): TrajectoryBand =
@@ -107,6 +112,7 @@ fun SimulationEntity.toDomain(): SimulationResult = SimulationResult(
     trajectory = trajectory.map { it.toDomain() },
     executionTimeMs = executionTimeMs,
     createdAt = createdAt,
+    inputs = inputs?.toDomain(),
 )
 
 /**
@@ -122,6 +128,7 @@ fun SimulationEntity.toSummary(): SimulationSummary = SimulationSummary(
     median = median,
     targetAmount = targetAmount,
     createdAt = createdAt,
+    inputs = inputs?.toDomain(),
 )
 
 // Histórico resumido (GET /by-goal/{id}) → cache local e domínio.
@@ -133,6 +140,7 @@ fun SimulationSummaryResponseDto.toEntity(): SimulationSummaryEntity = Simulatio
     median = median,
     targetAmount = targetAmount,
     createdAt = Instant.parse(createdAt),
+    inputs = inputs,
 )
 
 fun SimulationSummaryEntity.toDomain(): SimulationSummary = SimulationSummary(
@@ -143,6 +151,20 @@ fun SimulationSummaryEntity.toDomain(): SimulationSummary = SimulationSummary(
     median = median,
     targetAmount = targetAmount,
     createdAt = createdAt,
+    inputs = inputs?.toDomain(),
+)
+
+fun SimulationInputsDto.toDomain(): SimulationInputs = SimulationInputs(
+    initialCapital = initialCapital,
+    monthlyContribution = monthlyContribution,
+    expectedReturnAnnual = expectedReturnAnnual,
+    volatilityAnnual = volatilityAnnual,
+    horizonMonths = horizonMonths,
+    targetAmount = targetAmount,
+    unemploymentProbAnnual = unemploymentProbAnnual,
+    inflationAnnual = inflationAnnual,
+    numSimulations = numSimulations,
+    calibrated = calibrated,
 )
 
 fun SimulationSummaryResponseDto.toDomain(): SimulationSummary = SimulationSummary(

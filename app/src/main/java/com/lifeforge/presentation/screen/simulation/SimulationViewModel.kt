@@ -75,11 +75,14 @@ class SimulationViewModel @Inject constructor(
         localState,
     ) { history, local ->
         SimulationUiState(
+            goalId = goalId,
             goalName = local.goalName,
             form = local.form,
             isRunning = local.isRunning,
             result = local.result,
             history = history,
+            isCompareMode = local.isCompareMode,
+            compareSelection = local.compareSelection,
             errorBanner = local.errorBanner,
             totalAssets = local.totalAssets,
         )
@@ -189,11 +192,33 @@ class SimulationViewModel @Inject constructor(
         localState.update { it.copy(errorBanner = null) }
     }
 
+    // ------------------------------------------------------------------------
+    // Comparação de estratégias (proposta, Seção 8.3)
+    // ------------------------------------------------------------------------
+
+    /** Liga/desliga a seleção de rodadas do histórico para comparar. */
+    fun toggleCompareMode() = localState.update {
+        it.copy(isCompareMode = !it.isCompareMode, compareSelection = emptyList())
+    }
+
+    /**
+     * Marca/desmarca uma rodada. No máximo duas: ao marcar a terceira, a mais
+     * antiga das selecionadas sai (comportamento previsível para o usuário).
+     */
+    fun toggleCompareSelection(simulationId: Long) = localState.update { local ->
+        val current = local.compareSelection
+        val next = when {
+            simulationId in current -> current - simulationId
+            current.size < 2 -> current + simulationId
+            else -> current.drop(1) + simulationId
+        }
+        local.copy(compareSelection = next)
+    }
+
     /**
      * Reabre uma rodada do histórico: carrega o resultado completo (cache
-     * local ou backend) e o exibe na mesma seção de resultado da tela.
-     * Obs.: rodadas vindas do cache não guardam a trajetória do fan chart —
-     * os demais gráficos e estatísticas aparecem normalmente.
+     * local ou backend) e o exibe na mesma seção de resultado da tela,
+     * inclusive o fan chart (as bandas ficam guardadas no cache).
      */
     fun openHistoryEntry(simulationId: Long) {
         if (localState.value.isRunning) return
@@ -284,6 +309,8 @@ class SimulationViewModel @Inject constructor(
         val result: SimulationResult? = null,
         val errorBanner: String? = null,
         val totalAssets: BigDecimal? = null,
+        val isCompareMode: Boolean = false,
+        val compareSelection: List<Long> = emptyList(),
     )
 
     companion object {
@@ -353,11 +380,15 @@ data class SimulationForm(
 }
 
 data class SimulationUiState(
+    val goalId: Long = 0,
     val goalName: String? = null,
     val form: SimulationForm,
     val isRunning: Boolean = false,
     val result: SimulationResult? = null,
     val history: List<SimulationSummary> = emptyList(),
+    /** Seleção de rodadas do histórico para a comparação lado a lado. */
+    val isCompareMode: Boolean = false,
+    val compareSelection: List<Long> = emptyList(),
     val errorBanner: String? = null,
     /** Soma dos ativos cadastrados — habilita "usar patrimônio total". */
     val totalAssets: java.math.BigDecimal? = null,

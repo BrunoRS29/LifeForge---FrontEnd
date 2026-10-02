@@ -2,6 +2,7 @@ package com.lifeforge.data.db
 
 import androidx.room.TypeConverter
 import com.lifeforge.data.model.dto.HistogramBucketDto
+import com.lifeforge.data.model.dto.SimulationInputsDto
 import com.lifeforge.data.model.dto.TrajectoryBandDto
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -94,4 +95,16 @@ class Converters {
     @TypeConverter
     fun jsonToTrajectory(value: String?): List<TrajectoryBandDto>? =
         value?.let { json.decodeFromString<List<TrajectoryBandDto>>(it) }
+
+    // ------------------------------------------------------------------------
+    // SimulationInputsDto — premissas da rodada (comparação de estratégias)
+    // ------------------------------------------------------------------------
+
+    @TypeConverter
+    fun inputsToJson(value: SimulationInputsDto?): String? =
+        value?.let { json.encodeToString(it) }
+
+    @TypeConverter
+    fun jsonToInputs(value: String?): SimulationInputsDto? =
+        value?.let { runCatching { json.decodeFromString<SimulationInputsDto>(it) }.getOrNull() }
 }

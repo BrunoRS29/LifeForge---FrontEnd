@@ -74,6 +74,13 @@ data class GoalEdit(val goalId: Long? = null)
 data class Simulation(val goalId: Long)
 
 /**
+ * Comparação lado a lado de duas rodadas de simulação da mesma meta
+ * (estratégia A × B) — proposta, Seção 8.3.
+ */
+@Serializable
+data class SimulationCompare(val goalId: Long, val firstId: Long, val secondId: Long)
+
+/**
  * Tela de Simulacao Calibrada por IA (Sprint 5).
  *
  * Acessada via "Simular com IA" no GoalDetail ou direto via:
