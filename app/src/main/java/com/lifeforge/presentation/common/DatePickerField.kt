@@ -53,13 +53,13 @@ fun DatePickerDialogField(
     onDismiss: () -> Unit,
 ) {
     val pickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initial?.toEpochMilli() ?: System.currentTimeMillis(),
+        initialSelectedDateMillis = instantToPickerMillis(initial ?: Instant.now()),
     )
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = {
-                pickerState.selectedDateMillis?.let { onSelect(Instant.ofEpochMilli(it)) }
+                pickerState.selectedDateMillis?.let { onSelect(pickerMillisToInstant(it)) }
             }) { Text("OK") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },

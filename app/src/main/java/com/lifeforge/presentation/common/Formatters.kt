@@ -6,6 +6,7 @@ import java.text.NumberFormat
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -112,6 +113,20 @@ fun formatMonthYear(yearMonth: YearMonth): String {
         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(ptBR) else it.toString() }
     return "$month ${yearMonth.year}"
 }
+
+/**
+ * Data escolhida no DatePicker → instante. O DatePicker do Material 3 devolve
+ * a meia-noite UTC do dia escolhido, que no fuso de São Paulo (UTC−3) ainda é
+ * o dia anterior: escolher 15/03 exibia 14/03. Usa o meio-dia local do dia
+ * escolhido, longe da virada do dia (mesma convenção de [firstInstantOfMonth]).
+ */
+fun pickerMillisToInstant(millis: Long): Instant =
+    Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+        .atTime(12, 0).atZone(zoneBR).toInstant()
+
+/** Instante → valor inicial do DatePicker: meia-noite UTC do dia (no fuso de SP). */
+fun instantToPickerMillis(instant: Instant): Long =
+    instant.atZone(zoneBR).toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
 /** Instante representando o dia 1 do mês (meio-dia SP) — default de data ao criar no mês. */
 fun firstInstantOfMonth(yearMonth: YearMonth): Instant =

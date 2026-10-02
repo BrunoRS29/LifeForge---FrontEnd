@@ -49,6 +49,8 @@ import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingIndicator
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.formatDate
+import com.lifeforge.presentation.common.instantToPickerMillis
+import com.lifeforge.presentation.common.pickerMillisToInstant
 import com.lifeforge.presentation.common.label
 import java.time.Instant
 
@@ -228,8 +230,7 @@ private fun DatePickerDialogContent(
     onDismiss: () -> Unit,
 ) {
     val pickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initial?.toEpochMilli()
-            ?: System.currentTimeMillis(),
+        initialSelectedDateMillis = instantToPickerMillis(initial ?: Instant.now()),
     )
 
     DatePickerDialog(
@@ -238,7 +239,7 @@ private fun DatePickerDialogContent(
             TextButton(
                 onClick = {
                     pickerState.selectedDateMillis?.let { millis ->
-                        onSelect(Instant.ofEpochMilli(millis))
+                        onSelect(pickerMillisToInstant(millis))
                     }
                 },
             ) {
