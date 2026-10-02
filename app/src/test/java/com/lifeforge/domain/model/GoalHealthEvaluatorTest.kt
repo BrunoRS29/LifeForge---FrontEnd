@@ -45,6 +45,15 @@ class GoalHealthEvaluatorTest {
     }
 
     @Test
+    fun `meses restantes batem com o horizonte pre-preenchido na simulacao`() {
+        // 3 anos, 7 meses e 30 dias: o horizonte da simulação arredonda para 44.
+        val today = Instant.parse("2026-10-02T15:00:00Z")
+        val target = "2030-06-01T15:00:00Z"
+        assertThat(GoalHealthEvaluator.evaluate(goal(targetDate = target), null, today).monthsLeft)
+            .isEqualTo(GoalHorizon.months(today, Instant.parse(target)).toLong())
+    }
+
+    @Test
     fun `painel mostra primeiro as metas que pedem acao`() {
         val onTrack = GoalHealthEvaluator.evaluate(goal(1), simulation(1, 0.9), now)
         val atRisk = GoalHealthEvaluator.evaluate(goal(2), simulation(2, 0.3), now)

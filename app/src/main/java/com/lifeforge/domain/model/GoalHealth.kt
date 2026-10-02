@@ -1,8 +1,6 @@
 package com.lifeforge.domain.model
 
 import java.time.Instant
-import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
 
 /**
  * "Saúde" de uma meta: a leitura de uma linha da última Simulação de Monte
@@ -72,6 +70,9 @@ object GoalHealthEvaluator {
 
     private fun monthsBetween(from: Instant, to: Instant): Long {
         if (!to.isAfter(from)) return 0
-        return ChronoUnit.MONTHS.between(from.atZone(ZoneOffset.UTC), to.atZone(ZoneOffset.UTC))
+        // Mesma conta do horizonte que pré-preenche simulação e otimização
+        // (meses de calendário, arredondando a sobra de dias): o "faltam" da
+        // meta e o horizonte da simulação mostram o mesmo número de meses.
+        return GoalHorizon.months(from, to).toLong()
     }
 }
