@@ -13,7 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -90,7 +90,7 @@ fun GoalEditScreen(
                         onClick = onNavigateBack,
                         enabled = !state.isSubmitting,
                     ) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
                     }
                 },
             )

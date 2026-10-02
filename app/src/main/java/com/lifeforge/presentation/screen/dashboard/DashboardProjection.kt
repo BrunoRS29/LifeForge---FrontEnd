@@ -1,6 +1,12 @@
 package com.lifeforge.presentation.screen.dashboard
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -12,7 +18,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -49,8 +58,10 @@ private const val DEFAULT_MONTHS = 60         // 5 anos quando não há perfil
  *  - despesas corrigidas pela inflação;
  *  - retorno anual conforme o perfil de risco.
  *
- * A linha de cima é o patrimônio COM rendimento; a de baixo, só os aportes
- * acumulados. A distância é o efeito dos juros compostos.
+ * Séries: o patrimônio REALIZADO dos últimos meses (reconstruído pelo fluxo de
+ * caixa — ver [com.lifeforge.domain.model.WealthHistory]), o PROJETADO com
+ * rendimento e o de referência só com os aportes acumulados. A distância
+ * entre as duas projeções é o efeito dos juros compostos.
  */
 @Composable
 fun WealthProjectionCard(
@@ -58,6 +69,7 @@ fun WealthProjectionCard(
     profile: UserProfile?,
     riskProfile: RiskProfile?,
     referenceData: ReferenceData?,
+    realizedWealth: List<Double> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     // Premissas da base de referencia do backend; fallback nas constantes
@@ -100,12 +112,18 @@ fun WealthProjectionCard(
     )
     val proj = remember(inputs) { WealthProjection.projectDynamic(inputs) }
 
+    // Linha "realizado" só faz sentido com ao menos dois pontos de histórico.
+    val realized = realizedWealth.takeIf { it.size >= 2 && it.any { v -> v > 0.0 } }.orEmpty()
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(proj) {
+    LaunchedEffect(proj, realized) {
         modelProducer.runTransaction {
             lineSeries {
-                series(y = proj.projected)
-                series(y = proj.contributionsOnly)
+                // Passado em x negativo (meses atrás), futuro a partir de x = 0 (hoje).
+                if (realized.isNotEmpty()) {
+                    series(x = (-(realized.size - 1)..0).toList(), y = realized)
+                }
+                series(x = proj.projected.indices.toList(), y = proj.projected)
+                series(x = proj.contributionsOnly.indices.toList(), y = proj.contributionsOnly)
             }
         }
     }
@@ -125,8 +143,8 @@ fun WealthProjectionCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                if (horizonMonths != null) "Evolução do patrimônio até a aposentadoria"
-                else "Evolução do patrimônio ($years anos)",
+                if (horizonMonths != null) "Patrimônio realizado × projetado até a aposentadoria"
+                else "Patrimônio realizado × projetado ($years anos)",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() },
             )
@@ -151,7 +169,13 @@ fun WealthProjectionCard(
             Spacer(Modifier.height(12.dp))
 
             // Resumo textual para leitores de tela (TalkBack).
-            val chartDescription = "Gráfico de evolução em $years anos: " +
+            val realizedDescription = if (realized.isNotEmpty()) {
+                "Realizado: de ${formatBrlCompact(realized.first().toBigDecimal())} há " +
+                    "${realized.size - 1} meses para ${formatBrlCompact(realized.last().toBigDecimal())} hoje. "
+            } else {
+                ""
+            }
+            val chartDescription = realizedDescription + "Projeção em $years anos: " +
                 "investindo, ${formatBrlCompact(proj.finalProjected.toBigDecimal())}; " +
                 "apenas guardando, ${formatBrlCompact(proj.finalContributionsOnly.toBigDecimal())}"
             CartesianChartHost(
@@ -168,11 +192,29 @@ fun WealthProjectionCard(
             )
 
             Spacer(Modifier.height(8.dp))
+            // Legenda: as cores seguem a ordem das séries no tema do Vico
+            // (primária, secundária, terciária).
+            val colors = listOf(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.secondary,
+                MaterialTheme.colorScheme.tertiary,
+            )
+            val labels = buildList {
+                if (realized.isNotEmpty()) add("Realizado (últimos ${realized.size - 1} meses)")
+                add("Projetado, investindo")
+                add("Só os aportes, sem rendimento")
+            }
+            ChartLegend(entries = labels.zip(colors))
+            Spacer(Modifier.height(4.dp))
             Text(
-                "Linha de cima: patrimônio investindo (juros compostos). Linha de " +
-                    "baixo: apenas acumulando os aportes, sem rendimento. Eixo X em " +
-                    "meses, eixo Y em R$ — a distância entre as linhas é o que os " +
-                    "juros fazem por você.",
+                buildString {
+                    append("Eixo X em meses (0 = hoje")
+                    if (realized.isNotEmpty()) append("; valores negativos são meses passados")
+                    append("), eixo Y em R$. A distância entre as linhas projetadas é o que os juros fazem por você.")
+                    if (realized.isNotEmpty()) {
+                        append(" O realizado é reconstruído pelo saldo mensal de receitas e despesas, a partir do valor atual dos seus ativos.")
+                    }
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -204,3 +246,16 @@ private fun parseAges(raw: String?): List<Int> =
     raw?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.filter { it in 0..120 } ?: emptyList()
 
 private fun pct(fraction: Double): String = "${(fraction * 100).roundToInt()}%"
+
+/** Legenda simples de gráfico: bolinha na cor da série + rótulo. */
+@Composable
+private fun ChartLegend(entries: List<Pair<String, Color>>) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        entries.forEach { (label, color) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
+}

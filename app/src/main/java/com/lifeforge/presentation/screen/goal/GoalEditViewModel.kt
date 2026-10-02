@@ -45,6 +45,9 @@ class GoalEditViewModel @Inject constructor(
 
     private val goalId: Long? = savedStateHandle.toRoute<GoalEdit>().goalId
 
+    /** Id usado ao salvar: o da meta carregada (segue a sincronização), ou o da rota. */
+    private var editingGoalId: Long? = goalId
+
     private val _state = MutableStateFlow(
         GoalEditUiState(isEdit = goalId != null, isLoading = goalId != null)
     )
@@ -64,6 +67,8 @@ class GoalEditViewModel @Inject constructor(
             // edições que o usuário esteja fazendo.
             val goal = observeGoal(id).first()
             if (goal != null) {
+                // Id atual (o da rota pode ser o temporário de uma meta criada offline).
+                editingGoalId = goal.id
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -144,7 +149,7 @@ class GoalEditViewModel @Inject constructor(
             val result = if (goalId == null) {
                 createGoal(current.name, current.category, targetAmount, targetDate, current.priority)
             } else {
-                updateGoal(goalId, current.name, current.category, targetAmount, targetDate, current.priority)
+                updateGoal(editingGoalId ?: goalId, current.name, current.category, targetAmount, targetDate, current.priority)
             }
 
             when (result) {

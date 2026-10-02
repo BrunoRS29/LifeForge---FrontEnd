@@ -16,7 +16,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoGraph
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,6 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.Goal
+import com.lifeforge.domain.model.GoalHealth
+import com.lifeforge.domain.model.isLocalOnly
+import com.lifeforge.presentation.common.GoalHealthChip
+import com.lifeforge.presentation.common.formatMonthsLeft
+import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.LoadingIndicator
 import com.lifeforge.presentation.common.LoadingOverlay
@@ -61,9 +66,9 @@ import com.lifeforge.presentation.common.label
 @Composable
 fun GoalDetailScreen(
     onNavigateBack: () -> Unit,
-    onEdit: () -> Unit,
-    onSimulate: () -> Unit,
-    onSimulateWithAi: () -> Unit = {},   // <-- NOVO, default vazio
+    onEdit: (goalId: Long) -> Unit,
+    onSimulate: (goalId: Long) -> Unit,
+    onSimulateWithAi: (goalId: Long) -> Unit = {},
     viewModel: GoalDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -83,7 +88,7 @@ fun GoalDetailScreen(
                 title = { Text(state.goal?.name ?: "Meta") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
                     }
                 },
             )
@@ -94,11 +99,12 @@ fun GoalDetailScreen(
             when {
                 goal != null -> GoalDetailContent(
                     goal = goal,
+                    health = state.health,
                     errorBanner = state.errorBanner,
                     onErrorDismiss = viewModel::onErrorBannerDismiss,
-                    onEdit = onEdit,
-                    onSimulate = onSimulate,
-                    onSimulateWithAi = onSimulateWithAi,
+                    onEdit = { onEdit(goal.id) },
+                    onSimulate = { onSimulate(goal.id) },
+                    onSimulateWithAi = { onSimulateWithAi(goal.id) },
                     onDeleteClick = { showDeleteDialog = true },
                 )
                 else -> LoadingIndicator()
@@ -122,13 +128,16 @@ fun GoalDetailScreen(
 @Composable
 private fun GoalDetailContent(
     goal: Goal,
+    health: GoalHealth?,
     errorBanner: String?,
     onErrorDismiss: () -> Unit,
     onEdit: () -> Unit,
     onSimulate: () -> Unit,
-    onSimulateWithAi: () -> Unit,  // <-- NOVO
+    onSimulateWithAi: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
+    // Meta criada sem conexão: o motor roda no servidor, que ainda não a conhece.
+    val canSimulate = !goal.isLocalOnly()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -160,6 +169,25 @@ private fun GoalDetailContent(
             }
         }
 
+        // Saúde da meta: leitura da última simulação (ou o convite para simular).
+        if (health != null) {
+            GoalHealthChip(health)
+            Text(
+                health.latest?.let { latest ->
+                    "Última simulação em ${formatDate(latest.createdAt)}: " +
+                        "${formatProbability(latest.successProbability)} de chance de atingir a meta " +
+                        "(${formatMonthsLeft(health.monthsLeft)})."
+                } ?: if (canSimulate) {
+                    "Simule para descobrir a probabilidade de atingir esta meta no prazo."
+                } else {
+                    "Meta salva neste aparelho — ela será enviada ao servidor assim que houver " +
+                        "conexão, e a simulação fica disponível em seguida."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         InfoRow(label = "Categoria", value = goal.category.label())
         InfoRow(label = "Data alvo", value = formatDate(goal.targetDate))
         InfoRow(label = "Prioridade", value = "${goal.priority}/10")
@@ -167,13 +195,14 @@ private fun GoalDetailContent(
 
         Spacer(Modifier.height(8.dp))
 
-        // BONUS: Substituído o botão único pela Row com "Simular" e "Simular com IA"
+        // Simulação clássica (parâmetros manuais) e calibrada pela IA (1 toque).
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
                 onClick = onSimulate,
+                enabled = canSimulate,
                 modifier = Modifier.weight(1f),
             ) {
                 Icon(Icons.Outlined.AutoGraph, contentDescription = null)
@@ -183,6 +212,7 @@ private fun GoalDetailContent(
 
             Button(
                 onClick = onSimulateWithAi,
+                enabled = canSimulate,
                 modifier = Modifier.weight(1f),
             ) {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null)

@@ -35,7 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.lifeforge.domain.model.Goal
+import com.lifeforge.domain.model.GoalHealth
+import com.lifeforge.presentation.common.GoalHealthChip
+import com.lifeforge.presentation.common.formatMonthsLeft
 import com.lifeforge.presentation.common.EmptyState
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
@@ -110,7 +112,7 @@ fun GoalsListScreen(
 
 @Composable
 private fun GoalsList(
-    goals: List<Goal>,
+    goals: List<GoalHealth>,
     onGoalClick: (Long) -> Unit,
 ) {
     LazyColumn(
@@ -120,14 +122,15 @@ private fun GoalsList(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(items = goals, key = { it.id }) { goal ->
-            GoalCard(goal = goal, onClick = { onGoalClick(goal.id) })
+        items(items = goals, key = { it.goal.id }) { health ->
+            GoalCard(health = health, onClick = { onGoalClick(health.goal.id) })
         }
     }
 }
 
 @Composable
-private fun GoalCard(goal: Goal, onClick: () -> Unit) {
+private fun GoalCard(health: GoalHealth, onClick: () -> Unit) {
+    val goal = health.goal
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -161,10 +164,12 @@ private fun GoalCard(goal: Goal, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Até ${formatDate(goal.targetDate)}",
+                    text = "Até ${formatDate(goal.targetDate)} · ${formatMonthsLeft(health.monthsLeft)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(Modifier.height(8.dp))
+                GoalHealthChip(health)
             }
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,

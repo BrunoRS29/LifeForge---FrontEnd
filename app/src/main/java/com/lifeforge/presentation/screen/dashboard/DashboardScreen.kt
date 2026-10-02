@@ -17,8 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Savings
-import androidx.compose.material.icons.outlined.TrendingDown
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.TrendingDown
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,11 +52,10 @@ import com.lifeforge.presentation.common.formatPercent
 /**
  * Dashboard — visão geral consolidada do usuário.
  *
- * Layout: saudação + barra de progresso (durante refresh) + 4 cards
- * com métricas-chave. Em Sprint posterior podemos adicionar:
- * - Lista de top 3 metas com progresso individual
- * - Gráfico de evolução do patrimônio (precisa de histórico — fora do MVP)
- * - Alertas (taxa de poupança baixa, meta próxima do prazo, etc.)
+ * Layout: saudação, card-herói do patrimônio, métricas do mês, saúde das
+ * metas, evolução patrimonial realizada × projetada, índice de independência
+ * financeira, atalho para a inteligência preditiva e recorrências detectadas.
+ * Tudo é lido do banco local — o painel funciona sem conexão.
  *
  * O `verticalScroll` permite que o conteúdo cresça sem quebrar layout
  * em telas pequenas conforme adicionarmos seções.
@@ -64,6 +63,8 @@ import com.lifeforge.presentation.common.formatPercent
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onOpenPredictions: () -> Unit = {},
+    onOpenGoal: (Long) -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -98,7 +99,10 @@ fun DashboardScreen(
 
                 FinancialSnapshotSection(snapshot = state.snapshot)
 
-                // Evolução patrimonial real (hoje) × projetada — Seção 8.4 do TCC.
+                // Resumo das metas ativas com o indicador de saúde (proposta 8.4).
+                GoalsHealthCard(goals = state.goalsHealth, onOpenGoal = onOpenGoal)
+
+                // Evolução patrimonial realizada × projetada — proposta 8.4 / TCC 4.8.
                 // Personalizada pelo perfil (horizonte, salário, inflação, retorno).
                 state.snapshot?.let { snapshot ->
                     WealthProjectionCard(
@@ -106,12 +110,16 @@ fun DashboardScreen(
                         profile = state.profile,
                         riskProfile = state.user?.riskProfile,
                         referenceData = state.referenceData,
+                        realizedWealth = state.realizedWealth,
                     )
                     FinancialIndependenceCard(
                         snapshot = snapshot,
                         referenceData = state.referenceData,
                     )
                 }
+
+                // Inteligência preditiva (microsserviço de IA): renda, despesas e patrimônio.
+                PredictionsEntryCard(onClick = onOpenPredictions)
 
                 // Recorrências detectadas automaticamente no histórico.
                 state.snapshot?.let { snapshot ->
@@ -160,14 +168,14 @@ private fun FinancialSnapshotSection(snapshot: FinancialSnapshot?) {
                 modifier = Modifier.weight(1f),
                 label = "Receita mensal",
                 value = snapshot?.monthlyIncome?.let(::formatBrl) ?: "—",
-                icon = Icons.Outlined.TrendingUp,
+                icon = Icons.AutoMirrored.Outlined.TrendingUp,
                 accent = MaterialTheme.colorScheme.primary,
             )
             MetricCard(
                 modifier = Modifier.weight(1f),
                 label = "Despesa mensal",
                 value = snapshot?.monthlyExpenses?.let(::formatBrl) ?: "—",
-                icon = Icons.Outlined.TrendingDown,
+                icon = Icons.AutoMirrored.Outlined.TrendingDown,
                 accent = MaterialTheme.colorScheme.tertiary,
             )
         }

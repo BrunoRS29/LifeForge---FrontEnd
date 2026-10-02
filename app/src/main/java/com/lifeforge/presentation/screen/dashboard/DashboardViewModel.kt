@@ -3,6 +3,7 @@ package com.lifeforge.presentation.screen.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lifeforge.domain.model.DataResult
+import com.lifeforge.domain.model.GoalHealth
 import com.lifeforge.domain.model.ReferenceData
 import com.lifeforge.domain.model.User
 import com.lifeforge.domain.model.UserProfile
@@ -11,6 +12,10 @@ import com.lifeforge.domain.usecase.GetFinancialSnapshotUseCase
 import com.lifeforge.domain.usecase.GetReferenceDataUseCase
 import com.lifeforge.domain.usecase.GetUserProfileUseCase
 import com.lifeforge.domain.usecase.ObserveCurrentUserUseCase
+import com.lifeforge.domain.usecase.ObserveGoalsHealthUseCase
+import com.lifeforge.domain.usecase.ObserveRealizedWealthUseCase
+import com.lifeforge.domain.usecase.RefreshGoalsUseCase
+import com.lifeforge.domain.usecase.RefreshSimulationHistoriesUseCase
 import com.lifeforge.domain.usecase.RefreshAssetsUseCase
 import com.lifeforge.domain.usecase.RefreshExpensesUseCase
 import com.lifeforge.domain.usecase.RefreshIncomesUseCase
@@ -32,15 +37,18 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel do Dashboard. Combina três fontes:
+ * ViewModel do Dashboard. Combina cinco fontes, todas do banco local
+ * (funcionam offline):
  *
  * 1. Flow do usuário corrente (para o cabeçalho "Olá, Gabriel")
  * 2. Flow do snapshot financeiro (calculado pelo
  *    [GetFinancialSnapshotUseCase] via `combine` de income/expense/asset)
  * 3. Estado local de refresh + erro
+ * 4. Saúde das metas (última simulação de cada uma)
+ * 5. Patrimônio realizado dos últimos meses (gráfico realizado × projetado)
  *
- * O refresh dispara as 3 chamadas (incomes, expenses, assets) **em
- * paralelo** via `async` — espera o `awaitAll` para saber se todas
+ * O refresh dispara as chamadas (receitas, despesas, ativos, metas +
+ * histórico de simulações) **em paralelo** via `async` — espera o `awaitAll` para saber se todas
  * passaram. Em falha de qualquer uma, mostramos a primeira mensagem
  * de erro mas continuamos exibindo o cache local atualizado parcialmente.
  */
@@ -53,6 +61,10 @@ class DashboardViewModel @Inject constructor(
     private val refreshAssets: RefreshAssetsUseCase,
     private val getUserProfile: GetUserProfileUseCase,
     private val getReferenceData: GetReferenceDataUseCase,
+    observeGoalsHealth: ObserveGoalsHealthUseCase,
+    observeRealizedWealth: ObserveRealizedWealthUseCase,
+    private val refreshGoals: RefreshGoalsUseCase,
+    private val refreshSimulationHistories: RefreshSimulationHistoriesUseCase,
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(LocalUiState())
@@ -68,12 +80,16 @@ class DashboardViewModel @Inject constructor(
                 .distinctUntilChanged(),
         ),
         localState,
-    ) { user, snapshot, local ->
+        observeGoalsHealth(),
+        observeRealizedWealth(),
+    ) { user, snapshot, local, goalsHealth, realizedWealth ->
         DashboardUiState(
             user = user,
             snapshot = snapshot,
             profile = local.profile,
             referenceData = local.referenceData,
+            goalsHealth = goalsHealth,
+            realizedWealth = realizedWealth,
             isRefreshing = local.isRefreshing,
             errorBanner = local.errorBanner,
         )
@@ -112,6 +128,11 @@ class DashboardViewModel @Inject constructor(
                     async { refreshIncomes() },
                     async { refreshExpenses() },
                     async { refreshAssets() },
+                    // Metas + histórico de simulações: alimentam a saúde das metas.
+                    async {
+                        val goals = refreshGoals()
+                        if (goals is DataResult.Success) refreshSimulationHistories() else goals
+                    },
                 ).awaitAll()
                 results.firstNotNullOfOrNull { result ->
                     if (result is com.lifeforge.domain.model.DataResult.Failure) {
@@ -143,6 +164,10 @@ data class DashboardUiState(
     val snapshot: FinancialSnapshot? = null,
     val profile: UserProfile? = null,
     val referenceData: ReferenceData? = null,
+    /** Metas com a leitura da última simulação, já ordenadas para o painel. */
+    val goalsHealth: List<GoalHealth> = emptyList(),
+    /** Patrimônio realizado dos últimos meses (mais antigo → atual). */
+    val realizedWealth: List<Double> = emptyList(),
     val isRefreshing: Boolean = false,
     val errorBanner: String? = null,
 )

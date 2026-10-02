@@ -16,6 +16,7 @@ import com.lifeforge.domain.model.RecurrenceDetector
 import com.lifeforge.domain.model.RecurrenceType
 import com.lifeforge.domain.model.RecurringPattern
 import com.lifeforge.domain.model.ScheduleAffect
+import com.lifeforge.domain.model.WealthHistory
 import com.lifeforge.domain.repository.AssetRepository
 import com.lifeforge.domain.repository.ExpenseRepository
 import com.lifeforge.domain.repository.ExpenseScheduleRepository
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.Clock
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
@@ -455,4 +457,30 @@ class DeleteAllExpensesUseCase @Inject constructor(
     private val repository: ExpenseRepository,
 ) {
     suspend operator fun invoke(): DataResult<Unit> = repository.deleteAll()
+}
+
+/**
+ * Patrimônio realizado dos últimos meses (reconstruído pelo fluxo de caixa e
+ * ancorado no total atual dos ativos) — a parte "realizado" do gráfico
+ * realizado × projetado do painel. Ver [WealthHistory].
+ */
+class ObserveRealizedWealthUseCase @Inject constructor(
+    private val incomeRepository: IncomeRepository,
+    private val expenseRepository: ExpenseRepository,
+    private val assetRepository: AssetRepository,
+    private val clock: Clock,
+) {
+    operator fun invoke(months: Int = WealthHistory.DEFAULT_MONTHS): Flow<List<Double>> = combine(
+        incomeRepository.observeAll(),
+        expenseRepository.observeAll(),
+        assetRepository.observeAll(),
+    ) { incomes, expenses, assets ->
+        WealthHistory.reconstruct(
+            incomes = incomes,
+            expenses = expenses,
+            currentWealth = assets.fold(BigDecimal.ZERO) { acc, asset -> acc + asset.currentValue },
+            now = Instant.now(clock),
+            months = months,
+        )
+    }
 }

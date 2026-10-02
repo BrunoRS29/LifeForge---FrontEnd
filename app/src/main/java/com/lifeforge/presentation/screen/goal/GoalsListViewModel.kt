@@ -2,9 +2,11 @@ package com.lifeforge.presentation.screen.goal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lifeforge.domain.model.Goal
+import com.lifeforge.domain.model.GoalHealth
 import com.lifeforge.domain.model.onFailure
-import com.lifeforge.domain.usecase.ObserveGoalsUseCase
+import com.lifeforge.domain.model.onSuccess
+import com.lifeforge.domain.usecase.ObserveGoalsHealthUseCase
+import com.lifeforge.domain.usecase.RefreshSimulationHistoriesUseCase
 import com.lifeforge.domain.usecase.RefreshGoalsUseCase
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,22 +22,25 @@ import javax.inject.Inject
 /**
  * ViewModel da lista de metas. Mesmo padrão das outras telas read-only:
  * combina Flow do Room (fonte da verdade) com estado local de UI
- * (refresh, erro). Refresh automático no init.
+ * (refresh, erro). Refresh automático no init — metas e, em seguida, o
+ * histórico de simulações que alimenta o selo de saúde de cada uma.
  */
 @HiltViewModel
 class GoalsListViewModel @Inject constructor(
-    observeGoals: ObserveGoalsUseCase,
+    observeGoalsHealth: ObserveGoalsHealthUseCase,
     private val refreshGoals: RefreshGoalsUseCase,
+    private val refreshSimulationHistories: RefreshSimulationHistoriesUseCase,
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(LocalUiState())
 
     val state: StateFlow<GoalsListUiState> = combine(
-        observeGoals(),
+        observeGoalsHealth(),
         localState,
     ) { goals, local ->
         GoalsListUiState(
-            goals = goals,
+            // Na lista, a ordem é a do usuário (prioridade, depois prazo).
+            goals = goals.sortedWith(compareBy({ it.goal.priority }, { it.goal.targetDate })),
             isRefreshing = local.isRefreshing,
             errorBanner = local.errorBanner,
         )
@@ -51,9 +56,11 @@ class GoalsListViewModel @Inject constructor(
         if (localState.value.isRefreshing) return
         viewModelScope.launch {
             localState.update { it.copy(isRefreshing = true, errorBanner = null) }
-            refreshGoals().onFailure { error ->
-                localState.update { it.copy(errorBanner = error.toUserMessage()) }
-            }
+            refreshGoals()
+                .onSuccess { refreshSimulationHistories() }
+                .onFailure { error ->
+                    localState.update { it.copy(errorBanner = error.toUserMessage()) }
+                }
             localState.update { it.copy(isRefreshing = false) }
         }
     }
@@ -69,7 +76,8 @@ class GoalsListViewModel @Inject constructor(
 }
 
 data class GoalsListUiState(
-    val goals: List<Goal> = emptyList(),
+    /** Metas com a leitura da última simulação (saúde). */
+    val goals: List<GoalHealth> = emptyList(),
     val isRefreshing: Boolean = false,
     val errorBanner: String? = null,
 )

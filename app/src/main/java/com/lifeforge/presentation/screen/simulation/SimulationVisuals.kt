@@ -30,6 +30,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.lifeforge.domain.model.GoalHealthEvaluator
+import com.lifeforge.domain.model.GoalHealthStatus
 import com.lifeforge.domain.model.TrajectoryBand
 import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatProbability
@@ -51,10 +53,12 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
  * (0-100%)". Desenhado com Canvas - um arco de fundo (track) e um arco de
  * valor proporcional a probabilidade, com a porcentagem ao centro.
  *
- * Cores seguem o mesmo semaforo do card de resultado:
- *  - verde   (>= 70%)
- *  - ambar   (>= 50%)
- *  - vermelho (< 50%)
+ * Cores seguem o mesmo semáforo da saúde das metas
+ * ([com.lifeforge.domain.model.GoalHealthEvaluator]), cujo limiar superior é o
+ * mesmo perseguido pelo módulo de otimização:
+ *  - primária (verde-azulado) (>= 80%)
+ *  - secundária (âmbar)       (>= 50%)
+ *  - erro (vermelho)          (< 50%)
  */
 @Composable
 fun ProbabilityGauge(
@@ -70,9 +74,9 @@ fun ProbabilityGauge(
         label = "gauge-progress",
     )
 
-    val arcColor = when {
-        p >= 0.70f -> MaterialTheme.colorScheme.primary
-        p >= 0.50f -> MaterialTheme.colorScheme.tertiary
+    val arcColor = when (GoalHealthEvaluator.statusFor(probability)) {
+        GoalHealthStatus.ON_TRACK -> MaterialTheme.colorScheme.primary
+        GoalHealthStatus.ATTENTION -> MaterialTheme.colorScheme.secondary
         else -> MaterialTheme.colorScheme.error
     }
     val trackColor = MaterialTheme.colorScheme.surfaceVariant

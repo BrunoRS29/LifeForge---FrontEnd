@@ -4,8 +4,12 @@ import com.lifeforge.domain.model.AppError
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.Goal
 import com.lifeforge.domain.model.GoalCategory
+import com.lifeforge.domain.model.GoalHealth
+import com.lifeforge.domain.model.GoalHealthEvaluator
 import com.lifeforge.domain.repository.GoalRepository
+import com.lifeforge.domain.repository.SimulationRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
@@ -107,4 +111,31 @@ private fun validateGoalFields(
         return DataResult.Failure(AppError.Validation("priority", "prioridade deve estar entre 1 e 10"))
     }
     return null
+}
+
+/**
+ * Saúde de cada meta (última simulação → no caminho / atenção / em risco),
+ * ordenada para o resumo do painel. Lê só o banco local: funciona offline.
+ */
+class ObserveGoalsHealthUseCase @Inject constructor(
+    private val goalRepository: GoalRepository,
+    private val simulationRepository: SimulationRepository,
+    private val clock: Clock,
+) {
+    operator fun invoke(): Flow<List<GoalHealth>> = combine(
+        goalRepository.observeAll(),
+        simulationRepository.observeLatestByGoal(),
+    ) { goals, latestByGoal ->
+        val now = Instant.now(clock)
+        GoalHealthEvaluator.sortForDashboard(
+            goals.map { goal -> GoalHealthEvaluator.evaluate(goal, latestByGoal[goal.id], now) }
+        )
+    }
+}
+
+/** Atualiza o histórico de simulações de todas as metas (puxar para atualizar no painel). */
+class RefreshSimulationHistoriesUseCase @Inject constructor(
+    private val simulationRepository: SimulationRepository,
+) {
+    suspend operator fun invoke(): DataResult<Unit> = simulationRepository.refreshAllHistories()
 }
