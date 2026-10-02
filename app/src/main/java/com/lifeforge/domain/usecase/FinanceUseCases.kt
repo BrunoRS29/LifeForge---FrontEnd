@@ -12,6 +12,7 @@ import com.lifeforge.domain.model.Income
 import com.lifeforge.domain.model.IncomeSchedule
 import com.lifeforge.domain.model.IncomeScheduleParams
 import com.lifeforge.domain.model.IncomeType
+import com.lifeforge.domain.model.MonthlyAmounts
 import com.lifeforge.domain.model.RecurrenceDetector
 import com.lifeforge.domain.model.RecurrenceType
 import com.lifeforge.domain.model.RecurringPattern
@@ -29,7 +30,6 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Clock
 import java.time.Instant
-import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
 
@@ -333,12 +333,14 @@ private fun validateAssetFields(
  * - [monthlyIncome]: SALÁRIO MAIS a renda mensal estimada dos ativos atuais
  *   (`currentValue * expectedReturn / 12`). O salário é o configurado pelo
  *   usuário no perfil (fonte de verdade); na ausência dele, usa-se o inferido
- *   dos lançamentos (recorrente + média dos meses recentes dos pontuais).
- *   Outras rendas avulsas não entram no ritmo mensal — o rendimento dos
- *   investimentos já é representado pelos ativos.
- * - [monthlyExpenses]: comprometimentos marcados como `recurring` MAIS a média
- *   dos últimos meses dos lançamentos pontuais. Assim, históricos importados
- *   (que vêm como não-recorrentes) deixam de zerar o ritmo mensal.
+ *   dos lançamentos (séries recorrentes + média dos meses recentes dos
+ *   pontuais, ver [MonthlyAmounts]). Outras rendas avulsas não entram no ritmo
+ *   mensal — o rendimento dos investimentos já é representado pelos ativos.
+ * - [monthlyExpenses]: cada série recorrente ativa conta UMA vez (valor mais
+ *   recente — o aluguel lançado todo mês não se multiplica pelo número de
+ *   meses) MAIS a média dos últimos meses dos lançamentos pontuais. Assim,
+ *   históricos importados (que vêm como não-recorrentes) não zeram o ritmo
+ *   mensal.
  * - [savingsRate]: (income − expenses) / income, em percentual.
  *   Indefinido quando income é zero (retorna 0.0).
  * - [recurringIncomes] / [recurringExpenses]: padrões recorrentes detectados
@@ -359,6 +361,7 @@ class GetFinancialSnapshotUseCase @Inject constructor(
     private val incomeRepository: IncomeRepository,
     private val expenseRepository: ExpenseRepository,
     private val assetRepository: AssetRepository,
+    private val clock: Clock,
 ) {
 
     /**
@@ -382,20 +385,39 @@ class GetFinancialSnapshotUseCase @Inject constructor(
         // O salário é o que o usuário configurou no perfil ([profileSalary]); só
         // caímos no salário inferido dos lançamentos (recorrente + média recente
         // dos pontuais) quando o perfil não tem salário informado.
-        val salaries = incomes.filter { it.incomeType == IncomeType.SALARY }
-        val inferredSalary =
-            sumOf(salaries.filter { it.recurring }.map { it.amount }) +
-                recentMonthlyAverage(salaries.filterNot { it.recurring }.map { it.amount to it.receivedAt })
+        val now = clock.instant()
+        val inferredSalary = MonthlyAmounts.monthly(
+            incomes.filter { it.incomeType == IncomeType.SALARY }.map {
+                MonthlyAmounts.Entry(
+                    key = MonthlyAmounts.seriesKey(it.source, it.incomeType.name),
+                    amount = it.amount,
+                    at = it.receivedAt,
+                    recurring = it.recurring,
+                )
+            },
+            now,
+            ZONE,
+        )
         val monthlySalary = profileSalary ?: inferredSalary
         val monthlyAssetIncome = assets.fold(BigDecimal.ZERO) { acc, a ->
             acc + a.currentValue.multiply(a.expectedReturn).divide(BigDecimal(12), 2, RoundingMode.HALF_UP)
         }
         val monthlyIncome = monthlySalary + monthlyAssetIncome
 
-        // Despesas: recorrentes (marcadas) + média dos últimos meses dos pontuais.
-        val monthlyExpenses =
-            sumOf(expenses.filter { it.recurring }.map { it.amount }) +
-                recentMonthlyAverage(expenses.filterNot { it.recurring }.map { it.amount to it.spentAt })
+        // Despesas: séries recorrentes ativas (uma vez cada) + média dos
+        // últimos meses dos pontuais.
+        val monthlyExpenses = MonthlyAmounts.monthly(
+            expenses.map {
+                MonthlyAmounts.Entry(
+                    key = MonthlyAmounts.seriesKey(it.description, it.category.name),
+                    amount = it.amount,
+                    at = it.spentAt,
+                    recurring = it.recurring,
+                )
+            },
+            now,
+            ZONE,
+        )
 
         val savingsRate = if (monthlyIncome > BigDecimal.ZERO) {
             (monthlyIncome - monthlyExpenses)
@@ -414,28 +436,6 @@ class GetFinancialSnapshotUseCase @Inject constructor(
             recurringIncomes = RecurrenceDetector.detectIncome(incomes),
             recurringExpenses = RecurrenceDetector.detectExpense(expenses),
         )
-    }
-
-    private fun sumOf(amounts: List<BigDecimal>): BigDecimal =
-        amounts.fold(BigDecimal.ZERO) { acc, a -> acc + a }
-
-    /**
-     * Média mensal sobre os [months] meses mais recentes COM dados. Ignora
-     * meses vazios e os buracos entre anos, então um histórico com lacunas
-     * (ex.: importou 2023 e 2026) não dilui o valor — usa só os recentes.
-     */
-    private fun recentMonthlyAverage(
-        dated: List<Pair<BigDecimal, Instant>>,
-        months: Int = 3,
-    ): BigDecimal {
-        if (dated.isEmpty()) return BigDecimal.ZERO
-        val byMonth = dated
-            .groupBy { YearMonth.from(it.second.atZone(ZONE)) }
-            .mapValues { (_, list) -> list.fold(BigDecimal.ZERO) { acc, p -> acc + p.first } }
-        val recent = byMonth.keys.sortedDescending().take(months)
-        if (recent.isEmpty()) return BigDecimal.ZERO
-        val total = recent.fold(BigDecimal.ZERO) { acc, m -> acc + byMonth.getValue(m) }
-        return total.divide(BigDecimal(recent.size), 2, RoundingMode.HALF_UP)
     }
 
     private companion object {
