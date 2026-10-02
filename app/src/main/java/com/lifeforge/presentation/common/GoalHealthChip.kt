@@ -98,3 +98,15 @@ private fun healthStyle(status: GoalHealthStatus): HealthStyle {
             HealthStyle(colors.surfaceVariant, colors.onSurfaceVariant, Icons.Outlined.CloudUpload)
     }
 }
+
+/** Cor de destaque da saúde (anel de probabilidade, ícones): o mesmo semáforo do selo. */
+@Composable
+fun goalHealthColor(status: GoalHealthStatus): Color {
+    val colors = MaterialTheme.colorScheme
+    return when (status) {
+        GoalHealthStatus.ON_TRACK -> colors.primary
+        GoalHealthStatus.ATTENTION -> colors.secondary
+        GoalHealthStatus.AT_RISK -> colors.error
+        GoalHealthStatus.NOT_SIMULATED, GoalHealthStatus.PENDING_SYNC -> colors.outline
+    }
+}

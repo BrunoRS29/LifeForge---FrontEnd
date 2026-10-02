@@ -7,20 +7,27 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -289,4 +296,60 @@ fun RefreshableBox(
         },
         content = content,
     )
+}
+
+/** Variante visual dos botões de ação de tela. */
+enum class ActionEmphasis { Primary, Tonal, Outlined }
+
+/**
+ * Botão de ação de tela, tamanho médio (56 dp) do Material 3 Expressive: a forma
+ * se transforma ao toque (cantos que se fecham) e o alvo é generoso — as ações
+ * principais ficam fáceis de alcançar. Use [ActionEmphasis] para a hierarquia:
+ * uma ação primária por tela; as demais, tonal ou contorno.
+ */
+@Composable
+fun ActionButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    emphasis: ActionEmphasis = ActionEmphasis.Primary,
+) {
+    val height = ButtonDefaults.MediumContainerHeight
+    val content: @Composable RowScope.() -> Unit = {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)))
+            Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+        }
+        Text(text, style = ButtonDefaults.textStyleFor(height), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    val sized = modifier.heightIn(min = height)
+    val padding = ButtonDefaults.contentPaddingFor(height)
+    when (emphasis) {
+        ActionEmphasis.Primary -> Button(
+            onClick = onClick,
+            shapes = ButtonDefaults.shapes(),
+            modifier = sized,
+            enabled = enabled,
+            contentPadding = padding,
+            content = content,
+        )
+        ActionEmphasis.Tonal -> FilledTonalButton(
+            onClick = onClick,
+            shapes = ButtonDefaults.shapes(),
+            modifier = sized,
+            enabled = enabled,
+            contentPadding = padding,
+            content = content,
+        )
+        ActionEmphasis.Outlined -> OutlinedButton(
+            onClick = onClick,
+            shapes = ButtonDefaults.shapes(),
+            modifier = sized,
+            enabled = enabled,
+            contentPadding = padding,
+            content = content,
+        )
+    }
 }
