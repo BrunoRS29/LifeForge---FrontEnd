@@ -90,4 +90,23 @@ class RecurrenceDetectorTest {
         )
         assertThat(RecurrenceDetector.detectExpense(expenses, reference)).isEmpty()
     }
+
+    @Test
+    fun `rotulo e a descricao mais frequente, nao a mais longa`() {
+        // "13º salário" tem a mesma assinatura de "Salário" (números são ignorados);
+        // o grupo deve continuar rotulado como o salário mensal.
+        val incomes = listOf(
+            income("9500.00", "Salário", 2025, 11),
+            income("9500.00", "Salário", 2025, 12),
+            income("9500.00", "13º salário", 2025, 12),
+            income("9500.00", "Salário", 2026, 1),
+            income("9500.00", "Salário", 2026, 2),
+            income("9500.00", "Salário", 2026, 3),
+        )
+        val res = RecurrenceDetector.detectIncome(incomes, reference)
+
+        assertThat(res).hasSize(1)
+        assertThat(res[0].label).isEqualTo("Salário")
+        assertThat(res[0].monthlyAmount).isEqualTo(BigDecimal("9500.00"))
+    }
 }

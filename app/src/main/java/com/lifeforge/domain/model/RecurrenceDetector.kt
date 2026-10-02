@@ -92,8 +92,15 @@ object RecurrenceDetector {
                     .sorted()
                 val median = monthlySums[monthlySums.size / 2]
 
-                // Descrição representativa = a mais longa do grupo (mais informativa).
-                val label = group.maxByOrNull { it.description.length }?.description
+                // Descrição representativa = a mais frequente do grupo; no empate,
+                // a mais longa (mais informativa). A assinatura ignora números, então
+                // "Salário" e um eventual "13º salário" caem no mesmo grupo — pela
+                // mais longa, o salário mensal aparecia rotulado como 13º.
+                val label = group
+                    .groupingBy { it.description.trim() }
+                    .eachCount()
+                    .maxWithOrNull(compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length })
+                    ?.key
                     ?: group.first().description
 
                 RecurringPattern(
