@@ -1,13 +1,13 @@
 package com.lifeforge.presentation.screen.dashboard
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +31,10 @@ import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.monthAxisSpacing
 import com.lifeforge.presentation.common.monthItemPlacer
 import com.lifeforge.presentation.common.parseCurrencyInput
+import com.lifeforge.presentation.common.rememberAreaLine
+import com.lifeforge.presentation.common.rememberDashedLine
 import com.lifeforge.presentation.common.rememberFitToWidthZoom
+import com.lifeforge.presentation.common.rememberSolidLine
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -42,6 +45,7 @@ import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import java.time.YearMonth
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -135,39 +139,43 @@ fun WealthProjectionCard(
     val personalized = horizonMonths != null ||
         profile?.monthlySalary != null || profile?.expectedSalaryGrowth != null
 
-    Card(
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+    val baseline = MaterialTheme.colorScheme.outline
+    // Papéis fixos por série: realizado (cheia), projetado (área em degradê) e
+    // só os aportes (tracejada). A legenda usa as mesmas cores.
+    val realizedLine = rememberSolidLine(primary)
+    val projectedLine = rememberAreaLine(secondary)
+    val contributionsLine = rememberDashedLine(baseline)
+    val lines = if (realized.isNotEmpty()) {
+        listOf(realizedLine, projectedLine, contributionsLine)
+    } else {
+        listOf(projectedLine, contributionsLine)
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.extraLarge,
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                if (horizonMonths != null) "Patrimônio realizado × projetado até a aposentadoria"
-                else "Patrimônio realizado × projetado ($years anos)",
+                if (horizonMonths != null) "Patrimônio até a aposentadoria"
+                else "Patrimônio nos próximos $years anos",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() },
             )
             Text(
-                buildString {
-                    append("De ${formatBrl(initialNetWorth.toBigDecimal())} hoje, aportando ~")
-                    append("${formatBrl(contribution0)}/mês")
-                    // Espaço inseparável: "4,5% a.a." não quebra entre o número e a unidade.
-                    append(" por $years anos · retorno ~${formatAnnualRate(annualReturn)}\u00A0a.a.")
-                    append(" · salário +${formatAnnualRate(annualSalaryGrowth)}\u00A0a.a.")
-                    append(" · inflação ${formatAnnualRate(annualInflation)}\u00A0a.a.")
-                },
-                style = MaterialTheme.typography.bodySmall,
+                formatBrlCompact(proj.finalProjected.toBigDecimal()),
+                style = MaterialTheme.typography.headlineMediumEmphasized,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+            Text(
+                "projetado em $years anos, investindo · " +
+                    "${formatBrlCompact(proj.finalContributionsOnly.toBigDecimal())} só guardando",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (!personalized) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Preencha seu perfil (idade, aposentadoria, salário) para personalizar esta projeção.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
             Spacer(Modifier.height(12.dp))
 
             // Resumo textual para leitores de tela (TalkBack).
@@ -193,7 +201,7 @@ fun WealthProjectionCard(
             }
             CartesianChartHost(
                 chart = rememberCartesianChart(
-                    rememberLineCartesianLayer(),
+                    rememberLineCartesianLayer(lineProvider = LineCartesianLayer.LineProvider.series(lines)),
                     startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
                     bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = yearFormatter, itemPlacer = itemPlacer),
                 ),
@@ -201,28 +209,28 @@ fun WealthProjectionCard(
                 zoomState = rememberFitToWidthZoom(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(220.dp)
                     .semantics { contentDescription = chartDescription },
             )
 
             Spacer(Modifier.height(8.dp))
-            // Legenda: as cores seguem a ordem das séries no tema do Vico
-            // (primária, secundária, terciária).
-            val colors = listOf(
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.secondary,
-                MaterialTheme.colorScheme.tertiary,
-            )
-            val labels = buildList {
-                if (realized.isNotEmpty()) add("Realizado (últimos ${realized.size - 1} meses)")
-                add("Projetado, investindo")
-                add("Só os aportes, sem rendimento")
+            val legend = buildList {
+                if (realized.isNotEmpty()) add("Realizado (últimos ${realized.size - 1} meses)" to primary)
+                add("Projetado, investindo" to secondary)
+                add("Só os aportes, sem rendimento (tracejada)" to baseline)
             }
-            ChartLegend(entries = labels.zip(colors))
-            Spacer(Modifier.height(4.dp))
+            ChartLegend(entries = legend)
+            Spacer(Modifier.height(8.dp))
             Text(
                 buildString {
-                    append("Eixo X em anos, eixo Y em R$. A distância entre as linhas projetadas é o que os juros fazem por você.")
+                    append("De ${formatBrl(initialNetWorth.toBigDecimal())} hoje, aportando ~")
+                    append("${formatBrl(contribution0)}/mês")
+                    // Espaço inseparável: "4,5% a.a." não quebra entre o número e a unidade.
+                    append(" · retorno ~${formatAnnualRate(annualReturn)} a.a.")
+                    append(" · salário +${formatAnnualRate(annualSalaryGrowth)} a.a.")
+                    append(" · inflação ${formatAnnualRate(annualInflation)} a.a.")
+                    // "a.a." já fecha a frase: sem um segundo ponto.
+                    append(" A distância entre as linhas projetadas é o que os juros fazem por você.")
                     if (realized.isNotEmpty()) {
                         append(" O realizado (início do gráfico) é reconstruído pelo saldo mensal de receitas e despesas, a partir do valor atual dos seus ativos.")
                     }
@@ -230,13 +238,14 @@ fun WealthProjectionCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Em $years anos: projetado ${formatBrlCompact(proj.finalProjected.toBigDecimal())} " +
-                    "vs. ${formatBrlCompact(proj.finalContributionsOnly.toBigDecimal())} sem investir.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            if (!personalized) {
+                Text(
+                    "Preencha seu perfil (idade, aposentadoria, salário) para personalizar esta projeção.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
     }
 }

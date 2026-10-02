@@ -197,6 +197,7 @@ fun LifeForgeNavGraph(
                         DashboardScreen(
                             onOpenPredictions = { navController.navigate(Predictions) },
                             onOpenGoal = { goalId -> navController.navigate(GoalDetail(goalId)) },
+                            onSeeAllGoals = { navController.navigateToTab(GoalsList) },
                         )
                     }
                     composable<GoalsList> {

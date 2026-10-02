@@ -49,13 +49,7 @@ fun LifeForgeNavigationItems(
         val selected = currentDestination.isTab(tab)
         NavigationSuiteItem(
             selected = selected,
-            onClick = {
-                navController.navigate(tab.route) {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            },
+            onClick = { navController.navigateToTab(tab.route) },
             icon = {
                 Icon(
                     imageVector = if (selected) tab.iconSelected else tab.iconUnselected,
@@ -65,6 +59,15 @@ fun LifeForgeNavigationItems(
             label = { Text(tab.label) },
             navigationSuiteType = navigationSuiteType,
         )
+    }
+}
+
+/** Vai para uma aba principal com a mesma política dos itens da navegação. */
+fun NavController.navigateToTab(route: Any) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
 

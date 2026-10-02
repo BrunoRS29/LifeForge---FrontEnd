@@ -3,20 +3,25 @@ package com.lifeforge.presentation.screen.dashboard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BeachAccess
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lifeforge.domain.model.ReferenceData
 import com.lifeforge.domain.usecase.FinancialSnapshot
+import com.lifeforge.presentation.common.ShapeIcon
 import com.lifeforge.presentation.common.formatBrlCompact
 import kotlin.math.roundToInt
 
@@ -55,39 +60,49 @@ fun FinancialIndependenceCard(
         (snapshot.monthlySalary.toDouble() - snapshot.monthlyExpenses.toDouble()).coerceAtLeast(0.0)
     val yearsToFi = yearsToTarget(current, monthlyContribution, annualReturn, target)
 
-    Card(
+    val outlook = when {
+        progress >= 1.0 -> "Você já atingiu a independência financeira."
+        yearsToFi == null -> "No ritmo atual, aumente o aporte para chegar lá."
+        else -> "No ritmo atual, faltam cerca de $yearsToFi anos."
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.extraLarge,
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        ),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Independência financeira (FI/RE)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Meta: ${formatBrlCompact(target.toBigDecimal())} (25× seus gastos anuais). " +
-                    "Você já tem ${formatBrlCompact(current.toBigDecimal())} — $pct%.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                ShapeIcon(
+                    icon = Icons.Outlined.BeachAccess,
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary,
+                    shape = MaterialShapes.Sunny.toShape(),
+                    size = 48.dp,
+                )
+                Column(Modifier.weight(1f)) {
+                    Text("Independência financeira", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Meta de ${formatBrlCompact(target.toBigDecimal())} (${(1 / swr).roundToInt()}× seus gastos anuais)",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Text("$pct%", style = MaterialTheme.typography.headlineSmallEmphasized)
+            }
+            // Barra ondulada do Material 3 Expressive: o progresso "vivo" até a meta.
+            LinearWavyProgressIndicator(
                 progress = { progress.toFloat() },
-                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.24f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Progresso até a independência financeira: $pct%"
+                    },
             )
-            Spacer(Modifier.height(8.dp))
             Text(
-                text = when {
-                    progress >= 1.0 -> "Você já atingiu a independência financeira. 🎉"
-                    yearsToFi == null -> "No ritmo atual, aumente o aporte para chegar lá."
-                    else -> "No ritmo atual, faltam ~$yearsToFi anos."
-                },
+                text = "Você já tem ${formatBrlCompact(current.toBigDecimal())}. $outlook",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
         }
     }

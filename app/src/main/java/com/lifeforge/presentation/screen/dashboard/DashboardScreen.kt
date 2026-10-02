@@ -4,92 +4,99 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.automirrored.outlined.TrendingDown
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.lifeforge.domain.model.RecurringPattern
 import com.lifeforge.domain.usecase.FinancialSnapshot
 import com.lifeforge.presentation.common.AutoSizeText
 import com.lifeforge.presentation.common.ErrorBanner
+import com.lifeforge.presentation.common.RefreshableBox
+import com.lifeforge.presentation.common.ScreenPadding
+import com.lifeforge.presentation.common.ShapeIcon
+import com.lifeforge.presentation.common.TabTopAppBar
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatPercent
+import com.lifeforge.presentation.common.readableWidth
+import java.math.BigDecimal
 
 /**
  * Dashboard — visão geral consolidada do usuário.
  *
- * Layout: saudação, card-herói do patrimônio, métricas do mês, saúde das
- * metas, evolução patrimonial realizada × projetada, índice de independência
- * financeira, atalho para a inteligência preditiva e recorrências detectadas.
- * Tudo é lido do banco local — o painel funciona sem conexão.
- *
- * O `verticalScroll` permite que o conteúdo cresça sem quebrar layout
- * em telas pequenas conforme adicionarmos seções.
+ * A saudação é o título grande da barra superior, que recolhe ao rolar. Abaixo:
+ * o card-herói do patrimônio, as métricas do mês, a saúde das metas, a evolução
+ * patrimonial realizada × projetada, o índice de independência financeira, o
+ * atalho para a inteligência preditiva e as recorrências detectadas. Tudo é lido
+ * do banco local — o painel funciona sem conexão; puxar para baixo atualiza.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     onOpenPredictions: () -> Unit = {},
     onOpenGoal: (Long) -> Unit = {},
+    onSeeAllGoals: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(title = { Text("LifeForge") })
+            TabTopAppBar(
+                title = greeting(state.user?.name),
+                subtitle = "Aqui está o resumo das suas finanças",
+                scrollBehavior = scrollBehavior,
+            )
         },
     ) { padding ->
-        // Atualização por gesto (puxar para baixo) — padrão dos apps atuais;
-        // o indicador circular do Material 3 substitui o botão de refresh.
-        PullToRefreshBox(
+        RefreshableBox(
             isRefreshing = state.isRefreshing,
             onRefresh = viewModel::refresh,
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .readableWidth()
+                    .padding(horizontal = ScreenPadding)
+                    .padding(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Greeting(name = state.user?.name)
-
                 if (state.errorBanner != null) {
                     ErrorBanner(
                         message = state.errorBanner!!,
@@ -100,7 +107,11 @@ fun DashboardScreen(
                 FinancialSnapshotSection(snapshot = state.snapshot)
 
                 // Resumo das metas ativas com o indicador de saúde (proposta 8.4).
-                GoalsHealthCard(goals = state.goalsHealth, onOpenGoal = onOpenGoal)
+                GoalsHealthSection(
+                    goals = state.goalsHealth,
+                    onOpenGoal = onOpenGoal,
+                    onSeeAll = onSeeAllGoals,
+                )
 
                 // Evolução patrimonial realizada × projetada — proposta 8.4 / TCC 4.8.
                 // Personalizada pelo perfil (horizonte, salário, inflação, retorno).
@@ -123,10 +134,8 @@ fun DashboardScreen(
 
                 // Recorrências detectadas automaticamente no histórico.
                 state.snapshot?.let { snapshot ->
-                    if (snapshot.recurringIncomes.isNotEmpty() ||
-                        snapshot.recurringExpenses.isNotEmpty()
-                    ) {
-                        RecurringPatternsCard(snapshot = snapshot)
+                    if (snapshot.recurringIncomes.isNotEmpty() || snapshot.recurringExpenses.isNotEmpty()) {
+                        RecurringPatternsSection(snapshot = snapshot)
                     }
                 }
             }
@@ -134,236 +143,162 @@ fun DashboardScreen(
     }
 }
 
-@Composable
-private fun Greeting(name: String?) {
-    Column {
-        Text(
-            text = "Olá${if (name != null) ", ${name.firstName()}" else ""}!",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
-            text = "Aqui está o resumo das suas finanças.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+/** "Olá, Gabriel!" — só o primeiro nome; sem nome, "Olá!". */
+internal fun greeting(name: String?): String {
+    val first = name?.trim()?.substringBefore(' ')?.takeIf { it.isNotEmpty() }
+    return if (first != null) "Olá, $first!" else "Olá!"
 }
-
-/** Pega o primeiro nome para a saudação. "Gabriel Souza" → "Gabriel". */
-private fun String.firstName(): String = trim().substringBefore(' ')
 
 @Composable
 private fun FinancialSnapshotSection(snapshot: FinancialSnapshot?) {
-    // Hierarquia moderna: card-herói com o patrimônio (a informação mais
-    // importante) em destaque com gradiente, e abaixo as métricas do mês.
-    // Quando snapshot é null (carregando), mostramos "—" — evita layout
-    // shift quando os dados chegam.
+    // Quando snapshot é null (carregando), mostramos "—": sem salto de layout
+    // quando os dados chegam.
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        WealthHeroCard(
-            totalAssets = snapshot?.totalAssets?.let(::formatBrl) ?: "—",
-            savingsRate = snapshot?.savingsRate?.let(::formatPercent),
-        )
+        WealthHeroCard(snapshot = snapshot)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricCard(
+            MetricTile(
                 modifier = Modifier.weight(1f),
                 label = "Receita mensal",
                 value = snapshot?.monthlyIncome?.let(::formatBrl) ?: "—",
                 icon = Icons.AutoMirrored.Outlined.TrendingUp,
-                accent = MaterialTheme.colorScheme.primary,
+                iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                iconContent = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            MetricCard(
+            MetricTile(
                 modifier = Modifier.weight(1f),
                 label = "Despesa mensal",
                 value = snapshot?.monthlyExpenses?.let(::formatBrl) ?: "—",
                 icon = Icons.AutoMirrored.Outlined.TrendingDown,
-                accent = MaterialTheme.colorScheme.tertiary,
+                iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                iconContent = MaterialTheme.colorScheme.onTertiaryContainer,
             )
         }
     }
 }
 
 /**
- * Card-herói do dashboard: patrimônio total sobre um gradiente suave
- * (primaryContainer → tertiaryContainer) com a taxa de poupança num
- * "chip" translúcido. É o ponto focal visual da tela.
+ * Card-herói: o patrimônio total em destaque (tipografia enfatizada), com a taxa
+ * de poupança e a sobra do mês em pílulas. Uma forma do Material ao fundo dá a
+ * assinatura visual do Material 3 Expressive sem competir com o número.
  */
 @Composable
-private fun WealthHeroCard(totalAssets: String, savingsRate: String?) {
-    val gradient = Brush.linearGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.tertiaryContainer,
-        ),
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.extraLarge)
-            .background(gradient)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+private fun WealthHeroCard(snapshot: FinancialSnapshot?) {
+    val totalAssets = snapshot?.totalAssets?.let(::formatBrl) ?: "—"
+    val savingsRate = snapshot?.savingsRate?.let(::formatPercent)
+    val monthlyBalance = snapshot?.let { it.monthlyIncome - it.monthlyExpenses }
+    val decoration = MaterialShapes.Cookie12Sided.toShape()
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Outlined.AccountBalanceWallet,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Text(
-                "Patrimônio total",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
-        AutoSizeText(
-            text = totalAssets,
-            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (savingsRate != null) {
-            Spacer(Modifier.height(2.dp))
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+        Box {
+            // matchParentSize: a forma decorativa não entra na medição do card.
+            Box(Modifier.matchParentSize()) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 56.dp, y = (-48).dp)
+                        .size(200.dp)
+                        .clip(decoration)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+                )
+            }
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        Icons.Outlined.Savings,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.height(16.dp),
-                    )
-                    Text(
-                        "Taxa de poupança: $savingsRate",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                    Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null)
+                    Text("Patrimônio total", style = MaterialTheme.typography.labelLarge)
+                }
+                AutoSizeText(
+                    text = totalAssets,
+                    style = MaterialTheme.typography.displaySmallEmphasized,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                )
+                // As pílulas quebram de linha inteiras quando não cabem lado a lado.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (savingsRate != null) {
+                        HeroPill(icon = Icons.Outlined.Savings, text = "Poupança $savingsRate")
+                    }
+                    if (monthlyBalance != null) {
+                        HeroPill(icon = null, text = "Sobra ${signedBrl(monthlyBalance)}/mês")
+                    }
                 }
             }
         }
     }
 }
 
+/** "+R$ 3.373,56" / "−R$ 120,00": o sinal à frente, como em extratos. */
+internal fun signedBrl(value: BigDecimal): String =
+    if (value.signum() < 0) "−" + formatBrl(value.negate()) else "+" + formatBrl(value)
+
 @Composable
-private fun MetricCard(
+private fun HeroPill(icon: ImageVector?, text: String) {
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+        }
+        Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+    }
+}
+
+@Composable
+private fun MetricTile(
     label: String,
     value: String,
     icon: ImageVector,
-    accent: Color,
+    iconContainer: Color,
+    iconContent: Color,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = modifier.semantics(mergeDescendants = true) { contentDescription = "$label: $value" },
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accent,
-                )
+            ShapeIcon(
+                icon = icon,
+                containerColor = iconContainer,
+                contentColor = iconContent,
+                shape = MaterialShapes.Cookie4Sided.toShape(),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            Spacer(Modifier.height(4.dp))
-            AutoSizeText(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun RecurringPatternsCard(snapshot: FinancialSnapshot) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("Recorrências detectadas", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Identificadas no seu histórico (itens que aparecem em 3+ meses).",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (snapshot.recurringIncomes.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Receitas",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                AutoSizeText(
+                    text = value,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                snapshot.recurringIncomes.take(5).forEach { RecurringRow(it, isIncome = true) }
-            }
-            if (snapshot.recurringExpenses.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Despesas",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
-                snapshot.recurringExpenses.take(5).forEach { RecurringRow(it, isIncome = false) }
             }
         }
-    }
-}
-
-@Composable
-private fun RecurringRow(pattern: RecurringPattern, isIncome: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                pattern.label,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                "${pattern.months} meses",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = formatBrl(pattern.monthlyAmount) + "/mês",
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isIncome) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.error,
-            textAlign = TextAlign.End,
-        )
     }
 }
