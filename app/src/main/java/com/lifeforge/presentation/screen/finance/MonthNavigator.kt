@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.KeyboardArrowLeft
-import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +52,7 @@ fun MonthNavigator(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = { onMonthChange(month.minusMonths(1)) }) {
-            Icon(Icons.Rounded.KeyboardArrowLeft, contentDescription = "Mês anterior")
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "Mês anterior")
         }
         Column(
             modifier = Modifier
@@ -93,7 +93,7 @@ fun MonthNavigator(
             }
         }
         IconButton(onClick = { onMonthChange(month.plusMonths(1)) }) {
-            Icon(Icons.Rounded.KeyboardArrowRight, contentDescription = "Próximo mês")
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "Próximo mês")
         }
     }
 }

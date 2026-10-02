@@ -18,7 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -106,7 +106,7 @@ fun SimulationScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack, enabled = !state.isRunning) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
                     }
                 },
             )
