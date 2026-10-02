@@ -47,6 +47,7 @@ import com.lifeforge.domain.model.IncomePredictionPoint
 import com.lifeforge.domain.model.PredictionMetrics
 import com.lifeforge.domain.model.WealthPrediction
 import com.lifeforge.presentation.common.BrlAxisFormatter
+import com.lifeforge.presentation.common.ChartLegend
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
@@ -89,7 +90,7 @@ fun PredictionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Predicoes (IA)") },
+                title = { Text("Predições (IA)") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
@@ -500,17 +501,25 @@ private fun WealthResultBlock(prediction: WealthPrediction) {
             value = formatBrl(prediction.expectedFinalWealth),
             highlight = true,
         )
-        SummaryRow(
-            label = "Crescimento mensal médio",
-            value = formatGrowthRate(prediction.monthlyGrowthRate),
-        )
+        averageMonthlyIncrease(prediction)?.let { increase ->
+            SummaryRow(
+                label = "Aumento médio previsto",
+                value = "${if (increase >= 0) "+" else "−"}${formatBrl(kotlin.math.abs(increase))}/mês",
+            )
+        }
 
         Spacer(Modifier.height(4.dp))
         Text(
-            "Patrimônio: realizado (azul) x projetado",
+            "Patrimônio: realizado × projetado",
             style = MaterialTheme.typography.titleSmall,
         )
         WealthChart(prediction)
+        ChartLegend(
+            listOf(
+                "Realizado (reconstruído do histórico)" to MaterialTheme.colorScheme.primary,
+                "Projetado pelo modelo" to MaterialTheme.colorScheme.secondary,
+            ),
+        )
 
         MetricsRow(prediction.metrics)
     }
@@ -593,19 +602,24 @@ private fun SummaryRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // O rótulo quebra linha se precisar; o valor fica inteiro numa linha
+        // (antes, "R$ 103.605,82" quebrava em "R$ 103.605," / "82").
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
             style = if (highlight) MaterialTheme.typography.titleMedium
             else MaterialTheme.typography.bodyMedium,
             fontWeight = if (highlight) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }
@@ -656,3 +670,14 @@ private fun formatMetric(value: Double): String =
 /** R² com 2 decimais, pode ser negativo. */
 private fun formatR2(value: Double): String =
     String.format(java.util.Locale("pt", "BR"), "%.2f", value)
+
+/**
+ * Quanto o patrimônio sobe por mês, em média, do último mês realizado ao fim
+ * do horizonte — mais legível que a taxa relativa do modelo (inclinação ÷ nível
+ * médio), que a partir de um patrimônio pequeno parece crescimento composto.
+ */
+internal fun averageMonthlyIncrease(prediction: WealthPrediction): Double? {
+    val last = prediction.history.lastOrNull()?.amount ?: return null
+    if (prediction.horizonMonths <= 0) return null
+    return (prediction.expectedFinalWealth - last) / prediction.horizonMonths
+}

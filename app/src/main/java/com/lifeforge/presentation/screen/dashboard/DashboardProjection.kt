@@ -1,12 +1,6 @@
 package com.lifeforge.presentation.screen.dashboard
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,10 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -33,6 +24,7 @@ import com.lifeforge.domain.model.UserProfile
 import com.lifeforge.domain.model.WealthProjection
 import com.lifeforge.domain.usecase.FinancialSnapshot
 import com.lifeforge.presentation.common.BrlAxisFormatter
+import com.lifeforge.presentation.common.ChartLegend
 import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
@@ -264,16 +256,3 @@ private fun parsePercent(raw: String): Double? =
 /** "3, 7" -> [3, 7]; ignora valores inválidos/fora de 0..120. */
 private fun parseAges(raw: String?): List<Int> =
     raw?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.filter { it in 0..120 } ?: emptyList()
-
-/** Legenda simples de gráfico: bolinha na cor da série + rótulo. */
-@Composable
-private fun ChartLegend(entries: List<Pair<String, Color>>) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        entries.forEach { (label, color) ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(10.dp).clip(CircleShape).background(color))
-                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-            }
-        }
-    }
-}
