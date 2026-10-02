@@ -74,7 +74,7 @@ class GoalEditViewModel @Inject constructor(
                         isLoading = false,
                         name = goal.name,
                         category = goal.category,
-                        targetAmountInput = goal.targetAmount.toPlainString(),
+                        targetAmountInput = goal.targetAmount.toPlainString().replace('.', ','),
                         targetDate = goal.targetDate,
                         priority = goal.priority,
                     )

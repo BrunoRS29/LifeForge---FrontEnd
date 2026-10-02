@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.lifeforge.domain.model.GoalHorizon
 import com.lifeforge.domain.model.CalibratedSimulation
 import com.lifeforge.domain.model.CalibratedSimulationParameters
 import com.lifeforge.domain.model.DataResult
@@ -24,10 +25,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
-import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
-import kotlin.math.max
 
 /**
  * ViewModel da SimulationCalibratedScreen (Sprint 5).
@@ -118,12 +117,12 @@ class SimulationCalibratedViewModel @Inject constructor(
                 _state.update { it.copy(errorBanner = "Meta não encontrada") }
                 return@launch
             }
-            val months = monthsBetween(Instant.now(), goal.targetDate)
+            val months = GoalHorizon.months(Instant.now(), goal.targetDate)
             _state.update { current ->
                 current.copy(
                     goalName = goal.name,
                     form = current.form.copy(
-                        targetAmountInput = goal.targetAmount.toPlainString(),
+                        targetAmountInput = goal.targetAmount.toPlainString().replace('.', ','),
                         horizonMonthsInput = months.toString(),
                     ),
                 )
@@ -230,12 +229,6 @@ class SimulationCalibratedViewModel @Inject constructor(
             numSimulations = 10_000,
             incomeHorizonMonths = 12,
         )
-
-        /** Calcula meses entre dois instantes (minimo 1). */
-        private fun monthsBetween(from: Instant, to: Instant): Long {
-            val months = Duration.between(from, to).toDays() / 30
-            return max(months, 1L)
-        }
     }
 }
 

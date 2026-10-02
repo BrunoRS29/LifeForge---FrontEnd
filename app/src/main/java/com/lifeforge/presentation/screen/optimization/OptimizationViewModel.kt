@@ -2,6 +2,7 @@ package com.lifeforge.presentation.screen.optimization
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lifeforge.domain.model.GoalHorizon
 import com.lifeforge.domain.model.AppError
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.Goal
@@ -24,10 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
-import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
-import kotlin.math.max
 
 /**
  * ViewModel da tela de Otimização.
@@ -122,7 +121,7 @@ class OptimizationViewModel @Inject constructor(
      */
     fun applyGoal(mode: OptimizationMode, goal: Goal) {
         val amount = goal.targetAmount.toPlainString().replace('.', ',')
-        val months = monthsBetween(Instant.now(), goal.targetDate).toString()
+        val months = GoalHorizon.months(Instant.now(), goal.targetDate).toString()
         _state.update { s ->
             when (mode) {
                 OptimizationMode.CONTRIBUTION -> s.copy(
@@ -305,12 +304,6 @@ class OptimizationViewModel @Inject constructor(
         /** Troca pelo [calibrated] apenas se o campo ainda está no default estático. */
         private fun String.ifDefault(default: String, calibrated: String): String =
             if (this == default) calibrated else this
-
-        /** Calcula meses entre dois instantes (mínimo 1). */
-        private fun monthsBetween(from: Instant, to: Instant): Int {
-            val days = Duration.between(from, to).toDays()
-            return max(1, (days / 30).toInt())
-        }
     }
 }
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.lifeforge.domain.model.GoalHorizon
 import com.lifeforge.domain.model.AppError
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.SimulationParameters
@@ -31,10 +32,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
-import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
-import kotlin.math.max
 
 /**
  * ViewModel da tela de simulação Monte Carlo.
@@ -167,12 +166,12 @@ class SimulationViewModel @Inject constructor(
                 return@launch
             }
 
-            val months = monthsBetween(Instant.now(), goal.targetDate)
+            val months = GoalHorizon.months(Instant.now(), goal.targetDate)
             localState.update { current ->
                 current.copy(
                     goalName = goal.name,
                     form = current.form.copy(
-                        targetAmountInput = goal.targetAmount.toPlainString(),
+                        targetAmountInput = goal.targetAmount.toInputString(),
                         horizonMonthsInput = months.toString(),
                     ),
                 )
@@ -333,12 +332,6 @@ class SimulationViewModel @Inject constructor(
             inflationInput = "0,04",
             numSimulations = 10_000,
         )
-
-        /** Calcula meses entre dois instantes (mínimo 1). */
-        private fun monthsBetween(from: Instant, to: Instant): Int {
-            val days = Duration.between(from, to).toDays()
-            return max(1, (days / 30).toInt())
-        }
 
         /** Fração anual → input com vírgula decimal (0.005 → "0,005"). */
         private fun fraction(value: Double): String =
