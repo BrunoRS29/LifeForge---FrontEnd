@@ -16,7 +16,11 @@ import javax.inject.Singleton
  * - Se o token estiver ausente para uma rota privada, deixamos o request
  *   ir mesmo assim — o servidor responderá 401, que é mapeado para
  *   [com.lifeforge.domain.model.AppError.Unauthorized] na camada de
- *   repositório, que dispara o redirecionamento para login.
+ *   repositório.
+ * - Se uma rota privada responde 401 a um token enviado, o token expirou (ou
+ *   foi invalidado): ele é removido, a sessão observada vira nula e a UI volta
+ *   ao login. O banco local NÃO é apagado aqui — o cache e as alterações ainda
+ *   não sincronizadas sobrevivem e sobem quando o mesmo usuário entrar de novo.
  */
 @Singleton
 class AuthInterceptor @Inject constructor(
@@ -40,18 +44,23 @@ class AuthInterceptor @Inject constructor(
 
         val token = runBlocking { tokenStore.getToken() }
 
-        val request = if (token.isNullOrBlank()) {
-            original
-        } else {
-            original.newBuilder()
-                .header("Authorization", "Bearer $token")
-                .build()
+        if (token.isNullOrBlank()) {
+            return chain.proceed(original)
         }
 
-        return chain.proceed(request)
+        val request = original.newBuilder()
+            .header("Authorization", "Bearer $token")
+            .build()
+        val response = chain.proceed(request)
+
+        if (response.code == HTTP_UNAUTHORIZED) {
+            runBlocking { tokenStore.clearIfCurrent(token) }
+        }
+        return response
     }
 
     private companion object {
         val PUBLIC_AUTH_ENDPOINTS = setOf("login", "register")
+        const val HTTP_UNAUTHORIZED = 401
     }
 }

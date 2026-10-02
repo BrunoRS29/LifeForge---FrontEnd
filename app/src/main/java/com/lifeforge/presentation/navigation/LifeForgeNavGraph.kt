@@ -1,7 +1,9 @@
 package com.lifeforge.presentation.navigation
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
@@ -19,7 +21,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
+import com.lifeforge.presentation.common.SyncStatusBar
 import com.lifeforge.presentation.screen.auth.LoginScreen
 import com.lifeforge.presentation.screen.auth.RegisterScreen
 import com.lifeforge.presentation.screen.dashboard.DashboardScreen
@@ -32,8 +34,6 @@ import com.lifeforge.presentation.screen.optimization.OptimizationScreen
 import com.lifeforge.presentation.screen.profile.ProfileParamsScreen
 import com.lifeforge.presentation.screen.profile.ProfileScreen
 import com.lifeforge.presentation.screen.simulation.SimulationScreen
-import com.lifeforge.presentation.navigation.Predictions
-import com.lifeforge.presentation.navigation.SimulationCalibrated
 import com.lifeforge.presentation.screen.prediction.PredictionScreen
 import com.lifeforge.presentation.screen.simulation.SimulationCalibratedScreen
 
@@ -107,10 +107,25 @@ fun LifeForgeNavGraph(
         return
     }
 
+    val syncStatus by rootViewModel.syncStatus.collectAsState()
+    val isSyncing by rootViewModel.isSyncing.collectAsState()
+
     Scaffold(
         bottomBar = {
-            if (showBottomBar) {
-                LifeForgeBottomBar(navController)
+            Column {
+                // Faixa offline-first: sem conexão / alterações aguardando envio.
+                // Sem a barra de abas abaixo, ela mesma respeita a área de gestos.
+                if (sessionState is SessionUiState.Authenticated) {
+                    SyncStatusBar(
+                        status = syncStatus,
+                        isSyncing = isSyncing,
+                        onSyncNow = rootViewModel::syncNow,
+                        modifier = if (showBottomBar) Modifier else Modifier.navigationBarsPadding(),
+                    )
+                }
+                if (showBottomBar) {
+                    LifeForgeBottomBar(navController)
+                }
             }
         },
     ) { padding ->
@@ -149,7 +164,10 @@ fun LifeForgeNavGraph(
 
             // ============== Main flow (abas) ==============
             composable<Dashboard> {
-                DashboardScreen()
+                DashboardScreen(
+                    onOpenPredictions = { navController.navigate(Predictions) },
+                    onOpenGoal = { goalId -> navController.navigate(GoalDetail(goalId)) },
+                )
             }
             composable<GoalsList> {
                 GoalsListScreen(
@@ -169,17 +187,19 @@ fun LifeForgeNavGraph(
                 ProfileScreen(
                     onLogout = { rootViewModel.logout() },
                     onNavigateToParams = { navController.navigate(ProfileParams) },
+                    onNavigateToPredictions = { navController.navigate(Predictions) },
                 )
             }
 
             // ============== Sub-rotas ==============
-            composable<GoalDetail> { backStack ->
-                val args = backStack.toRoute<GoalDetail>()
+            composable<GoalDetail> {
+                // A tela informa o id ATUAL da meta: uma meta criada offline troca
+                // o id temporário pelo definitivo ao sincronizar.
                 GoalDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onEdit = { navController.navigate(GoalEdit(args.goalId)) },
-                    onSimulate = { navController.navigate(Simulation(args.goalId)) },
-                    onSimulateWithAi = { navController.navigate(SimulationCalibrated(args.goalId)) },  // <-- NOVO
+                    onEdit = { goalId -> navController.navigate(GoalEdit(goalId)) },
+                    onSimulate = { goalId -> navController.navigate(Simulation(goalId)) },
+                    onSimulateWithAi = { goalId -> navController.navigate(SimulationCalibrated(goalId)) },
                 )
             }
             composable<GoalEdit> {

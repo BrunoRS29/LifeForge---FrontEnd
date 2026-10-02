@@ -14,7 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -49,6 +49,7 @@ import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.firstInstantOfMonth
+import com.lifeforge.presentation.common.PendingSyncLabel
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatDayMonth
 import com.lifeforge.presentation.common.formatMonthYear
@@ -98,7 +99,7 @@ fun IncomeTab(
         isEmpty = state.incomes.isEmpty(),
         emptyTitle = "Sem receitas cadastradas",
         emptyDescription = "Adicione suas fontes de renda para o dashboard refletir sua taxa de poupança.",
-        emptyIcon = Icons.Outlined.TrendingUp,
+        emptyIcon = Icons.AutoMirrored.Outlined.TrendingUp,
         header = {
             MonthNavigator(
                 month = selectedMonth,
@@ -186,6 +187,7 @@ private fun IncomeRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (income.pendingSync) PendingSyncLabel()
         }
         Text(
             formatBrl(income.amount),

@@ -6,6 +6,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -19,7 +20,10 @@ interface GoalApi {
     suspend fun getById(@Path("id") id: Long): Response<GoalDto>
 
     @POST("goals")
-    suspend fun create(@Body body: GoalRequestDto): Response<GoalDto>
+    suspend fun create(
+        @Body body: GoalRequestDto,
+        @Header("Idempotency-Key") idempotencyKey: String,
+    ): Response<GoalDto>
 
     @PUT("goals/{id}")
     suspend fun update(

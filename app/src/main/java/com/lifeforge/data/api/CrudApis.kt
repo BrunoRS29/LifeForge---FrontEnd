@@ -14,6 +14,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -37,7 +38,10 @@ interface IncomeApi {
     suspend fun getById(@Path("id") id: Long): Response<IncomeDto>
 
     @POST("incomes")
-    suspend fun create(@Body body: IncomeRequestDto): Response<IncomeDto>
+    suspend fun create(
+        @Body body: IncomeRequestDto,
+        @Header("Idempotency-Key") idempotencyKey: String,
+    ): Response<IncomeDto>
 
     @PUT("incomes/{id}")
     suspend fun update(
@@ -82,7 +86,10 @@ interface ExpenseApi {
     suspend fun getById(@Path("id") id: Long): Response<ExpenseDto>
 
     @POST("expenses")
-    suspend fun create(@Body body: ExpenseRequestDto): Response<ExpenseDto>
+    suspend fun create(
+        @Body body: ExpenseRequestDto,
+        @Header("Idempotency-Key") idempotencyKey: String,
+    ): Response<ExpenseDto>
 
     @PUT("expenses/{id}")
     suspend fun update(
@@ -127,7 +134,10 @@ interface AssetApi {
     suspend fun getById(@Path("id") id: Long): Response<AssetDto>
 
     @POST("assets")
-    suspend fun create(@Body body: AssetRequestDto): Response<AssetDto>
+    suspend fun create(
+        @Body body: AssetRequestDto,
+        @Header("Idempotency-Key") idempotencyKey: String,
+    ): Response<AssetDto>
 
     @PUT("assets/{id}")
     suspend fun update(

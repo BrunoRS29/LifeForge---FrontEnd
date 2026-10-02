@@ -1,8 +1,11 @@
 package com.lifeforge
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
  * Classe Application do LifeForge.
@@ -11,11 +14,23 @@ import timber.log.Timber
  *   que será compartilhado por todo o ciclo de vida da aplicação.
  * - Inicializa logging via Timber (apenas em builds DEBUG).
  *
+ * - Fornece ao WorkManager a fábrica de workers do Hilt ([HiltWorkerFactory]),
+ *   para que o `SyncWorker` receba suas dependências por injeção. A
+ *   inicialização automática do WorkManager é removida no manifesto.
+ *
  * Inicializações pesadas (sincronização, pré-cache, etc.) NÃO devem ser
- * feitas aqui — usar WorkManager ou inicializar sob demanda nos UseCases.
+ * feitas aqui — a sincronização roda no WorkManager, agendada pela sessão.
  */
 @HiltAndroidApp
-class LifeForgeApplication : Application() {
+class LifeForgeApplication : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     override fun onCreate() {
         super.onCreate()

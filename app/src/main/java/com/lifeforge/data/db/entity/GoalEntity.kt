@@ -1,8 +1,10 @@
 package com.lifeforge.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.lifeforge.data.sync.SyncableEntity
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -13,13 +15,16 @@ import java.time.Instant
  *
  * O índice em `userId` é defensivo: queries futuras com filtro por
  * `userId` (caso um dia o app suporte multi-conta) ficam rápidas.
+ *
+ * `syncState` segue a convenção das demais entidades offline-first (ver
+ * [com.lifeforge.data.sync.SyncState]); id negativo = criada sem conexão.
  */
 @Entity(
     tableName = "goals",
     indices = [Index("userId")],
 )
 data class GoalEntity(
-    @PrimaryKey val id: Long,
+    @PrimaryKey override val id: Long,
     val userId: Long,
     val name: String,
     val category: String,            // GoalCategory.name
@@ -27,4 +32,5 @@ data class GoalEntity(
     val targetDate: Instant,         // converter handles
     val priority: Int,
     val createdAt: Instant,
-)
+    @ColumnInfo(defaultValue = "SYNCED") override val syncState: String = "SYNCED",
+) : SyncableEntity

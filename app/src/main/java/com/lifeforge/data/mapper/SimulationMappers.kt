@@ -1,6 +1,7 @@
 package com.lifeforge.data.mapper
 
 import com.lifeforge.data.db.entity.SimulationEntity
+import com.lifeforge.data.db.entity.SimulationSummaryEntity
 import com.lifeforge.data.model.dto.HistogramBucketDto
 import com.lifeforge.data.model.dto.RunSimulationRequestDto
 import com.lifeforge.data.model.dto.SimulationResultResponseDto
@@ -41,6 +42,18 @@ fun SimulationResultResponseDto.toEntity(): SimulationEntity = SimulationEntity(
     meanReal = meanReal,
     histogram = histogram,
     executionTimeMs = executionTimeMs,
+    createdAt = Instant.parse(createdAt),
+    trajectory = trajectory,
+)
+
+/** Resumo para o histórico local, a partir do resultado completo de uma rodada. */
+fun SimulationResultResponseDto.toSummaryEntity(): SimulationSummaryEntity = SimulationSummaryEntity(
+    id = id.toLong(),
+    goalId = goalId.toLong(),
+    successProbability = successProbability,
+    mean = mean,
+    median = median,
+    targetAmount = targetAmount,
     createdAt = Instant.parse(createdAt),
 )
 
@@ -91,6 +104,7 @@ fun SimulationEntity.toDomain(): SimulationResult = SimulationResult(
     bestCase = bestCase,
     meanReal = meanReal,
     histogram = histogram.map { it.toDomain() },
+    trajectory = trajectory.map { it.toDomain() },
     executionTimeMs = executionTimeMs,
     createdAt = createdAt,
 )
@@ -110,9 +124,27 @@ fun SimulationEntity.toSummary(): SimulationSummary = SimulationSummary(
     createdAt = createdAt,
 )
 
-// Alternativa: o wire já tem um summary específico que vem em GET /by-goal/{id}.
-// Convertemos direto para o domínio (sem cache de summary — o cliente cacheia
-// o resultado completo via /simulation/{id} se quiser detalhe).
+// Histórico resumido (GET /by-goal/{id}) → cache local e domínio.
+fun SimulationSummaryResponseDto.toEntity(): SimulationSummaryEntity = SimulationSummaryEntity(
+    id = id.toLong(),
+    goalId = goalId.toLong(),
+    successProbability = successProbability,
+    mean = mean,
+    median = median,
+    targetAmount = targetAmount,
+    createdAt = Instant.parse(createdAt),
+)
+
+fun SimulationSummaryEntity.toDomain(): SimulationSummary = SimulationSummary(
+    id = id,
+    goalId = goalId,
+    successProbability = successProbability,
+    mean = mean,
+    median = median,
+    targetAmount = targetAmount,
+    createdAt = createdAt,
+)
+
 fun SimulationSummaryResponseDto.toDomain(): SimulationSummary = SimulationSummary(
     id = id.toLong(),
     goalId = goalId.toLong(),

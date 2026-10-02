@@ -26,12 +26,13 @@ import javax.inject.Singleton
 /**
  * Implementação de [AuthRepository].
  *
- * Política de isolamento entre sessões: ao fazer register/login, chamamos
- * `database.clearAllTables()` ANTES de gravar o novo token e usuário.
- * Isso garante que dados em cache de uma sessão anterior (do mesmo
- * dispositivo, com outro usuário) não vazem para a nova sessão.
+ * Política de isolamento entre sessões: ao fazer register/login de OUTRO
+ * usuário, chamamos `database.clearAllTables()` ANTES de gravar o novo token e
+ * usuário — dados em cache de uma sessão anterior não vazam para a nova. Se é
+ * o mesmo usuário voltando (ex.: token expirou), o banco é mantido: o cache e
+ * as alterações offline ainda não sincronizadas sobrevivem ao novo login.
  *
- * No logout fazemos o mesmo: limpa o token e o banco. O Flow de
+ * No logout explícito: limpa o token e o banco. O Flow de
  * [observeSession] auto-emite null e a UI navega para o login.
  */
 @Singleton
@@ -105,7 +106,12 @@ class AuthRepositoryImpl @Inject constructor(
         // que é capturada pelo mapCatching e devolvida como AppError.Unknown
         // — explicando a mensagem "Algo deu errado" mesmo com HTTP 201/200.
         return withContext(Dispatchers.IO) {
-            database.clearAllTables()
+            // Outro usuário (ou primeiro login): isola os dados limpando o banco.
+            // O MESMO usuário voltando após a sessão expirar mantém o cache e,
+            // principalmente, as alterações offline ainda não sincronizadas.
+            if (userDao.findCurrent()?.id != response.user.id) {
+                database.clearAllTables()
+            }
             tokenStore.setToken(response.token)
             val userEntity = response.user.toEntity()
             userDao.upsert(userEntity)

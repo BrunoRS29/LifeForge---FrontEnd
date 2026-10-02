@@ -10,6 +10,9 @@ import java.time.Instant
  *   precisão inaceitável em soma de aportes ao longo de anos.
  * - `Instant` para timestamps em UTC. Conversão para fuso local é
  *   responsabilidade da camada de UI.
+ * - `pendingSync`: a alteração foi gravada no aparelho e aguarda envio ao
+ *   servidor (padrão offline-first). Registros criados sem conexão têm `id`
+ *   temporário negativo até a sincronização devolver o id definitivo.
  */
 
 data class User(
@@ -29,6 +32,7 @@ data class Goal(
     val targetDate: Instant,
     val priority: Int,
     val createdAt: Instant,
+    val pendingSync: Boolean = false,
 )
 
 data class Income(
@@ -40,6 +44,7 @@ data class Income(
     val recurring: Boolean,
     val receivedAt: Instant,
     val createdAt: Instant,
+    val pendingSync: Boolean = false,
 )
 
 data class Expense(
@@ -51,6 +56,7 @@ data class Expense(
     val recurring: Boolean,
     val spentAt: Instant,
     val createdAt: Instant,
+    val pendingSync: Boolean = false,
 )
 
 data class Asset(
@@ -62,7 +68,11 @@ data class Asset(
     val expectedReturn: BigDecimal,
     val volatility: BigDecimal,
     val createdAt: Instant,
+    val pendingSync: Boolean = false,
 )
+
+/** Registros com id negativo foram criados offline e ainda não existem no servidor. */
+fun Goal.isLocalOnly(): Boolean = id < 0
 
 /**
  * Sessão autenticada — combina o token JWT e o usuário decodificado.

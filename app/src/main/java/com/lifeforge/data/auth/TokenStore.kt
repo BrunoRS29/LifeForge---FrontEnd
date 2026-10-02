@@ -51,4 +51,14 @@ class TokenStore @Inject constructor(
     suspend fun clear() {
         context.authDataStore.edit { prefs -> prefs.remove(Keys.TOKEN) }
     }
+
+    /**
+     * Remove o token apenas se ainda for [token] — evita apagar um token novo
+     * gravado por um login concorrente enquanto uma resposta 401 antiga chegava.
+     */
+    suspend fun clearIfCurrent(token: String) {
+        context.authDataStore.edit { prefs ->
+            if (prefs[Keys.TOKEN] == token) prefs.remove(Keys.TOKEN)
+        }
+    }
 }

@@ -32,6 +32,10 @@ retrofitKotlinxSerializationConverter = "1.0.0"
 room = "2.6.1"
 datastore = "1.1.1"
 
+# Sincronização em segundo plano (offline-first)
+work = "2.9.1"
+hiltWork = "1.2.0"
+
 # Coroutines
 coroutines = "1.9.0"
 
@@ -89,6 +93,11 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+
+# WorkManager + integração com Hilt (SyncWorker)
+androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
+hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
 
 # DataStore (preferências e armazenamento de token JWT)
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }

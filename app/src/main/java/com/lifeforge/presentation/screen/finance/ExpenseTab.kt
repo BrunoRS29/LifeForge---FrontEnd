@@ -16,7 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.TrendingDown
+import androidx.compose.material.icons.automirrored.outlined.TrendingDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -52,6 +52,7 @@ import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
 import com.lifeforge.presentation.common.firstInstantOfMonth
+import com.lifeforge.presentation.common.PendingSyncLabel
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatDayMonth
 import com.lifeforge.presentation.common.formatMonthYear
@@ -108,7 +109,7 @@ fun ExpenseTab(
         isEmpty = state.expenses.isEmpty(),
         emptyTitle = "Sem despesas cadastradas",
         emptyDescription = "Acompanhar despesas recorrentes ajuda a calcular sua taxa de poupança real.",
-        emptyIcon = Icons.Outlined.TrendingDown,
+        emptyIcon = Icons.AutoMirrored.Outlined.TrendingDown,
         header = {
             MonthNavigator(
                 month = selectedMonth,
@@ -237,6 +238,7 @@ private fun ExpenseRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (expense.pendingSync) PendingSyncLabel()
         }
         Text(
             formatBrl(expense.amount),

@@ -1,9 +1,11 @@
 package com.lifeforge.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.lifeforge.data.model.dto.HistogramBucketDto
+import com.lifeforge.data.model.dto.TrajectoryBandDto
 import java.time.Instant
 
 /**
@@ -14,6 +16,8 @@ import java.time.Instant
  * - [histogram]: serializado como JSON. Reaproveita [HistogramBucketDto]
  *   (já @Serializable) para evitar criar uma entidade-bucket duplicada
  *   apenas para o Room.
+ * - [trajectory]: bandas P10–P90 mês a mês do fan chart, também em JSON —
+ *   permite reabrir uma simulação do histórico com o gráfico completo, sem rede.
  *
  * Os valores monetários ficam como Double (não BigDecimal) porque a
  * engine Monte Carlo opera em Double — converter para BigDecimal aqui
@@ -43,4 +47,5 @@ data class SimulationEntity(
     val histogram: List<HistogramBucketDto>,
     val executionTimeMs: Long,
     val createdAt: Instant,
+    @ColumnInfo(defaultValue = "[]") val trajectory: List<TrajectoryBandDto> = emptyList(),
 )

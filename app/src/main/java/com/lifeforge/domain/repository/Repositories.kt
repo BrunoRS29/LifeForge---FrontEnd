@@ -36,8 +36,9 @@ import java.time.Instant
  * - Métodos `refreshXxx()` disparam sync com a API e atualizam o Room;
  *   o Flow auto-emite o novo estado.
  * - Mutações (create/update/delete) são otimistas: gravam no Room
- *   imediatamente e tentam replicar no servidor; em caso de falha de
- *   rede, ficam marcadas como `pending_sync` (Fase 4.1b).
+ *   imediatamente (e na fila de saída) e tentam replicar no servidor; sem
+ *   rede, ficam pendentes (`pendingSync`) e sobem em segundo plano
+ *   ([SyncRepository]).
  */
 
 // ===========================================================================
@@ -235,7 +236,13 @@ interface SimulationRepository {
     /** Lista resumida das simulações de uma meta. */
     fun observeByGoal(goalId: Long): Flow<List<SimulationSummary>>
 
+    /** Última simulação de cada meta (chave = id da meta) — base da "saúde" das metas. */
+    fun observeLatestByGoal(): Flow<Map<Long, SimulationSummary>>
+
     suspend fun refreshByGoal(goalId: Long): DataResult<Unit>
+
+    /** Atualiza o histórico de simulações de todas as metas a partir do servidor. */
+    suspend fun refreshAllHistories(): DataResult<Unit>
 
     suspend fun delete(id: Long): DataResult<Unit>
 }

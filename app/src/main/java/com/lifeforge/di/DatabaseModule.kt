@@ -7,6 +7,7 @@ import com.lifeforge.data.db.dao.AssetDao
 import com.lifeforge.data.db.dao.ExpenseDao
 import com.lifeforge.data.db.dao.GoalDao
 import com.lifeforge.data.db.dao.IncomeDao
+import com.lifeforge.data.db.dao.PendingOperationDao
 import com.lifeforge.data.db.dao.SimulationDao
 import com.lifeforge.data.db.dao.UserDao
 import dagger.Module
@@ -36,10 +37,10 @@ object DatabaseModule {
         LifeForgeDatabase::class.java,
         LifeForgeDatabase.DATABASE_NAME,
     )
-        // Durante Sprint 4 não temos migrações: bumps de versão apagam o
-        // banco. Quando a UI ganhar dados que o usuário não quer perder,
-        // adicionar Migration objects e remover este fallback.
-        .fallbackToDestructiveMigration()
+        // Desde a v2 o banco guarda alterações feitas sem conexão (fila de
+        // saída): cada mudança de esquema tem migração explícita, para que
+        // nada pendente se perca numa atualização do app.
+        .addMigrations(LifeForgeDatabase.MIGRATION_1_2)
         .build()
 
     @Provides @Singleton
@@ -60,4 +61,8 @@ object DatabaseModule {
     @Provides @Singleton
     fun provideSimulationDao(database: LifeForgeDatabase): SimulationDao =
         database.simulationDao()
+
+    @Provides @Singleton
+    fun providePendingOperationDao(database: LifeForgeDatabase): PendingOperationDao =
+        database.pendingOperationDao()
 }

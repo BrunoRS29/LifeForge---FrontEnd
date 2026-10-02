@@ -113,6 +113,12 @@ android {
     }
 }
 
+// Esquema do Room versionado em app/schemas: documenta cada versão do banco
+// local e permite validar as migrações.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     // AndroidX core
     implementation(libs.androidx.core.ktx)
@@ -144,6 +150,11 @@ dependencies {
 
     // DataStore (token JWT, preferências do usuário)
     implementation(libs.androidx.datastore.preferences)
+
+    // WorkManager: sincronização offline-first em segundo plano (SyncWorker)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

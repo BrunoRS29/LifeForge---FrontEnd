@@ -3,12 +3,15 @@ package com.lifeforge.data.preferences
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.lifeforge.data.sync.LastSyncStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,7 +37,7 @@ enum class ThemeMode {
 @Singleton
 class AppPreferencesStore @Inject constructor(
     @ApplicationContext context: Context,
-) {
+) : LastSyncStore {
     private val dataStore = context.appPreferencesDataStore
 
     /** Flow do tema atual; default [ThemeMode.SYSTEM]. */
@@ -81,7 +84,22 @@ class AppPreferencesStore @Inject constructor(
         }
     }
 
+    /**
+     * Instante da última sincronização completa com o servidor (offline-first).
+     * Exibido em Perfil para o usuário saber o quão recente é o cache local.
+     */
+    override val lastSyncAt: Flow<Instant?> = dataStore.data.map { prefs ->
+        prefs[KEY_LAST_SYNC_AT]?.let(Instant::ofEpochMilli)
+    }
+
+    override suspend fun markSynced(at: Instant) {
+        dataStore.edit { prefs ->
+            prefs[KEY_LAST_SYNC_AT] = at.toEpochMilli()
+        }
+    }
+
     companion object {
+        private val KEY_LAST_SYNC_AT = longPreferencesKey("last_sync_at")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_AVATAR_PATH = stringPreferencesKey("avatar_path")
         private val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")

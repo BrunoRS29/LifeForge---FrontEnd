@@ -23,10 +23,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CloudDone
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Tune
@@ -39,6 +42,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -71,9 +75,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.data.preferences.ThemeMode
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.domain.model.User
+import com.lifeforge.domain.repository.SyncStatus
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.LoadingIndicator
 import com.lifeforge.presentation.common.formatDate
+import com.lifeforge.presentation.common.formatDateTime
+import com.lifeforge.presentation.common.syncStatusMessage
 import com.lifeforge.presentation.common.label
 
 /**
@@ -92,6 +99,7 @@ import com.lifeforge.presentation.common.label
 fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateToParams: () -> Unit = {},
+    onNavigateToPredictions: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -141,7 +149,18 @@ fun ProfileScreen(
                         subtitle = "Idade, salário, moradia… quanto mais, mais precisas as projeções",
                         onClick = onNavigateToParams,
                     )
+                    SettingsItemCard(
+                        icon = Icons.Outlined.Insights,
+                        title = "Predições de IA",
+                        subtitle = "Renda, despesas e patrimônio projetados a partir do seu histórico",
+                        onClick = onNavigateToPredictions,
+                    )
                     UsageCard(counts = state.counts)
+                    SyncCard(
+                        status = state.syncStatus,
+                        isSyncing = state.isSyncing,
+                        onSyncNow = viewModel::syncNow,
+                    )
                     SettingsCard(
                         themeMode = state.themeMode,
                         onThemeClick = viewModel::openThemeDialog,
@@ -156,7 +175,10 @@ fun ProfileScreen(
                     Spacer(Modifier.height(16.dp))
 
                     Button(
-                        onClick = onLogout,
+                        onClick = {
+                            // Alterações ainda não enviadas se perderiam ao sair: confirma antes.
+                            if (state.syncStatus.pendingOperations > 0) viewModel.openLogoutConfirm() else onLogout()
+                        },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -187,6 +209,28 @@ fun ProfileScreen(
         }
         if (state.showAboutDialog) {
             AboutDialog(onDismiss = viewModel::closeAboutDialog)
+        }
+        if (state.showLogoutConfirm) {
+            AlertDialog(
+                onDismissRequest = viewModel::closeLogoutConfirm,
+                title = { Text("Sair com alterações não enviadas?") },
+                text = {
+                    Text(
+                        "Há ${state.syncStatus.pendingOperations} alteração(ões) salvas só neste aparelho. " +
+                            "Ao sair, elas serão descartadas. Conecte-se à internet e sincronize antes, " +
+                            "se quiser mantê-las."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.closeLogoutConfirm()
+                        onLogout()
+                    }) { Text("Sair mesmo assim") }
+                },
+                dismissButton = {
+                    TextButton(onClick = viewModel::closeLogoutConfirm) { Text("Cancelar") }
+                },
+            )
         }
         if (state.showNameDialog) {
             EditNameDialog(
@@ -598,6 +642,53 @@ private fun AboutDialog(onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text("Fechar") }
         },
     )
+}
+
+// ============================================================================
+// Sincronização (offline-first)
+// ============================================================================
+
+/**
+ * Estado da sincronização entre o aparelho e o servidor: o app funciona sem
+ * conexão e envia as alterações pendentes quando a rede volta.
+ */
+@Composable
+private fun SyncCard(status: SyncStatus, isSyncing: Boolean, onSyncNow: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                if (status.isOnline) Icons.Outlined.CloudDone else Icons.Outlined.CloudOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.size(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Sincronização", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    syncStatusMessage(status),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    status.lastSyncAt?.let { "Última sincronização: ${formatDateTime(it)}" }
+                        ?: "Ainda não sincronizado neste aparelho",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (isSyncing) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                TextButton(onClick = onSyncNow, enabled = status.isOnline) { Text("Sincronizar") }
+            }
+        }
+    }
 }
 
 // ============================================================================

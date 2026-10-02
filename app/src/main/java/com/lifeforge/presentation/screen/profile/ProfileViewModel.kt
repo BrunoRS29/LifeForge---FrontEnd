@@ -10,12 +10,15 @@ import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.domain.model.User
 import com.lifeforge.domain.model.onFailure
+import com.lifeforge.domain.repository.SyncStatus
 import com.lifeforge.domain.usecase.ObserveAssetsUseCase
 import com.lifeforge.domain.usecase.ObserveCurrentUserUseCase
 import com.lifeforge.domain.usecase.ObserveExpensesUseCase
 import com.lifeforge.domain.usecase.ObserveGoalsUseCase
 import com.lifeforge.domain.usecase.ObserveIncomesUseCase
+import com.lifeforge.domain.usecase.ObserveSyncStatusUseCase
 import com.lifeforge.domain.usecase.RefreshCurrentUserUseCase
+import com.lifeforge.domain.usecase.SyncNowUseCase
 import com.lifeforge.domain.usecase.UpdateRiskProfileUseCase
 import com.lifeforge.domain.usecase.UpdateUserNameUseCase
 import com.lifeforge.presentation.common.toUserMessage
@@ -59,6 +62,8 @@ class ProfileViewModel @Inject constructor(
     observeIncomes: ObserveIncomesUseCase,
     observeExpenses: ObserveExpensesUseCase,
     observeAssets: ObserveAssetsUseCase,
+    observeSyncStatus: ObserveSyncStatusUseCase,
+    private val syncNowUseCase: SyncNowUseCase,
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(LocalUiState())
@@ -98,10 +103,14 @@ class ProfileViewModel @Inject constructor(
         countsFlow,
         prefsFlow,
         localState,
-    ) { user, counts, prefs, local ->
+        observeSyncStatus(),
+    ) { user, counts, prefs, local, sync ->
         ProfileUiState(
             user = user,
             counts = counts,
+            syncStatus = sync,
+            isSyncing = local.isSyncing,
+            showLogoutConfirm = local.showLogoutConfirm,
             themeMode = prefs.themeMode,
             avatarPath = prefs.avatarPath,
             dynamicColor = prefs.dynamicColor,
@@ -135,6 +144,23 @@ class ProfileViewModel @Inject constructor(
             localState.update { it.copy(isRefreshing = false) }
         }
     }
+
+    /** Sincroniza agora (envia pendências e atualiza o cache). */
+    fun syncNow() {
+        if (localState.value.isSyncing) return
+        viewModelScope.launch {
+            localState.update { it.copy(isSyncing = true) }
+            syncNowUseCase().onFailure { error ->
+                localState.update { it.copy(errorBanner = error.toUserMessage()) }
+            }
+            localState.update { it.copy(isSyncing = false) }
+        }
+    }
+
+    /** Pede confirmação antes de sair quando há alterações ainda não enviadas. */
+    fun openLogoutConfirm() = localState.update { it.copy(showLogoutConfirm = true) }
+
+    fun closeLogoutConfirm() = localState.update { it.copy(showLogoutConfirm = false) }
 
     fun onErrorBannerDismiss() {
         localState.update { it.copy(errorBanner = null) }
@@ -285,12 +311,18 @@ class ProfileViewModel @Inject constructor(
         val showThemeDialog: Boolean = false,
         val showAboutDialog: Boolean = false,
         val showNameDialog: Boolean = false,
+        val isSyncing: Boolean = false,
+        val showLogoutConfirm: Boolean = false,
     )
 }
 
 data class ProfileUiState(
     val user: User? = null,
     val counts: UsageCounts = UsageCounts(),
+    /** Conectividade, pendências e última sincronização (offline-first). */
+    val syncStatus: SyncStatus = SyncStatus(),
+    val isSyncing: Boolean = false,
+    val showLogoutConfirm: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Caminho local da foto de perfil; null = avatar padrão. */
     val avatarPath: String? = null,

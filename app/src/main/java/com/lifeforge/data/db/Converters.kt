@@ -2,6 +2,7 @@ package com.lifeforge.data.db
 
 import androidx.room.TypeConverter
 import com.lifeforge.data.model.dto.HistogramBucketDto
+import com.lifeforge.data.model.dto.TrajectoryBandDto
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.math.BigDecimal
@@ -81,4 +82,16 @@ class Converters {
     @TypeConverter
     fun jsonToHistogram(value: String?): List<HistogramBucketDto>? =
         value?.let { json.decodeFromString<List<HistogramBucketDto>>(it) }
+
+    // ------------------------------------------------------------------------
+    // List<TrajectoryBandDto> — bandas do fan chart em SimulationEntity.trajectory
+    // ------------------------------------------------------------------------
+
+    @TypeConverter
+    fun trajectoryToJson(value: List<TrajectoryBandDto>?): String? =
+        value?.let { json.encodeToString(it) }
+
+    @TypeConverter
+    fun jsonToTrajectory(value: String?): List<TrajectoryBandDto>? =
+        value?.let { json.decodeFromString<List<TrajectoryBandDto>>(it) }
 }

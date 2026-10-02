@@ -3,6 +3,7 @@ package com.lifeforge.data.mapper
 import com.lifeforge.data.db.entity.AssetEntity
 import com.lifeforge.data.db.entity.ExpenseEntity
 import com.lifeforge.data.db.entity.IncomeEntity
+import com.lifeforge.data.sync.SyncState
 import com.lifeforge.data.model.dto.AssetDto
 import com.lifeforge.data.model.dto.AssetRequestDto
 import com.lifeforge.data.model.dto.ExpenseDto
@@ -47,6 +48,7 @@ fun IncomeEntity.toDomain(): Income = Income(
     recurring = recurring,
     receivedAt = receivedAt,
     createdAt = createdAt,
+    pendingSync = syncState != SyncState.SYNCED.name,
 )
 
 fun incomeRequestDto(
@@ -87,6 +89,7 @@ fun ExpenseEntity.toDomain(): Expense = Expense(
     recurring = recurring,
     spentAt = spentAt,
     createdAt = createdAt,
+    pendingSync = syncState != SyncState.SYNCED.name,
 )
 
 fun expenseRequestDto(
@@ -127,6 +130,7 @@ fun AssetEntity.toDomain(): Asset = Asset(
     expectedReturn = expectedReturn,
     volatility = volatility,
     createdAt = createdAt,
+    pendingSync = syncState != SyncState.SYNCED.name,
 )
 
 fun assetRequestDto(

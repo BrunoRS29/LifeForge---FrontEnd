@@ -1,6 +1,7 @@
 package com.lifeforge.data.mapper
 
 import com.lifeforge.data.db.entity.GoalEntity
+import com.lifeforge.data.sync.SyncState
 import com.lifeforge.data.model.dto.GoalDto
 import com.lifeforge.data.model.dto.GoalRequestDto
 import com.lifeforge.domain.model.Goal
@@ -47,6 +48,7 @@ fun GoalEntity.toDomain(): Goal = Goal(
     targetDate = targetDate,
     priority = priority,
     createdAt = createdAt,
+    pendingSync = syncState != SyncState.SYNCED.name,
 )
 
 // ============================================================================

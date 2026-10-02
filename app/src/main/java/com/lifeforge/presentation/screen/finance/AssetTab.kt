@@ -36,6 +36,7 @@ import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
+import com.lifeforge.presentation.common.PendingSyncLabel
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.label
 
@@ -119,6 +120,7 @@ private fun AssetCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
+                if (asset.pendingSync) PendingSyncLabel()
             }
             IconButton(onClick = onDelete) {
                 Icon(
