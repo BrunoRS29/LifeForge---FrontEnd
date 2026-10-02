@@ -44,6 +44,7 @@ import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
+import com.lifeforge.presentation.common.formatCount
 import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.label
 
@@ -441,6 +442,13 @@ private fun OptimizationResultCard(
                     "(alvo: ${formatProbability(result.targetProbability)})",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            samplingNote(result.achievedProbability, result.targetProbability)?.let { note ->
+                Text(
+                    note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 "Iterações: ${result.iterations.size} · Tempo: ${result.executionTimeMs} ms",
                 style = MaterialTheme.typography.bodySmall,
@@ -555,3 +563,21 @@ private fun IntField(
         modifier = modifier,
     )
 }
+
+/**
+ * A busca binária mede cada candidato com 2.000 cenários (mesma semente) e a
+ * verificação final usa 10.000: a probabilidade verificada pode ficar um pouco
+ * abaixo do alvo só por ruído amostral. Quando a diferença cabe em dois
+ * erros-padrão da verificação, a tela explica isso em vez de parecer falha.
+ */
+internal fun samplingNote(achieved: Double, target: Double, verificationRuns: Int = 10_000): String? {
+    if (achieved >= target || verificationRuns <= 0) return null
+    val margin = 2 * kotlin.math.sqrt(target * (1 - target) / verificationRuns)
+    val gap = target - achieved
+    if (gap > margin) return null
+    return "Diferença de ${formatPp(gap)} em relação ao alvo: dentro do erro amostral do Monte Carlo " +
+        "(±${formatPp(margin)} com ${formatCount(verificationRuns)} cenários)."
+}
+
+private fun formatPp(fraction: Double): String =
+    String.format(java.util.Locale("pt", "BR"), "%.1f p.p.", fraction * 100)
