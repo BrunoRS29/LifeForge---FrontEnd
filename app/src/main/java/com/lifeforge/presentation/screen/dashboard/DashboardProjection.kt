@@ -32,9 +32,14 @@ import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.domain.model.UserProfile
 import com.lifeforge.domain.model.WealthProjection
 import com.lifeforge.domain.usecase.FinancialSnapshot
+import com.lifeforge.presentation.common.BrlAxisFormatter
+import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
+import com.lifeforge.presentation.common.monthAxisSpacing
+import com.lifeforge.presentation.common.monthItemPlacer
 import com.lifeforge.presentation.common.parseCurrencyInput
+import com.lifeforge.presentation.common.rememberFitToWidthZoom
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -43,8 +48,11 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import java.time.YearMonth
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 private const val DEFAULT_INFLATION = 0.045   // premissa-base (4,5% a.a.)
 private const val DEFAULT_MONTHS = 60         // 5 anos quando não há perfil
@@ -152,8 +160,10 @@ fun WealthProjectionCard(
                 buildString {
                     append("De ${formatBrl(initialNetWorth.toBigDecimal())} hoje, aportando ~")
                     append("${formatBrl(contribution0)}/mês")
-                    append(" por $years anos · retorno ~${pct(annualReturn)} a.a.")
-                    append(" · salário +${pct(annualSalaryGrowth)}/ano · inflação ${pct(annualInflation)}/ano.")
+                    // Espaço inseparável: "4,5% a.a." não quebra entre o número e a unidade.
+                    append(" por $years anos · retorno ~${formatAnnualRate(annualReturn)}\u00A0a.a.")
+                    append(" · salário +${formatAnnualRate(annualSalaryGrowth)}\u00A0a.a.")
+                    append(" · inflação ${formatAnnualRate(annualInflation)}\u00A0a.a.")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -178,13 +188,25 @@ fun WealthProjectionCard(
             val chartDescription = realizedDescription + "Projeção em $years anos: " +
                 "investindo, ${formatBrlCompact(proj.finalProjected.toBigDecimal())}; " +
                 "apenas guardando, ${formatBrlCompact(proj.finalContributionsOnly.toBigDecimal())}"
+            // Horizonte inteiro na largura da tela; eixo X em anos do calendário.
+            // Rótulos a partir da borda esquerda (o primeiro mês realizado): um
+            // rótulo em "hoje" ficaria colado à borda e seria cortado.
+            val pastMonths = if (realized.isNotEmpty()) realized.size - 1 else 0
+            val itemPlacer = remember(months, pastMonths) {
+                monthItemPlacer(monthAxisSpacing(months + pastMonths))
+            }
+            val yearFormatter = remember {
+                val thisMonth = YearMonth.now()
+                CartesianValueFormatter { _, value, _ -> thisMonth.plusMonths(value.roundToLong()).year.toString() }
+            }
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
-                    startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(),
+                    startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
+                    bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = yearFormatter, itemPlacer = itemPlacer),
                 ),
                 modelProducer = modelProducer,
+                zoomState = rememberFitToWidthZoom(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
@@ -208,11 +230,9 @@ fun WealthProjectionCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 buildString {
-                    append("Eixo X em meses (0 = hoje")
-                    if (realized.isNotEmpty()) append("; valores negativos são meses passados")
-                    append("), eixo Y em R$. A distância entre as linhas projetadas é o que os juros fazem por você.")
+                    append("Eixo X em anos, eixo Y em R$. A distância entre as linhas projetadas é o que os juros fazem por você.")
                     if (realized.isNotEmpty()) {
-                        append(" O realizado é reconstruído pelo saldo mensal de receitas e despesas, a partir do valor atual dos seus ativos.")
+                        append(" O realizado (início do gráfico) é reconstruído pelo saldo mensal de receitas e despesas, a partir do valor atual dos seus ativos.")
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -244,8 +264,6 @@ private fun parsePercent(raw: String): Double? =
 /** "3, 7" -> [3, 7]; ignora valores inválidos/fora de 0..120. */
 private fun parseAges(raw: String?): List<Int> =
     raw?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.filter { it in 0..120 } ?: emptyList()
-
-private fun pct(fraction: Double): String = "${(fraction * 100).roundToInt()}%"
 
 /** Legenda simples de gráfico: bolinha na cor da série + rótulo. */
 @Composable

@@ -33,14 +33,17 @@ import androidx.compose.ui.unit.dp
 import com.lifeforge.domain.model.GoalHealthEvaluator
 import com.lifeforge.domain.model.GoalHealthStatus
 import com.lifeforge.domain.model.TrajectoryBand
+import com.lifeforge.presentation.common.BrlAxisFormatter
 import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatProbability
+import com.lifeforge.presentation.common.monthAxisSpacing
+import com.lifeforge.presentation.common.monthItemPlacer
+import com.lifeforge.presentation.common.rememberFitToWidthZoom
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -213,14 +216,16 @@ fun FanChart(
                 "cenário pessimista ${formatBrlCompact(last.p10.toBigDecimal())}, " +
                 "mediana ${formatBrlCompact(last.p50.toBigDecimal())}, " +
                 "otimista ${formatBrlCompact(last.p90.toBigDecimal())}"
+            // Horizonte inteiro na largura da tela, com rótulos espaçados.
+            val itemPlacer = remember(last.monthIndex) { monthItemPlacer(monthAxisSpacing(last.monthIndex)) }
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
-                    startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(),
+                    startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
+                    bottomAxis = HorizontalAxis.rememberBottom(itemPlacer = itemPlacer),
                 ),
                 modelProducer = modelProducer,
-                scrollState = rememberVicoScrollState(scrollEnabled = true),
+                zoomState = rememberFitToWidthZoom(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(240.dp)

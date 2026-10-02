@@ -46,11 +46,15 @@ import com.lifeforge.domain.model.IncomePrediction
 import com.lifeforge.domain.model.IncomePredictionPoint
 import com.lifeforge.domain.model.PredictionMetrics
 import com.lifeforge.domain.model.WealthPrediction
+import com.lifeforge.presentation.common.BrlAxisFormatter
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatPercent
 import com.lifeforge.presentation.common.label
+import com.lifeforge.presentation.common.monthAxisSpacing
+import com.lifeforge.presentation.common.monthItemPlacer
+import com.lifeforge.presentation.common.rememberFitToWidthZoom
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -540,13 +544,17 @@ private fun WealthChart(prediction: WealthPrediction) {
         }
     }
 
+    val months = history.last().monthIndex - history.first().monthIndex +
+        (projection.lastOrNull()?.monthIndex ?: 0)
+    val itemPlacer = remember(months) { monthItemPlacer(monthAxisSpacing(months)) }
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(),
+            startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
+            bottomAxis = HorizontalAxis.rememberBottom(itemPlacer = itemPlacer),
         ),
         modelProducer = modelProducer,
+        zoomState = rememberFitToWidthZoom(),
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp),

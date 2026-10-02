@@ -71,6 +71,18 @@ fun formatPercent(value: BigDecimal): String =
         maximumFractionDigits = 1
     }.format(value) + "%"
 
+/** Taxa anual em percentual com até uma casa: 0.08 → "8%", 0.105 → "10,5%". */
+fun formatAnnualRate(fraction: Double): String {
+    // Arredonda a décimos de ponto percentual (0.15 * 100 não é exatamente 15 em Double).
+    val tenths = Math.round(fraction * 1000.0)
+    val text = if (tenths % 10 == 0L) {
+        (tenths / 10).toString()
+    } else {
+        String.format(java.util.Locale("pt", "BR"), "%.1f", tenths / 10.0)
+    }
+    return "$text%"
+}
+
 /** Versão Double — para `successProbability` da Simulation (0.0..1.0). */
 fun formatProbability(probability: Double): String =
     NumberFormat.getPercentInstance(ptBR).apply {

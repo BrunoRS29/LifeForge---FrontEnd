@@ -56,6 +56,8 @@ import com.lifeforge.domain.model.SimulationSummary
 import com.lifeforge.domain.model.SimulationInputs
 import com.lifeforge.presentation.common.CurrencyField
 import com.lifeforge.presentation.common.ErrorBanner
+import com.lifeforge.presentation.common.BrlAxisFormatter
+import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatDateTime
@@ -656,7 +658,7 @@ private fun PercentilesChart(percentiles: Map<String, Double>) {
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
-                    startAxis = VerticalAxis.rememberStart(),
+                    startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
                     bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
                 ),
                 modelProducer = modelProducer,
@@ -786,17 +788,6 @@ internal fun strategyLine(inputs: SimulationInputs): String =
     "Aporte ${formatBrl(inputs.monthlyContribution)} · ${formatAnnualRate(inputs.expectedReturnAnnual)} a.a. · " +
         "vol. ${formatAnnualRate(inputs.volatilityAnnual)} · ${formatHorizon(inputs.horizonMonths)}"
 
-/** Taxa anual em percentual com até uma casa: 0.08 → "8%", 0.105 → "10,5%". */
-internal fun formatAnnualRate(fraction: Double): String {
-    // Arredonda a décimos de ponto percentual (0.15 * 100 não é exatamente 15 em Double).
-    val tenths = Math.round(fraction * 1000.0)
-    val text = if (tenths % 10 == 0L) {
-        (tenths / 10).toString()
-    } else {
-        String.format(java.util.Locale("pt", "BR"), "%.1f", tenths / 10.0)
-    }
-    return "$text%"
-}
 
 /** Horizonte legível: 240 → "20 anos", 30 → "2 anos e 6 meses", 8 → "8 meses". */
 internal fun formatHorizon(months: Int): String {

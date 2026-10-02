@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.lifeforge.domain.model.SimulationInputs
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.StrategyComparator
+import com.lifeforge.presentation.common.formatAnnualRate
 import org.junit.Test
 import java.time.Instant
 

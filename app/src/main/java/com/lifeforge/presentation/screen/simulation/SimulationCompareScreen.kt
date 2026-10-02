@@ -50,10 +50,15 @@ import com.lifeforge.domain.model.StrategyComparison
 import com.lifeforge.domain.model.StrategyMetric
 import com.lifeforge.domain.model.StrategySide
 import com.lifeforge.presentation.common.LoadingIndicator
+import com.lifeforge.presentation.common.BrlAxisFormatter
+import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatDateTime
 import com.lifeforge.presentation.common.formatProbability
+import com.lifeforge.presentation.common.monthAxisSpacing
+import com.lifeforge.presentation.common.monthItemPlacer
+import com.lifeforge.presentation.common.rememberFitToWidthZoom
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -367,13 +372,16 @@ private fun MedianTrajectoriesCard(a: SimulationResult, b: SimulationResult) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
+            val months = maxOf(a.trajectory.last().monthIndex, b.trajectory.last().monthIndex)
+            val itemPlacer = remember(months) { monthItemPlacer(monthAxisSpacing(months)) }
             CartesianChartHost(
                 chart = rememberCartesianChart(
                     rememberLineCartesianLayer(),
-                    startAxis = VerticalAxis.rememberStart(),
-                    bottomAxis = HorizontalAxis.rememberBottom(),
+                    startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
+                    bottomAxis = HorizontalAxis.rememberBottom(itemPlacer = itemPlacer),
                 ),
                 modelProducer = modelProducer,
+                zoomState = rememberFitToWidthZoom(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
