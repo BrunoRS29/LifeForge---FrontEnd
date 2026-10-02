@@ -109,6 +109,17 @@ data object Predictions
 data object StatementImport
 
 /**
+ * Avaliação de usabilidade (TCC, Seção 3.6.3): roteiro de tarefas
+ * cronometradas, resumo dos resultados e exportação. Acessível pelo Perfil.
+ */
+@Serializable
+data object UsabilityEvaluation
+
+/** Questionário System Usability Scale, ao fim das tarefas de uma sessão. */
+@Serializable
+data object UsabilityQuestionnaire
+
+/**
  * Parâmetros do perfil (dados para projeções) — full-screen, sem bottom bar.
  * Acessível pela tela de Perfil.
  */

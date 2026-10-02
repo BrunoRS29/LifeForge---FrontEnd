@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Insights
@@ -100,6 +101,7 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateToParams: () -> Unit = {},
     onNavigateToPredictions: () -> Unit = {},
+    onNavigateToUsability: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -168,6 +170,12 @@ fun ProfileScreen(
                     DynamicColorCard(
                         enabled = state.dynamicColor,
                         onToggle = viewModel::setDynamicColor,
+                    )
+                    SettingsItemCard(
+                        icon = Icons.AutoMirrored.Outlined.FactCheck,
+                        title = "Avaliação de usabilidade (SUS)",
+                        subtitle = "Tarefas cronometradas e questionário para os testes com usuários",
+                        onClick = onNavigateToUsability,
                     )
                     HelpAndFeedbackCard()
                     AboutCard(onClick = viewModel::openAboutDialog)

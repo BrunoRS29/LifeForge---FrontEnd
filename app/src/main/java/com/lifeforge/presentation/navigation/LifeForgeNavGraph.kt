@@ -22,6 +22,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.lifeforge.presentation.common.SyncStatusBar
+import com.lifeforge.presentation.common.UsabilityTaskBar
+import com.lifeforge.presentation.screen.usability.UsabilityBarViewModel
+import com.lifeforge.presentation.screen.usability.UsabilityQuestionnaireScreen
+import com.lifeforge.presentation.screen.usability.UsabilityScreen
 import com.lifeforge.presentation.screen.auth.LoginScreen
 import com.lifeforge.presentation.screen.auth.RegisterScreen
 import com.lifeforge.presentation.screen.dashboard.DashboardScreen
@@ -110,10 +114,20 @@ fun LifeForgeNavGraph(
 
     val syncStatus by rootViewModel.syncStatus.collectAsState()
     val isSyncing by rootViewModel.isSyncing.collectAsState()
+    val usabilityBarViewModel: UsabilityBarViewModel = hiltViewModel()
+    val usabilitySession by usabilityBarViewModel.active.collectAsState()
 
     Scaffold(
         bottomBar = {
             Column {
+                // Avaliação de usabilidade: tarefa cronometrada visível em qualquer tela.
+                if (sessionState is SessionUiState.Authenticated) {
+                    UsabilityTaskBar(
+                        active = usabilitySession,
+                        onFinish = usabilityBarViewModel::finishTask,
+                        onOpenQuestionnaire = { navController.navigate(UsabilityQuestionnaire) },
+                    )
+                }
                 // Faixa offline-first: sem conexão / alterações aguardando envio.
                 // Sem a barra de abas abaixo, ela mesma respeita a área de gestos.
                 if (sessionState is SessionUiState.Authenticated) {
@@ -189,6 +203,7 @@ fun LifeForgeNavGraph(
                     onLogout = { rootViewModel.logout() },
                     onNavigateToParams = { navController.navigate(ProfileParams) },
                     onNavigateToPredictions = { navController.navigate(Predictions) },
+                    onNavigateToUsability = { navController.navigate(UsabilityEvaluation) },
                 )
             }
 
@@ -223,6 +238,17 @@ fun LifeForgeNavGraph(
             }
             composable<StatementImport> {
                 ImportScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+            composable<UsabilityEvaluation> {
+                UsabilityScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onOpenQuestionnaire = { navController.navigate(UsabilityQuestionnaire) },
+                )
+            }
+            composable<UsabilityQuestionnaire> {
+                UsabilityQuestionnaireScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }

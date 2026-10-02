@@ -27,6 +27,8 @@ import com.lifeforge.domain.repository.UserRepository
 import com.lifeforge.data.repository.PredictionRepositoryImpl
 import com.lifeforge.domain.repository.PredictionRepository
 import com.lifeforge.data.repository.StatementImportRepositoryImpl
+import com.lifeforge.data.repository.FileUsabilityRepository
+import com.lifeforge.domain.repository.UsabilityRepository
 import com.lifeforge.domain.repository.StatementImportRepository
 import dagger.Binds
 import dagger.Module
@@ -100,6 +102,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPredictionRepository(impl: PredictionRepositoryImpl): PredictionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUsabilityRepository(impl: FileUsabilityRepository): UsabilityRepository
 
     @Binds
     @Singleton
