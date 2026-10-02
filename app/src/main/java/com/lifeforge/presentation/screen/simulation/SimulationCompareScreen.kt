@@ -50,6 +50,7 @@ import com.lifeforge.domain.model.StrategyComparison
 import com.lifeforge.domain.model.StrategyMetric
 import com.lifeforge.domain.model.StrategySide
 import com.lifeforge.presentation.common.LoadingIndicator
+import com.lifeforge.presentation.common.AutoSizeText
 import com.lifeforge.presentation.common.BrlAxisFormatter
 import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
@@ -252,8 +253,9 @@ private fun ComparisonCard(title: String, subtitle: String, rows: List<MetricCom
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row {
-                Spacer(Modifier.weight(1.4f))
+            // Mesmo espaçamento das linhas: os rótulos A/B ficam sobre os valores.
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.weight(1.2f))
                 Text("A", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
                 Text("B", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
             }
@@ -280,9 +282,11 @@ private fun ComparisonRow(row: MetricComparison) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$label: A $a, B $b$better" },
+        // Folga entre as colunas: sem ela, o valor de A encostava no ícone de B.
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1.4f))
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1.2f))
         MetricValue(a, highlight = row.better == StrategySide.A, emphasize = row.differs && row.metric.higherIsBetter == null, modifier = Modifier.weight(1f))
         MetricValue(b, highlight = row.better == StrategySide.B, emphasize = row.differs && row.metric.higherIsBetter == null, modifier = Modifier.weight(1f))
     }
@@ -303,12 +307,15 @@ private fun MetricValue(text: String, highlight: Boolean, emphasize: Boolean, mo
                 modifier = Modifier.size(16.dp),
             )
         }
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (highlight || emphasize) FontWeight.Bold else FontWeight.Normal,
+        // Uma linha só: em telas estreitas o valor em destaque (negrito + ícone)
+        // reduz um pouco a fonte em vez de quebrar "R$ 189,1 / mil".
+        AutoSizeText(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = if (highlight || emphasize) FontWeight.Bold else FontWeight.Normal,
+                textAlign = TextAlign.End,
+            ),
             color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.End,
         )
     }
 }
