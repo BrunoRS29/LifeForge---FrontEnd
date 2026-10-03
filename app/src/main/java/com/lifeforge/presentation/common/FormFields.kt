@@ -1,7 +1,12 @@
 package com.lifeforge.presentation.common
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -13,13 +18,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -27,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import java.math.BigDecimal
 
 /**
@@ -56,6 +66,7 @@ fun LifeForgeTextField(
     imeAction: ImeAction = ImeAction.Next,
     enabled: Boolean = true,
     singleLine: Boolean = true,
+    suffix: String? = null,
 ) {
     // Estado interno com TextFieldValue: a região de composição do IME
     // (acentos via dead key/long-press, ex.: "~"+"a" → "ã") precisa viver
@@ -76,6 +87,7 @@ fun LifeForgeTextField(
             if (newValue.text != value) onValueChange(newValue.text)
         },
         label = { Text(label) },
+        suffix = suffix?.let { { Text("\u00A0$it") } },
         isError = error != null,
         supportingText = if (error != null) {
             { Text(error) }
@@ -175,4 +187,43 @@ fun UseTotalAssetsChip(totalAssets: BigDecimal?, enabled: Boolean, onClick: () -
         },
         colors = AssistChipDefaults.assistChipColors(leadingIconContentColor = MaterialTheme.colorScheme.primary),
     )
+}
+
+/**
+ * Chave com título e explicação opcional. A linha inteira é o alvo de toque
+ * (papel de chave para o TalkBack); o Switch só sinaliza o estado.
+ */
+@Composable
+fun ToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean,
+    subtitle: String? = null,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+        }
+    }
 }

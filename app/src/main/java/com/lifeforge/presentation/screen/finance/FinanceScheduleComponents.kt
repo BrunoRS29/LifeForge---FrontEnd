@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -35,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -47,14 +44,14 @@ import com.lifeforge.presentation.common.ConnectedChoice
 import com.lifeforge.presentation.common.DateField
 import com.lifeforge.presentation.common.DatePickerDialogField
 import com.lifeforge.presentation.common.LoadingOverlay
+import com.lifeforge.presentation.common.ToggleRow
 import com.lifeforge.presentation.common.formatDate
 import com.lifeforge.presentation.common.label
 import java.time.Instant
 
 /*
  * Componentes compartilhados pelos formulários de Receitas, Despesas e Ativos:
- * a folha inferior com título e ações, a chave com explicação e os campos de
- * recorrência (mensal ou parcelada) com a prévia de quantos lançamentos serão
+ * a folha inferior com título e ações e os campos de recorrência (mensal ou parcelada) com a prévia de quantos lançamentos serão
  * gerados.
  */
 
@@ -145,43 +142,6 @@ fun FinanceFormSheet(
 }
 
 /**
- * Chave com título e explicação. A linha inteira é o alvo de toque (papel de
- * chave para o TalkBack); o Switch só sinaliza o estado.
- */
-@Composable
-fun ScheduleToggleRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.large,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(checked = checked, onCheckedChange = null, enabled = enabled)
-        }
-    }
-}
-
-/**
  * Data do lançamento ou, quando recorrente, a repetição (mensal ou parcelada),
  * início, fim ou número de parcelas e a prévia do que será gerado. Comum aos
  * formulários de receita e de despesa.
@@ -211,7 +171,7 @@ fun ScheduleFields(
 
     // Recorrência só faz sentido ao CRIAR (não ao editar um lançamento).
     if (!isEditing) {
-        ScheduleToggleRow(
+        ToggleRow(
             title = "Repetir",
             subtitle = recurrentSubtitle,
             checked = isRecurrent,
@@ -228,7 +188,7 @@ fun ScheduleFields(
             onClick = { activePicker = SchedulePickerTarget.START },
             enabled = enabled,
         )
-        ScheduleToggleRow(
+        ToggleRow(
             title = recurringTitle,
             subtitle = "Entra na taxa de poupança do painel.",
             checked = recurring,
