@@ -55,6 +55,7 @@ import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -76,6 +77,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 
 /**
  * Peças do design system do LifeForge (Material 3 Expressive), usadas por todas as
@@ -113,7 +115,8 @@ fun Modifier.readableWidth(max: Dp = MaxContentWidth): Modifier =
 /**
  * Barra superior das abas principais: título grande, com subtítulo opcional, que
  * recolhe para a barra compacta ao rolar (o status bar ganha a cor de contêiner
- * enquanto há conteúdo por baixo).
+ * enquanto há conteúdo por baixo). Em janelas baixas (celular deitado) usa direto
+ * a barra pequena, para não gastar a pouca altura com o título.
  */
 @Composable
 fun TabTopAppBar(
@@ -122,16 +125,37 @@ fun TabTopAppBar(
     subtitle: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    LargeFlexibleTopAppBar(
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        subtitle = subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
-        actions = actions,
-        scrollBehavior = scrollBehavior,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
     )
+    val tallWindow = currentWindowAdaptiveInfo().windowSizeClass
+        .isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND)
+    val titleContent: @Composable () -> Unit = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+    val subtitleContent: (@Composable () -> Unit)? =
+        subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+    when {
+        tallWindow -> LargeFlexibleTopAppBar(
+            title = titleContent,
+            subtitle = subtitleContent,
+            actions = actions,
+            scrollBehavior = scrollBehavior,
+            colors = colors,
+        )
+        subtitleContent != null -> TopAppBar(
+            title = titleContent,
+            subtitle = subtitleContent,
+            actions = actions,
+            scrollBehavior = scrollBehavior,
+            colors = colors,
+        )
+        else -> TopAppBar(
+            title = titleContent,
+            actions = actions,
+            scrollBehavior = scrollBehavior,
+            colors = colors,
+        )
+    }
 }
 
 /** Barra superior das telas de detalhe e formulários: título e voltar. */
