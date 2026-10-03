@@ -31,6 +31,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -356,8 +357,11 @@ fun FanChart(
     val last = trajectory.last()
     val container = MaterialTheme.colorScheme.surfaceContainerLow
     val primary = MaterialTheme.colorScheme.primary
-    val outerBand = lerp(container, primary, 0.16f)
-    val innerBand = lerp(container, primary, 0.34f)
+    // No tema escuro o fundo é quase preto: as faixas precisam de mais da cor
+    // de destaque para continuarem distinguíveis entre si e do fundo.
+    val darkSurface = container.luminance() < 0.5f
+    val outerBand = lerp(container, primary, if (darkSurface) 0.28f else 0.16f)
+    val innerBand = lerp(container, primary, if (darkSurface) 0.52f else 0.34f)
     val edge = primary.copy(alpha = 0.5f)
     val p90 = rememberBandEdgeLine(lineColor = edge, areaColor = outerBand)
     val p75 = rememberBandEdgeLine(lineColor = edge, areaColor = innerBand)
@@ -444,7 +448,9 @@ internal fun HistogramChart(
     }
 
     val reachedColor = MaterialTheme.colorScheme.primary
-    val belowColor = MaterialTheme.colorScheme.outlineVariant
+    // Cinza visível nos dois temas: no escuro, o outlineVariant some no fundo.
+    val darkSurface = MaterialTheme.colorScheme.surfaceContainerLow.luminance() < 0.5f
+    val belowColor = if (darkSurface) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant
     val columnShape = remember { CorneredShape.rounded(topLeftPercent = 40, topRightPercent = 40) }
     val reached = rememberLineComponent(fill(reachedColor), thickness = 12.dp, shape = columnShape)
     val below = rememberLineComponent(fill(belowColor), thickness = 12.dp, shape = columnShape)
