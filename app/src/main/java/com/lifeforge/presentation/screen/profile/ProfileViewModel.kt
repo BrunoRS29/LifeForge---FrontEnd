@@ -119,7 +119,6 @@ class ProfileViewModel @Inject constructor(
             isUpdatingName = local.isUpdatingName,
             errorBanner = local.errorBanner,
             showRiskProfileDialog = local.showRiskProfileDialog,
-            showThemeDialog = local.showThemeDialog,
             showAboutDialog = local.showAboutDialog,
             showNameDialog = local.showNameDialog,
         )
@@ -270,19 +269,9 @@ class ProfileViewModel @Inject constructor(
     // Tema
     // ------------------------------------------------------------------------
 
-    fun openThemeDialog() {
-        localState.update { it.copy(showThemeDialog = true) }
-    }
-
-    fun closeThemeDialog() {
-        localState.update { it.copy(showThemeDialog = false) }
-    }
-
+    /** Tema escolhido nos botões conectados do Perfil — aplicado na hora. */
     fun setThemeMode(mode: ThemeMode) {
-        viewModelScope.launch {
-            appPreferences.setThemeMode(mode)
-            localState.update { it.copy(showThemeDialog = false) }
-        }
+        viewModelScope.launch { appPreferences.setThemeMode(mode) }
     }
 
     /** Cores dinâmicas (Material You) — personalização opcional do Android 12+. */
@@ -308,7 +297,6 @@ class ProfileViewModel @Inject constructor(
         val isUpdatingName: Boolean = false,
         val errorBanner: String? = null,
         val showRiskProfileDialog: Boolean = false,
-        val showThemeDialog: Boolean = false,
         val showAboutDialog: Boolean = false,
         val showNameDialog: Boolean = false,
         val isSyncing: Boolean = false,
@@ -333,7 +321,6 @@ data class ProfileUiState(
     val isUpdatingName: Boolean = false,
     val errorBanner: String? = null,
     val showRiskProfileDialog: Boolean = false,
-    val showThemeDialog: Boolean = false,
     val showAboutDialog: Boolean = false,
     val showNameDialog: Boolean = false,
 )

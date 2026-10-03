@@ -50,6 +50,7 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonColors
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -431,7 +432,8 @@ fun BottomActionBar(
  * Escolha única entre poucas opções (2 a 4) com os botões conectados do Material 3
  * Expressive: a opção marcada vira pílula com a cor de destaque, e a forma reage
  * ao toque. Usado quando todas as opções cabem lado a lado (tema, perfil de risco,
- * quantidade de cenários, modo da otimização).
+ * quantidade de cenários, modo da otimização). Sobre um contêiner da mesma cor
+ * dos botões, passe [colors] com um contêiner mais forte.
  */
 @Composable
 fun <T> ConnectedChoice(
@@ -442,6 +444,7 @@ fun <T> ConnectedChoice(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     icon: ((T) -> ImageVector)? = null,
+    colors: ToggleButtonColors = ToggleButtonDefaults.toggleButtonColors(),
 ) {
     Row(
         modifier = modifier
@@ -454,6 +457,7 @@ fun <T> ConnectedChoice(
                 checked = option == selected,
                 onCheckedChange = { onSelect(option) },
                 enabled = enabled,
+                colors = colors,
                 shapes = when (index) {
                     0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                     options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()

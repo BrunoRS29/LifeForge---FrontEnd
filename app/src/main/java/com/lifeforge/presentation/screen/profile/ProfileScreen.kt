@@ -3,6 +3,7 @@ package com.lifeforge.presentation.screen.profile
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,53 +12,51 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.automirrored.outlined.FactCheck
-import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -68,34 +67,40 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.data.preferences.ThemeMode
 import com.lifeforge.domain.model.RiskProfile
 import com.lifeforge.domain.model.User
 import com.lifeforge.domain.repository.SyncStatus
+import com.lifeforge.presentation.common.ConnectedChoice
 import com.lifeforge.presentation.common.ErrorBanner
+import com.lifeforge.presentation.common.GroupItem
+import com.lifeforge.presentation.common.LifeForgeTextField
+import com.lifeforge.presentation.common.ListGroup
+import com.lifeforge.presentation.common.RefreshableBox
 import com.lifeforge.presentation.common.ScreenLoading
+import com.lifeforge.presentation.common.ScreenPadding
+import com.lifeforge.presentation.common.TabTopAppBar
 import com.lifeforge.presentation.common.formatDate
 import com.lifeforge.presentation.common.formatDateTime
-import com.lifeforge.presentation.common.syncStatusMessage
 import com.lifeforge.presentation.common.label
+import com.lifeforge.presentation.common.readableWidth
+import com.lifeforge.presentation.common.syncStatusMessage
 
 /**
- * Tela de Perfil — versao expandida (Fase 4 final).
- *
- * Secoes (de cima para baixo):
- * 1. Header com avatar circular + nome + email
- * 2. Card "Perfil de risco" com chip atual + botao "Alterar" → dialog
- * 3. Card "Resumo de uso" com contagens (metas, simulacoes via Asset count etc.)
- * 4. Card "Configuracoes" com tema atual + botao para abrir dialog de tema
- * 5. Card "Sobre" com versao, descricao e creditos do TCC
- * 6. Botao "Sair da conta" no rodape (vermelho, destaque negativo)
+ * Perfil, no padrão das configurações do Android: cabeçalho com a foto (numa
+ * forma do Material 3 Expressive), o nome e o resumo de uso; depois os grupos
+ * Planejamento, Aparência (tema em botões conectados e cores dinâmicas), Dados e
+ * sincronização e Ajuda; por fim, "Sair da conta". Puxar para baixo atualiza.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
@@ -105,101 +110,128 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val context = LocalContext.current
 
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Perfil") })
-        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = { TabTopAppBar(title = "Perfil", scrollBehavior = scrollBehavior) },
     ) { padding ->
-        // Atualização por gesto (puxar para baixo), como nos apps modernos.
-        PullToRefreshBox(
+        RefreshableBox(
             isRefreshing = state.isRefreshing,
             onRefresh = viewModel::refresh,
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .readableWidth()
+                    .padding(horizontal = ScreenPadding)
+                    .padding(top = 8.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {
                 if (state.errorBanner != null) {
-                    ErrorBanner(
-                        message = state.errorBanner!!,
-                        onDismiss = viewModel::onErrorBannerDismiss,
-                    )
+                    ErrorBanner(message = state.errorBanner!!, onDismiss = viewModel::onErrorBannerDismiss)
                 }
 
                 val user = state.user
                 if (user == null) {
-                    ScreenLoading()
-                } else {
-                    HeaderCard(
-                        user = user,
-                        avatarPath = state.avatarPath,
-                        onAvatarPicked = viewModel::onAvatarPicked,
-                        onEditName = viewModel::openNameDialog,
-                    )
-                    RiskProfileCard(
-                        user = user,
-                        onEditClick = viewModel::openRiskProfileDialog,
-                    )
-                    SettingsItemCard(
-                        icon = Icons.Outlined.Tune,
-                        title = "Dados para projeções",
-                        subtitle = "Idade, salário, moradia… quanto mais, mais precisas as projeções",
-                        onClick = onNavigateToParams,
-                    )
-                    SettingsItemCard(
-                        icon = Icons.Outlined.Insights,
-                        title = "Predições de IA",
-                        subtitle = "Renda, despesas e patrimônio projetados a partir do seu histórico",
-                        onClick = onNavigateToPredictions,
-                    )
-                    UsageCard(counts = state.counts)
-                    SyncCard(
-                        status = state.syncStatus,
-                        isSyncing = state.isSyncing,
-                        onSyncNow = viewModel::syncNow,
-                    )
-                    SettingsCard(
-                        themeMode = state.themeMode,
-                        onThemeClick = viewModel::openThemeDialog,
-                    )
-                    DynamicColorCard(
-                        enabled = state.dynamicColor,
-                        onToggle = viewModel::setDynamicColor,
-                    )
-                    SettingsItemCard(
-                        icon = Icons.AutoMirrored.Outlined.FactCheck,
-                        title = "Avaliação de usabilidade (SUS)",
-                        subtitle = "Tarefas cronometradas e questionário para os testes com usuários",
-                        onClick = onNavigateToUsability,
-                    )
-                    HelpAndFeedbackCard()
-                    AboutCard(onClick = viewModel::openAboutDialog)
+                    ScreenLoading(modifier = Modifier.heightIn(min = 240.dp))
+                    return@Column
+                }
 
-                    Spacer(Modifier.height(16.dp))
+                ProfileHeader(
+                    user = user,
+                    avatarPath = state.avatarPath,
+                    onAvatarPicked = viewModel::onAvatarPicked,
+                    onEditName = viewModel::openNameDialog,
+                )
+                UsageRow(counts = state.counts)
 
-                    Button(
-                        onClick = {
-                            // Alterações ainda não enviadas se perderiam ao sair: confirma antes.
-                            if (state.syncStatus.pendingOperations > 0) viewModel.openLogoutConfirm() else onLogout()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ListGroup(
+                    title = "Planejamento",
+                    items = listOf(
+                        GroupItem(
+                            headline = "Perfil de risco",
+                            supporting = user.riskProfile.label(),
+                            icon = Icons.Outlined.Shield,
+                            onClick = viewModel::openRiskProfileDialog,
                         ),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Sair da conta")
-                    }
+                        GroupItem(
+                            headline = "Dados para projeções",
+                            supporting = "Idade, salário, moradia… quanto mais, mais precisas as projeções",
+                            icon = Icons.Outlined.Tune,
+                            onClick = onNavigateToParams,
+                        ),
+                        GroupItem(
+                            headline = "Predições de IA",
+                            supporting = "Renda, despesas e patrimônio projetados a partir do seu histórico",
+                            icon = Icons.Outlined.AutoAwesome,
+                            onClick = onNavigateToPredictions,
+                        ),
+                    ),
+                )
+
+                AppearanceGroup(
+                    themeMode = state.themeMode,
+                    onThemeChange = viewModel::setThemeMode,
+                    dynamicColor = state.dynamicColor,
+                    onDynamicColorChange = viewModel::setDynamicColor,
+                )
+
+                ListGroup(
+                    title = "Dados e sincronização",
+                    items = listOf(syncItem(state.syncStatus, state.isSyncing, viewModel::syncNow)),
+                )
+
+                ListGroup(
+                    title = "Ajuda e informações",
+                    items = listOf(
+                        GroupItem(
+                            headline = "Avaliação de usabilidade (SUS)",
+                            supporting = "Tarefas cronometradas e questionário dos testes com usuários",
+                            icon = Icons.AutoMirrored.Outlined.FactCheck,
+                            onClick = onNavigateToUsability,
+                        ),
+                        GroupItem(
+                            headline = "Ajuda e feedback",
+                            supporting = "Encontrou um problema ou tem uma sugestão? Fale com a gente",
+                            icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                            onClick = { sendFeedbackEmail(context) },
+                        ),
+                        GroupItem(
+                            headline = "Sobre o LifeForge",
+                            supporting = "Versão, créditos e detalhes do TCC",
+                            icon = Icons.Outlined.Info,
+                            onClick = viewModel::openAboutDialog,
+                        ),
+                    ),
+                )
+
+                FilledTonalButton(
+                    onClick = {
+                        // Alterações ainda não enviadas se perderiam ao sair: confirma antes.
+                        if (state.syncStatus.pendingOperations > 0) viewModel.openLogoutConfirm() else onLogout()
+                    },
+                    shapes = ButtonDefaults.shapes(),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ButtonDefaults.MediumContainerHeight),
+                ) {
+                    Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)
+                    Text("Sair da conta", modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
 
-        // Dialogs
+        // Diálogos
         if (state.showRiskProfileDialog) {
             RiskProfileDialog(
                 currentProfile = state.user?.riskProfile ?: RiskProfile.MODERATE,
@@ -208,36 +240,28 @@ fun ProfileScreen(
                 onDismiss = viewModel::closeRiskProfileDialog,
             )
         }
-        if (state.showThemeDialog) {
-            ThemeDialog(
-                currentMode = state.themeMode,
-                onSelect = viewModel::setThemeMode,
-                onDismiss = viewModel::closeThemeDialog,
-            )
-        }
         if (state.showAboutDialog) {
             AboutDialog(onDismiss = viewModel::closeAboutDialog)
         }
         if (state.showLogoutConfirm) {
             AlertDialog(
                 onDismissRequest = viewModel::closeLogoutConfirm,
+                icon = { Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null) },
                 title = { Text("Sair com alterações não enviadas?") },
                 text = {
                     Text(
                         "Há ${state.syncStatus.pendingOperations} alteração(ões) salvas só neste aparelho. " +
                             "Ao sair, elas serão descartadas. Conecte-se à internet e sincronize antes, " +
-                            "se quiser mantê-las."
+                            "se quiser mantê-las.",
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.closeLogoutConfirm()
                         onLogout()
-                    }) { Text("Sair mesmo assim") }
+                    }) { Text("Sair mesmo assim", color = MaterialTheme.colorScheme.error) }
                 },
-                dismissButton = {
-                    TextButton(onClick = viewModel::closeLogoutConfirm) { Text("Cancelar") }
-                },
+                dismissButton = { TextButton(onClick = viewModel::closeLogoutConfirm) { Text("Cancelar") } },
             )
         }
         if (state.showNameDialog) {
@@ -252,404 +276,218 @@ fun ProfileScreen(
 }
 
 // ============================================================================
-// Header
+// Cabeçalho
 // ============================================================================
 
+/**
+ * Foto (Photo Picker do Android, sem permissão de armazenamento) recortada numa
+ * forma do Material, com o selo de câmera indicando que dá para trocá-la; nome
+ * com ação de editar, e-mail e data de cadastro.
+ */
 @Composable
-private fun HeaderCard(
+private fun ProfileHeader(
     user: User,
-    avatarPath: String? = null,
-    onAvatarPicked: (android.net.Uri) -> Unit = {},
-    onEditName: () -> Unit = {},
+    avatarPath: String?,
+    onAvatarPicked: (Uri) -> Unit,
+    onEditName: () -> Unit,
 ) {
-    // Foto de perfil via Photo Picker do Android (sem permissão de storage).
-    val photoPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let(onAvatarPicked) }
-
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(onAvatarPicked)
+    }
     // Decodifica o bitmap fora de cada recomposição; o caminho muda a cada
     // troca (timestamp no nome), então remember(avatarPath) recarrega.
     val avatarBitmap = remember(avatarPath) {
         avatarPath?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() }
     }
+    val avatarShape = MaterialShapes.Cookie9Sided.toShape()
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            modifier = Modifier.size(72.dp).clip(CircleShape),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            onClick = {
-                photoPicker.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                )
-            },
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (avatarBitmap != null) {
-                    Image(
-                        bitmap = avatarBitmap.asImageBitmap(),
-                        contentDescription = "Foto de perfil (toque para trocar)",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        Icons.Rounded.Person,
-                        contentDescription = "Adicionar foto de perfil",
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.size(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(user.name, style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = onEditName) {
-                    Icon(
-                        Icons.Outlined.Edit,
-                        contentDescription = "Editar nome",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Text(
-                user.email,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "Cadastrado em ${formatDate(user.createdAt)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "Toque na foto para trocá-la",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun EditNameDialog(
-    currentName: String,
-    isUpdating: Boolean,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var name by remember { mutableStateOf(currentName) }
-
-    AlertDialog(
-        onDismissRequest = { if (!isUpdating) onDismiss() },
-        title = { Text("Editar nome") },
-        text = {
-            com.lifeforge.presentation.common.LifeForgeTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = "Nome",
-                enabled = !isUpdating,
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(name) },
-                enabled = !isUpdating && name.trim().isNotEmpty(),
-            ) {
-                Text(if (isUpdating) "Salvando..." else "Salvar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isUpdating) {
-                Text("Cancelar")
-            }
-        },
-    )
-}
-
-// ============================================================================
-// Risk Profile
-// ============================================================================
-
-@Composable
-private fun RiskProfileCard(user: User, onEditClick: () -> Unit) {
-    SettingsItemCard(
-        icon = Icons.Outlined.Flag,
-        title = "Perfil de risco",
-        subtitle = user.riskProfile.label(),
-        onClick = onEditClick,
-    )
-}
-
-@Composable
-private fun RiskProfileDialog(
-    currentProfile: RiskProfile,
-    isUpdating: Boolean,
-    onConfirm: (RiskProfile) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var selected by remember { mutableStateOf(currentProfile) }
-
-    AlertDialog(
-        onDismissRequest = { if (!isUpdating) onDismiss() },
-        title = { Text("Alterar perfil de risco") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "O perfil de risco influencia as sugestões de " +
-                        "carteira no modo Otimização.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                RiskProfile.entries.forEach { profile ->
-                    FilterChip(
-                        selected = selected == profile,
-                        onClick = { selected = profile },
-                        label = { Text(profile.label()) },
-                        enabled = !isUpdating,
-                        colors = FilterChipDefaults.filterChipColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(selected) },
-                enabled = !isUpdating && selected != currentProfile,
-            ) {
-                Text(if (isUpdating) "Salvando..." else "Confirmar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isUpdating) {
-                Text("Cancelar")
-            }
-        },
-    )
-}
-
-// ============================================================================
-// Usage Summary
-// ============================================================================
-
-@Composable
-private fun UsageCard(counts: UsageCounts) {
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Resumo de uso",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+        Box {
+            Surface(
+                onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                shape = avatarShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier
+                    .size(112.dp)
+                    .semantics {
+                        contentDescription = if (avatarBitmap != null) "Foto de perfil, toque para trocar" else "Adicionar foto de perfil"
+                    },
             ) {
-                UsageStat(value = counts.goalsCount.toString(), label = "Metas")
-                UsageStat(value = counts.incomesCount.toString(), label = "Receitas")
-                UsageStat(value = counts.expensesCount.toString(), label = "Despesas")
-                UsageStat(value = counts.assetsCount.toString(), label = "Ativos")
+                Box(contentAlignment = Alignment.Center) {
+                    if (avatarBitmap != null) {
+                        Image(
+                            bitmap = avatarBitmap.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(avatarShape),
+                        )
+                    } else {
+                        Icon(
+                            Icons.Rounded.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(56.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            }
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 4.dp, y = 4.dp)
+                    .size(36.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun UsageStat(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 8.dp),
+        ) {
+            Text(
+                user.name,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() },
+            )
+            IconButton(onClick = onEditName) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = "Editar nome",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Text(user.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            value,
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
+            "Cadastrado em ${formatDate(user.createdAt)}",
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
-// ============================================================================
-// Settings (theme)
-// ============================================================================
-
+/** Resumo de uso: quantos registros de cada tipo o usuário tem. */
 @Composable
-private fun SettingsCard(themeMode: ThemeMode, onThemeClick: () -> Unit) {
-    SettingsItemCard(
-        icon = Icons.Outlined.DarkMode,
-        title = "Tema",
-        subtitle = themeMode.label(),
-        onClick = onThemeClick,
-    )
+private fun UsageRow(counts: UsageCounts) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        UsageStat(counts.goalsCount, "Metas", Modifier.weight(1f))
+        UsageStat(counts.incomesCount, "Receitas", Modifier.weight(1f))
+        UsageStat(counts.expensesCount, "Despesas", Modifier.weight(1f))
+        UsageStat(counts.assetsCount, "Ativos", Modifier.weight(1f))
+    }
 }
 
 @Composable
-private fun ThemeDialog(
-    currentMode: ThemeMode,
-    onSelect: (ThemeMode) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Tema do app") },
-        text = {
-            Column {
-                ThemeMode.entries.forEach { mode ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = currentMode == mode,
-                            onClick = { onSelect(mode) },
-                        )
-                        Spacer(Modifier.size(8.dp))
-                        Text(mode.label())
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Fechar")
-            }
-        },
-    )
-}
-
-// ============================================================================
-// Cores dinâmicas (Material You)
-// ============================================================================
-
-/**
- * Personalização opcional: deriva a paleta do papel de parede (Material You).
- * Só aparece no Android 12+; o padrão desligado preserva o tema da marca.
- */
-@Composable
-private fun DynamicColorCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
-    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+private fun UsageStat(value: Int, label: String, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.semantics(mergeDescendants = true) { contentDescription = "$value $label" },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(
-                Icons.Outlined.Palette,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.size(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Cores dinâmicas", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Usa as cores do seu papel de parede (Material You)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(checked = enabled, onCheckedChange = onToggle)
+            Text(value.toString(), style = MaterialTheme.typography.titleLargeEmphasized, color = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 // ============================================================================
-// Ajuda e feedback
+// Aparência
 // ============================================================================
 
 /**
- * Padrão "Ajuda e feedback": canal direto com os autores por e-mail, com
- * assunto e versão pré-preenchidos para facilitar o relato.
+ * Tema (seguir o sistema, claro ou escuro) em botões conectados, aplicado na
+ * hora, e as cores dinâmicas do papel de parede (Android 12+), num grupo
+ * segmentado.
  */
 @Composable
-private fun HelpAndFeedbackCard() {
-    val context = LocalContext.current
-    SettingsItemCard(
-        icon = Icons.AutoMirrored.Outlined.HelpOutline,
-        title = "Ajuda e feedback",
-        subtitle = "Encontrou um problema ou tem uma sugestão? Fale com a gente",
-        onClick = {
-            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = Uri.parse("mailto:")
-                putExtra(Intent.EXTRA_EMAIL, arrayOf("gabrielinnocencio22@gmail.com"))
-                putExtra(Intent.EXTRA_SUBJECT, "LifeForge — Ajuda e feedback (v1.0.0)")
+private fun AppearanceGroup(
+    themeMode: ThemeMode,
+    onThemeChange: (ThemeMode) -> Unit,
+    dynamicColor: Boolean,
+    onDynamicColorChange: (Boolean) -> Unit,
+) {
+    val hasDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val count = if (hasDynamicColor) 2 else 1
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Aparência",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(start = 16.dp, bottom = 8.dp)
+                .semantics { heading() },
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = ListItemDefaults.segmentedShapes(index = 0, count = count).shape,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.DarkMode, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Tema", style = MaterialTheme.typography.bodyLarge)
+                    }
+                    ConnectedChoice(
+                        options = ThemeMode.entries,
+                        selected = themeMode,
+                        onSelect = onThemeChange,
+                        label = { it.label() },
+                        icon = { it.icon() },
+                        // O bloco já tem a cor de contêiner padrão dos botões.
+                        colors = ToggleButtonDefaults.toggleButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        ),
+                    )
+                }
             }
-            runCatching { context.startActivity(intent) }
-        },
-    )
+            if (hasDynamicColor) {
+                SegmentedListItem(
+                    onClick = { onDynamicColorChange(!dynamicColor) },
+                    shapes = ListItemDefaults.segmentedShapes(index = 1, count = count),
+                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    leadingContent = {
+                        Icon(Icons.Outlined.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    supportingContent = {
+                        Text("Usa as cores do seu papel de parede (Material You)", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    trailingContent = { Switch(checked = dynamicColor, onCheckedChange = null) },
+                ) {
+                    Text("Cores dinâmicas")
+                }
+            }
+        }
+    }
 }
 
-// ============================================================================
-// About
-// ============================================================================
-
-@Composable
-private fun AboutCard(onClick: () -> Unit) {
-    SettingsItemCard(
-        icon = Icons.Outlined.Info,
-        title = "Sobre o LifeForge",
-        subtitle = "Versão, créditos e detalhes do TCC",
-        onClick = onClick,
-    )
+private fun ThemeMode.label(): String = when (this) {
+    ThemeMode.SYSTEM -> "Sistema"
+    ThemeMode.LIGHT -> "Claro"
+    ThemeMode.DARK -> "Escuro"
 }
 
-@Composable
-private fun AboutDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Sobre o LifeForge") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Versão 1.0.0", style = MaterialTheme.typography.titleSmall)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Plataforma de planejamento de vida com simulação de " +
-                        "Monte Carlo, otimização financeira e modelo preditivo.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "TCC — Trabalho de Conclusão de Curso",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(
-                    "Autores: Gabriel Innocêncio e Bruno Rodrigues dos Santos\n" +
-                        "Orientador: Prof. José Martins Junior",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Stack: Android (Kotlin + Jetpack Compose), " +
-                        "Backend (Ktor), Microsserviço ML (Python/FastAPI), " +
-                        "Postgres, Docker.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Fechar") }
-        },
-    )
+private fun ThemeMode.icon() = when (this) {
+    ThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+    ThemeMode.LIGHT -> Icons.Outlined.LightMode
+    ThemeMode.DARK -> Icons.Outlined.DarkMode
 }
 
 // ============================================================================
@@ -660,100 +498,155 @@ private fun AboutDialog(onDismiss: () -> Unit) {
  * Estado da sincronização entre o aparelho e o servidor: o app funciona sem
  * conexão e envia as alterações pendentes quando a rede volta.
  */
-@Composable
-private fun SyncCard(status: SyncStatus, isSyncing: Boolean, onSyncNow: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                if (status.isOnline) Icons.Outlined.CloudDone else Icons.Outlined.CloudOff,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.size(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Sincronização", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    syncStatusMessage(status),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    status.lastSyncAt?.let { "Última sincronização: ${formatDateTime(it)}" }
-                        ?: "Ainda não sincronizado neste aparelho",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (isSyncing) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-            } else {
-                TextButton(onClick = onSyncNow, enabled = status.isOnline) { Text("Sincronizar") }
-            }
+private fun syncItem(status: SyncStatus, isSyncing: Boolean, onSyncNow: () -> Unit) = GroupItem(
+    headline = "Sincronização",
+    supporting = syncStatusMessage(status) + "\n" +
+        (status.lastSyncAt?.let { "Última: ${formatDateTime(it)}" } ?: "Ainda não sincronizado neste aparelho"),
+    icon = if (status.isOnline) Icons.Outlined.CloudDone else Icons.Outlined.CloudOff,
+    trailing = {
+        if (isSyncing) {
+            LoadingIndicator(modifier = Modifier.size(36.dp))
+        } else {
+            TextButton(onClick = onSyncNow, enabled = status.isOnline) { Text("Sincronizar") }
         }
-    }
-}
+    },
+)
 
 // ============================================================================
-// Shared building block — settings row card
+// Ajuda e feedback
 // ============================================================================
 
 /**
- * Linha de configuracao: icone + titulo + subtitulo + chevron a direita.
- * Toda secao "Perfil de risco" / "Tema" / "Sobre" usa este card.
+ * Padrão "Ajuda e feedback": canal direto com os autores por e-mail, com
+ * assunto e versão pré-preenchidos para facilitar o relato.
  */
+private fun sendFeedbackEmail(context: android.content.Context) {
+    val intent = Intent(Intent.ACTION_SENDTO).apply {
+        data = Uri.parse("mailto:")
+        putExtra(Intent.EXTRA_EMAIL, arrayOf("gabrielinnocencio22@gmail.com"))
+        putExtra(Intent.EXTRA_SUBJECT, "LifeForge — Ajuda e feedback (v1.0.0)")
+    }
+    runCatching { context.startActivity(intent) }
+}
+
+// ============================================================================
+// Diálogos
+// ============================================================================
+
 @Composable
-private fun SettingsItemCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
+private fun EditNameDialog(
+    currentName: String,
+    isUpdating: Boolean,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+    var name by remember { mutableStateOf(currentName) }
+    AlertDialog(
+        onDismissRequest = { if (!isUpdating) onDismiss() },
+        icon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+        title = { Text("Editar nome") },
+        text = {
+            LifeForgeTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = "Nome",
+                enabled = !isUpdating,
             )
-            Spacer(Modifier.size(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(name) }, enabled = !isUpdating && name.trim().isNotEmpty()) {
+                Text(if (isUpdating) "Salvando…" else "Salvar")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isUpdating) { Text("Cancelar") } },
+    )
+}
+
+/** Perfis de risco como opções com explicação; a escolha atual vem marcada. */
+@Composable
+private fun RiskProfileDialog(
+    currentProfile: RiskProfile,
+    isUpdating: Boolean,
+    onConfirm: (RiskProfile) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(currentProfile) }
+    AlertDialog(
+        onDismissRequest = { if (!isUpdating) onDismiss() },
+        icon = { Icon(Icons.Outlined.Shield, contentDescription = null) },
+        title = { Text("Perfil de risco") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    subtitle,
+                    "Define a carteira sugerida na otimização e as premissas da simulação com IA.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                    RiskProfile.entries.forEachIndexed { index, profile ->
+                        SegmentedListItem(
+                            selected = selected == profile,
+                            onClick = { selected = profile },
+                            enabled = !isUpdating,
+                            shapes = ListItemDefaults.segmentedShapes(index = index, count = RiskProfile.entries.size),
+                            colors = ListItemDefaults.segmentedColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            ),
+                            supportingContent = { Text(profile.description()) },
+                            trailingContent = if (selected == profile) {
+                                { Icon(Icons.Rounded.Check, contentDescription = null) }
+                            } else {
+                                null
+                            },
+                        ) {
+                            Text(profile.label())
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(selected) }, enabled = !isUpdating && selected != currentProfile) {
+                Text(if (isUpdating) "Salvando…" else "Confirmar")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !isUpdating) { Text("Cancelar") } },
+    )
+}
+
+private fun RiskProfile.description(): String = when (this) {
+    RiskProfile.CONSERVATIVE -> "Prioriza a segurança: mais renda fixa, menos oscilação."
+    RiskProfile.MODERATE -> "Equilibra risco e retorno."
+    RiskProfile.AGGRESSIVE -> "Aceita oscilações maiores em busca de mais retorno."
+}
+
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+        title = { Text("Sobre o LifeForge") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Versão 1.0.0", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Plataforma de planejamento de vida com simulação de Monte Carlo, otimização " +
+                        "financeira e modelos preditivos.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text("TCC — Trabalho de Conclusão de Curso", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "Autores: Gabriel Innocêncio e Bruno Rodrigues dos Santos\nOrientador: Prof. José Martins Junior",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    "Stack: Android (Kotlin + Jetpack Compose), Backend (Ktor), Microsserviço de IA " +
+                        "(Python/FastAPI), PostgreSQL, Docker.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(
-                Icons.Rounded.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-// ============================================================================
-// Local label extension for ThemeMode
-// ============================================================================
-
-private fun ThemeMode.label(): String = when (this) {
-    ThemeMode.SYSTEM -> "Seguir o sistema"
-    ThemeMode.LIGHT -> "Claro"
-    ThemeMode.DARK -> "Escuro"
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } },
+    )
 }
