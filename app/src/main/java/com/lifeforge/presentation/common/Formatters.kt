@@ -162,3 +162,12 @@ fun formatMonthShort(month: Month): String =
     month.getDisplayName(TextStyle.SHORT, ptBR)
         .removeSuffix(".")
         .replaceFirstChar { it.titlecase(ptBR) }
+
+/** Prazo legível: 240 → "20 anos", 30 → "2 anos e 6 meses", 8 → "8 meses". */
+fun formatHorizon(months: Int): String {
+    val years = months / 12
+    val rest = months % 12
+    val y = when (years) { 0 -> null; 1 -> "1 ano"; else -> "$years anos" }
+    val m = when (rest) { 0 -> null; 1 -> "1 mês"; else -> "$rest meses" }
+    return listOfNotNull(y, m).joinToString(" e ").ifEmpty { "0 meses" }
+}

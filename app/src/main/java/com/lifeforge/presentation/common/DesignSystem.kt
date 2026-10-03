@@ -41,6 +41,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
@@ -568,5 +569,33 @@ fun ExpandableSection(
                 )
             }
         }
+    }
+}
+
+/**
+ * Barra fixa com a ação principal de um cálculo (simular, otimizar). Durante a
+ * execução, o botão diz o que está rodando e um indicador ondulado (Material 3
+ * Expressive) sinaliza o trabalho em andamento.
+ */
+@Composable
+fun ProgressActionBar(
+    isRunning: Boolean,
+    runningText: String,
+    idleText: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    icon: ImageVector? = null,
+) {
+    BottomActionBar {
+        if (isRunning) {
+            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        ActionButton(
+            text = if (isRunning) runningText else idleText,
+            icon = icon,
+            onClick = onClick,
+            enabled = enabled && !isRunning,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

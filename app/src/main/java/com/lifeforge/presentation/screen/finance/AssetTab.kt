@@ -1,15 +1,9 @@
 package com.lifeforge.presentation.screen.finance
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material3.MaterialTheme
@@ -20,17 +14,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.Asset
 import com.lifeforge.domain.model.AssetType
+import com.lifeforge.presentation.common.AllocationBar
+import com.lifeforge.presentation.common.AllocationShare
 import com.lifeforge.presentation.common.AutoSizeText
-import com.lifeforge.presentation.common.ChartLegend
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.MoneyField
@@ -129,19 +120,8 @@ internal fun assetAllocation(assets: List<Asset>): List<AllocationSlice> {
 @Composable
 private fun AllocationCard(assets: List<Asset>, modifier: Modifier = Modifier) {
     val total = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
-    val slices = remember(assets) { assetAllocation(assets) }
+    val shares = remember(assets) { assetAllocation(assets).map { AllocationShare(it.type.label(), it.share) } }
     val colors = MaterialTheme.colorScheme
-    val palette = listOf(
-        colors.primary,
-        colors.tertiary,
-        colors.secondary,
-        colors.primary.copy(alpha = 0.5f),
-        colors.tertiary.copy(alpha = 0.5f),
-        colors.outline,
-    )
-    val sliceColors: List<Color> = slices.indices.map { palette[it % palette.size] }
-    val description = "Alocação: " + slices.joinToString { "${it.type.label()} ${percentText(it.share)}" }
-
     Surface(
         color = colors.surfaceContainerLow,
         shape = MaterialTheme.shapes.extraLarge,
@@ -162,31 +142,7 @@ private fun AllocationCard(assets: List<Asset>, modifier: Modifier = Modifier) {
                     color = colors.onSurfaceVariant,
                 )
             }
-            if (slices.isNotEmpty()) {
-                // Barra de alocação: cada tipo ocupa a largura proporcional ao seu valor.
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(12.dp)
-                        .clip(CircleShape)
-                        .semantics { contentDescription = description },
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    slices.forEachIndexed { index, slice ->
-                        Box(
-                            Modifier
-                                .weight(slice.share.toFloat().coerceAtLeast(0.01f))
-                                .fillMaxHeight()
-                                .background(sliceColors[index]),
-                        )
-                    }
-                }
-                ChartLegend(
-                    entries = slices.mapIndexed { index, slice ->
-                        "${slice.type.label()} ${percentText(slice.share)}" to sliceColors[index]
-                    },
-                )
-            }
+            AllocationBar(shares = shares)
         }
     }
 }

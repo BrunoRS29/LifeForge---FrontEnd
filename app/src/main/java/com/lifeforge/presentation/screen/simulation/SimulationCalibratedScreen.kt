@@ -47,9 +47,12 @@ import com.lifeforge.presentation.common.DetailTopAppBar
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.FormSection
 import com.lifeforge.presentation.common.MoneyField
+import com.lifeforge.presentation.common.MonthsField
+import com.lifeforge.presentation.common.ProgressActionBar
 import com.lifeforge.presentation.common.ScreenPadding
 import com.lifeforge.presentation.common.SectionHeader
 import com.lifeforge.presentation.common.ShapeIcon
+import com.lifeforge.presentation.common.UseTotalAssetsChip
 import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatProbability
@@ -91,12 +94,12 @@ fun SimulationCalibratedScreen(
             )
         },
         bottomBar = {
-            RunBar(
+            ProgressActionBar(
                 isRunning = state.isRunning,
                 runningText = state.progressMessage ?: "Calibrando…",
                 idleText = "Simular com IA",
                 enabled = state.form.canRun,
-                onRun = viewModel::runCalibrated,
+                onClick = viewModel::runCalibrated,
                 icon = Icons.Outlined.AutoAwesome,
             )
         },

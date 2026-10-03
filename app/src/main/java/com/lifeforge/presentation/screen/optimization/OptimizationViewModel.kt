@@ -2,10 +2,10 @@ package com.lifeforge.presentation.screen.optimization
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lifeforge.domain.model.GoalHorizon
 import com.lifeforge.domain.model.AppError
 import com.lifeforge.domain.model.DataResult
 import com.lifeforge.domain.model.Goal
+import com.lifeforge.domain.model.GoalHorizon
 import com.lifeforge.domain.model.OptimizationResult
 import com.lifeforge.domain.model.RebalanceResult
 import com.lifeforge.domain.model.RiskProfile
@@ -15,7 +15,9 @@ import com.lifeforge.domain.usecase.ObserveGoalsUseCase
 import com.lifeforge.domain.usecase.OptimizeContributionUseCase
 import com.lifeforge.domain.usecase.OptimizeHorizonUseCase
 import com.lifeforge.domain.usecase.RebalanceUseCase
+import com.lifeforge.presentation.common.fractionToPercentInput
 import com.lifeforge.presentation.common.parseCurrencyInputAsDouble
+import com.lifeforge.presentation.common.parsePercentInputAsDouble
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -75,8 +77,8 @@ class OptimizationViewModel @Inject constructor(
     private fun loadCdiDefaults() {
         viewModelScope.launch {
             val ref = (getReferenceData() as? DataResult.Success)?.data ?: return@launch
-            val cdi = fraction(ref.cdiAnnual)
-            val cdiVol = fraction(ref.cdiVolatilityAnnual)
+            val cdi = fractionToPercentInput(ref.cdiAnnual)
+            val cdiVol = fractionToPercentInput(ref.cdiVolatilityAnnual)
             val cDef = ContributionForm()
             val hDef = HorizonForm()
             _state.update { s ->
@@ -167,11 +169,12 @@ class OptimizationViewModel @Inject constructor(
     fun runContribution() {
         val form = _state.value.contributionForm
         val initialCapital = parseCurrencyInputAsDouble(form.initialCapital) ?: 0.0
-        val expectedReturn = parseCurrencyInputAsDouble(form.expectedReturnAnnual)
-        val volatility = parseCurrencyInputAsDouble(form.volatilityAnnual)
+        // Taxas e probabilidade digitadas em porcentagem; o motor recebe a fração.
+        val expectedReturn = parsePercentInputAsDouble(form.expectedReturnAnnual)
+        val volatility = parsePercentInputAsDouble(form.volatilityAnnual)
         val targetAmount = parseCurrencyInputAsDouble(form.targetAmount)
         val horizon = form.horizonMonths.toIntOrNull()
-        val targetProb = parseCurrencyInputAsDouble(form.targetSuccessProbability)
+        val targetProb = parsePercentInputAsDouble(form.targetSuccessProbability)
 
         if (expectedReturn == null || volatility == null || targetAmount == null
             || horizon == null || targetProb == null) {
@@ -206,11 +209,11 @@ class OptimizationViewModel @Inject constructor(
     fun runHorizon() {
         val form = _state.value.horizonForm
         val initialCapital = parseCurrencyInputAsDouble(form.initialCapital) ?: 0.0
-        val expectedReturn = parseCurrencyInputAsDouble(form.expectedReturnAnnual)
-        val volatility = parseCurrencyInputAsDouble(form.volatilityAnnual)
+        val expectedReturn = parsePercentInputAsDouble(form.expectedReturnAnnual)
+        val volatility = parsePercentInputAsDouble(form.volatilityAnnual)
         val targetAmount = parseCurrencyInputAsDouble(form.targetAmount)
         val monthly = parseCurrencyInputAsDouble(form.monthlyContribution)
-        val targetProb = parseCurrencyInputAsDouble(form.targetSuccessProbability)
+        val targetProb = parsePercentInputAsDouble(form.targetSuccessProbability)
 
         if (expectedReturn == null || volatility == null || targetAmount == null
             || monthly == null || targetProb == null) {
@@ -297,10 +300,6 @@ class OptimizationViewModel @Inject constructor(
     }
 
     companion object {
-        /** Fração anual → input com vírgula decimal (0.005 → "0,005"). */
-        private fun fraction(value: Double): String =
-            BigDecimal.valueOf(value).stripTrailingZeros().toPlainString().replace('.', ',')
-
         /** Troca pelo [calibrated] apenas se o campo ainda está no default estático. */
         private fun String.ifDefault(default: String, calibrated: String): String =
             if (this == default) calibrated else this
@@ -329,16 +328,22 @@ data class OptimizationUiState(
  * Forms de otimização — todos os campos como String para permitir
  * input livre, parse acontece na hora de submeter. Valores default
  * pre-populados refletem cenários típicos brasileiros (Selic ~8%,
- * volatilidade Ibovespa ~20%).
+ * volatilidade Ibovespa ~20%). Taxas e probabilidade em porcentagem.
  */
+
+/**
+ * Probabilidade-alvo padrão (80%): o mesmo limiar do backend (TCC, Seção 4.6)
+ * e do selo "No caminho" das metas ([com.lifeforge.domain.model.GoalHealthEvaluator]).
+ */
+const val DEFAULT_TARGET_PROBABILITY = "80"
 
 data class ContributionForm(
     val initialCapital: String = "10000",
-    val expectedReturnAnnual: String = "0,08",
-    val volatilityAnnual: String = "0,15",
+    val expectedReturnAnnual: String = "8",
+    val volatilityAnnual: String = "15",
     val targetAmount: String = "500000",
     val horizonMonths: String = "120",
-    val targetSuccessProbability: String = "0,90",
+    val targetSuccessProbability: String = DEFAULT_TARGET_PROBABILITY,
     /** Nome da meta importada (só exibição). */
     val selectedGoalName: String? = null,
 ) {
@@ -350,11 +355,11 @@ data class ContributionForm(
 
 data class HorizonForm(
     val initialCapital: String = "10000",
-    val expectedReturnAnnual: String = "0,08",
-    val volatilityAnnual: String = "0,15",
+    val expectedReturnAnnual: String = "8",
+    val volatilityAnnual: String = "15",
     val targetAmount: String = "500000",
     val monthlyContribution: String = "2000",
-    val targetSuccessProbability: String = "0,90",
+    val targetSuccessProbability: String = DEFAULT_TARGET_PROBABILITY,
     /** Nome da meta importada (só exibição). */
     val selectedGoalName: String? = null,
 ) {

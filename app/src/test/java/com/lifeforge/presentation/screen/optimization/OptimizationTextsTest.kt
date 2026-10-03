@@ -1,9 +1,10 @@
 package com.lifeforge.presentation.screen.optimization
 
 import com.google.common.truth.Truth.assertThat
+import com.lifeforge.domain.model.TerminationReason
 import org.junit.Test
 
-/** Nota de erro amostral quando a verificação fica um pouco abaixo do alvo. */
+/** Textos do resultado da otimização: erro amostral, fim da busca e prazo. */
 class OptimizationTextsTest {
 
     @Test
@@ -25,5 +26,18 @@ class OptimizationTextsTest {
     @Test
     fun `diferenca maior que o erro amostral nao e mascarada`() {
         assertThat(samplingNote(achieved = 0.85, target = 0.90)).isNull()
+    }
+
+    @Test
+    fun `convergencia normal nao precisa de explicacao`() {
+        assertThat(terminationText(TerminationReason.CONVERGED)).isNull()
+        assertThat(terminationText(TerminationReason.INFEASIBLE_UPPER_BOUND)).startsWith("Nem o teto da busca")
+    }
+
+    @Test
+    fun `prazo em anos e meses ou menos de um mes`() {
+        assertThat(formatPeriod(30.0)).isEqualTo("2 anos e 6 meses")
+        assertThat(formatPeriod(12.4)).isEqualTo("1 ano")
+        assertThat(formatPeriod(0.5)).isEqualTo("Menos de 1 mês")
     }
 }

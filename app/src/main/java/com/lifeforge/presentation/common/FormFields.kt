@@ -1,11 +1,17 @@
 package com.lifeforge.presentation.common
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,7 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.foundation.text.KeyboardOptions
+import java.math.BigDecimal
 
 /**
  * Campos de formulário com erro inline. Encapsulam padrões repetitivos
@@ -125,5 +131,48 @@ fun LifeForgePasswordField(
         enabled = enabled,
         singleLine = true,
         modifier = modifier,
+    )
+}
+
+/** Campo de prazo em meses, com o equivalente em anos logo abaixo ("27 anos e 3 meses"). */
+@Composable
+fun MonthsField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean,
+    imeAction: ImeAction = ImeAction.Next,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
+    val months = value.toIntOrNull()
+    OutlinedTextField(
+        value = value,
+        onValueChange = { input -> onValueChange(input.filter { it.isDigit() }) },
+        label = { Text(label) },
+        suffix = { Text("\u00A0meses") },
+        supportingText = months?.let { { Text(formatHorizon(it)) } },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = imeAction),
+        singleLine = true,
+        enabled = enabled,
+        modifier = modifier,
+    )
+}
+
+/** Atalho para preencher um capital com a soma dos ativos cadastrados. */
+@Composable
+fun UseTotalAssetsChip(totalAssets: BigDecimal?, enabled: Boolean, onClick: () -> Unit) {
+    if (totalAssets == null || totalAssets.signum() <= 0) return
+    AssistChip(
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text("Usar patrimônio total (${formatBrl(totalAssets)})") },
+        leadingIcon = {
+            Icon(
+                Icons.Outlined.AccountBalanceWallet,
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+        },
+        colors = AssistChipDefaults.assistChipColors(leadingIconContentColor = MaterialTheme.colorScheme.primary),
     )
 }

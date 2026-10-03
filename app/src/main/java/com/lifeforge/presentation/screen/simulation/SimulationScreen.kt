@@ -12,20 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AutoGraph
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
@@ -42,31 +35,32 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.SimulationInputs
 import com.lifeforge.domain.model.SimulationSummary
 import com.lifeforge.presentation.common.ActionButton
-import com.lifeforge.presentation.common.BottomActionBar
 import com.lifeforge.presentation.common.ConnectedChoice
 import com.lifeforge.presentation.common.DetailTopAppBar
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.ExpandableSection
 import com.lifeforge.presentation.common.FormSection
 import com.lifeforge.presentation.common.MoneyField
+import com.lifeforge.presentation.common.MonthsField
 import com.lifeforge.presentation.common.PercentField
+import com.lifeforge.presentation.common.ProgressActionBar
 import com.lifeforge.presentation.common.ScreenPadding
 import com.lifeforge.presentation.common.SectionHeader
+import com.lifeforge.presentation.common.UseTotalAssetsChip
 import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatCount
 import com.lifeforge.presentation.common.formatDateTime
+import com.lifeforge.presentation.common.formatHorizon
 import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.readableWidth
 
@@ -106,12 +100,13 @@ fun SimulationScreen(
             )
         },
         bottomBar = {
-            RunBar(
+            ProgressActionBar(
                 isRunning = state.isRunning,
                 runningText = "Simulando ${formatCount(state.form.numSimulations)} cenários…",
                 idleText = "Simular",
                 enabled = state.form.canRun,
-                onRun = viewModel::runSimulation,
+                onClick = viewModel::runSimulation,
+                icon = Icons.Outlined.AutoGraph,
             )
         },
     ) { padding ->
@@ -179,34 +174,6 @@ internal fun ScrollToResult(resultId: Long?, scrollState: ScrollState, resultTop
         if (resultId == null) return@LaunchedEffect
         withFrameNanos { } // espera o resultado entrar na composição e ser posicionado
         scrollState.animateScrollTo(resultTop(), spec)
-    }
-}
-
-/**
- * Barra fixa com a ação de simular. Durante a execução, o botão mostra quantos
- * cenários estão rodando e um indicador ondulado (Material 3 Expressive) sinaliza
- * o trabalho em andamento.
- */
-@Composable
-internal fun RunBar(
-    isRunning: Boolean,
-    runningText: String,
-    idleText: String,
-    enabled: Boolean,
-    onRun: () -> Unit,
-    icon: ImageVector = Icons.Outlined.AutoGraph,
-) {
-    BottomActionBar {
-        if (isRunning) {
-            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-        ActionButton(
-            text = if (isRunning) runningText else idleText,
-            icon = icon,
-            onClick = onRun,
-            enabled = enabled && !isRunning,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
@@ -340,50 +307,6 @@ internal fun IterationsChoice(selected: Int, onSelect: (Int) -> Unit, enabled: B
     )
 }
 
-/** Atalho para preencher o capital inicial com a soma dos ativos cadastrados. */
-@Composable
-internal fun UseTotalAssetsChip(totalAssets: java.math.BigDecimal?, enabled: Boolean, onClick: () -> Unit) {
-    if (totalAssets == null || totalAssets.signum() <= 0) return
-    AssistChip(
-        onClick = onClick,
-        enabled = enabled,
-        label = { Text("Usar patrimônio total (${formatBrl(totalAssets)})") },
-        leadingIcon = {
-            Icon(
-                Icons.Outlined.AccountBalanceWallet,
-                contentDescription = null,
-                modifier = Modifier.size(AssistChipDefaults.IconSize),
-            )
-        },
-        colors = AssistChipDefaults.assistChipColors(
-            leadingIconContentColor = MaterialTheme.colorScheme.primary,
-        ),
-    )
-}
-
-/** Campo de prazo em meses, com o equivalente em anos logo abaixo. */
-@Composable
-internal fun MonthsField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    enabled: Boolean,
-    imeAction: ImeAction = ImeAction.Next,
-) {
-    val months = value.toIntOrNull()
-    OutlinedTextField(
-        value = value,
-        onValueChange = { input -> onValueChange(input.filter { it.isDigit() }) },
-        label = { Text(label) },
-        suffix = { Text(" meses") },
-        supportingText = months?.let { { Text(formatHorizon(it)) } },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = imeAction),
-        singleLine = true,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
 // ============================================================================
 // Histórico
 // ============================================================================
@@ -501,12 +424,3 @@ private fun HistoryItem(
 internal fun strategyLine(inputs: SimulationInputs): String =
     "Aporte ${formatBrl(inputs.monthlyContribution)} · ${formatAnnualRate(inputs.expectedReturnAnnual)} a.a. · " +
         "vol. ${formatAnnualRate(inputs.volatilityAnnual)} · ${formatHorizon(inputs.horizonMonths)}"
-
-/** Horizonte legível: 240 → "20 anos", 30 → "2 anos e 6 meses", 8 → "8 meses". */
-internal fun formatHorizon(months: Int): String {
-    val years = months / 12
-    val rest = months % 12
-    val y = when (years) { 0 -> null; 1 -> "1 ano"; else -> "$years anos" }
-    val m = when (rest) { 0 -> null; 1 -> "1 mês"; else -> "$rest meses" }
-    return listOfNotNull(y, m).joinToString(" e ").ifEmpty { "0 meses" }
-}

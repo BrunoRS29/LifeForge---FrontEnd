@@ -64,6 +64,7 @@ import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
 import com.lifeforge.presentation.common.formatDateTime
+import com.lifeforge.presentation.common.formatHorizon
 import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.monthAxisSpacing
 import com.lifeforge.presentation.common.monthItemPlacer
