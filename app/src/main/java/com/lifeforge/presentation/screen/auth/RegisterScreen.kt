@@ -4,29 +4,29 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,39 +34,59 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.EmploymentType
 import com.lifeforge.domain.model.RiskProfile
-import com.lifeforge.presentation.common.CurrencyField
+import com.lifeforge.presentation.common.ActionButton
+import com.lifeforge.presentation.common.BottomActionBar
+import com.lifeforge.presentation.common.ConnectedChoice
+import com.lifeforge.presentation.common.DetailTopAppBar
 import com.lifeforge.presentation.common.ErrorBanner
+import com.lifeforge.presentation.common.FormMaxWidth
+import com.lifeforge.presentation.common.FormSection
 import com.lifeforge.presentation.common.LifeForgePasswordField
 import com.lifeforge.presentation.common.LifeForgeTextField
 import com.lifeforge.presentation.common.LoadingOverlay
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import com.lifeforge.presentation.common.MoneyField
+import com.lifeforge.presentation.common.ScreenPadding
+import com.lifeforge.presentation.common.label
+import com.lifeforge.presentation.common.readableWidth
 
 /**
- * Tela de registro. Diferente do login, tem top bar com back button
- * porque é uma navegação "filha" (push em cima da pilha de auth).
+ * Cadastro: a conta (com tipos de conteúdo para o preenchimento automático e a
+ * sugestão de senha forte do gerenciador de senhas), o perfil de risco opcional
+ * e os dados essenciais para projeções, também opcionais. "Criar conta" fica
+ * fixo na base, acima do teclado.
  *
- * O grupo de chips de perfil de risco é opcional — backend assume
- * `MODERATE` quando nenhum é selecionado. Texto explicativo embaixo
- * deixa isso claro para o usuário.
+ * Perfil de risco: tocar na opção marcada desfaz a escolha — o backend assume
+ * `MODERATE` quando nenhuma é enviada.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     onNavigateBack: () -> Unit,
     viewModel: RegisterViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val enabled = !state.isSubmitting
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text("Criar conta") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack, enabled = !state.isSubmitting) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
+            DetailTopAppBar(
+                title = "Criar conta",
+                onNavigateBack = onNavigateBack,
+                scrollBehavior = scrollBehavior,
+                navigationEnabled = enabled,
             )
+        },
+        bottomBar = {
+            BottomActionBar {
+                ActionButton(
+                    text = "Criar conta",
+                    icon = Icons.Rounded.PersonAdd,
+                    onClick = viewModel::submit,
+                    enabled = state.canSubmit,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -74,127 +94,110 @@ fun RegisterScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .imePadding()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .readableWidth(FormMaxWidth)
+                    .padding(horizontal = ScreenPadding)
+                    .padding(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {
                 if (state.errorBanner != null) {
-                    ErrorBanner(
-                        message = state.errorBanner!!,
-                        onDismiss = viewModel::onErrorBannerDismiss,
+                    ErrorBanner(message = state.errorBanner!!, onDismiss = viewModel::onErrorBannerDismiss)
+                }
+
+                FormSection(title = "Sua conta") {
+                    LifeForgeTextField(
+                        value = state.name,
+                        onValueChange = viewModel::onNameChange,
+                        label = "Nome completo",
+                        error = state.nameError,
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Next,
+                        enabled = enabled,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { contentType = ContentType.PersonFullName },
                     )
-                    Spacer(Modifier.height(16.dp))
+                    LifeForgeTextField(
+                        value = state.email,
+                        onValueChange = viewModel::onEmailChange,
+                        label = "E-mail",
+                        error = state.emailError,
+                        keyboardType = KeyboardType.Email,
+                        capitalization = KeyboardCapitalization.None,
+                        imeAction = ImeAction.Next,
+                        enabled = enabled,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { contentType = ContentType.EmailAddress },
+                    )
+                    LifeForgePasswordField(
+                        value = state.password,
+                        onValueChange = viewModel::onPasswordChange,
+                        label = "Senha (mínimo de 8 caracteres)",
+                        error = state.passwordError,
+                        imeAction = ImeAction.Next,
+                        enabled = enabled,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { contentType = ContentType.NewPassword },
+                    )
                 }
 
-                LifeForgeTextField(
-                    value = state.name,
-                    onValueChange = viewModel::onNameChange,
-                    label = "Nome completo",
-                    error = state.nameError,
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Next,
-                    enabled = !state.isSubmitting,
-                )
-                Spacer(Modifier.height(12.dp))
-                LifeForgeTextField(
-                    value = state.email,
-                    onValueChange = viewModel::onEmailChange,
-                    label = "E-mail",
-                    error = state.emailError,
-                    keyboardType = KeyboardType.Email,
-                    capitalization = KeyboardCapitalization.None,
-                    imeAction = ImeAction.Next,
-                    enabled = !state.isSubmitting,
-                )
-                Spacer(Modifier.height(12.dp))
-                LifeForgePasswordField(
-                    value = state.password,
-                    onValueChange = viewModel::onPasswordChange,
-                    label = "Senha (mínimo 8 caracteres)",
-                    error = state.passwordError,
-                    imeAction = ImeAction.Done,
-                    enabled = !state.isSubmitting,
-                )
-                Spacer(Modifier.height(24.dp))
-
-                Text(
-                    "Perfil de risco (opcional)",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Define o ponto base do rebalanceamento sugerido. " +
-                        "Pode ser alterado depois.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                RiskProfileChips(
-                    selected = state.riskProfile,
-                    onSelect = viewModel::onRiskProfileChange,
-                    enabled = !state.isSubmitting,
-                )
-
-                Spacer(Modifier.height(24.dp))
-                Text(
-                    "Dados para projeções (opcional)",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Ajuda a personalizar suas simulações. Pode preencher depois no Perfil.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(12.dp))
-                LifeForgeTextField(
-                    value = state.age,
-                    onValueChange = viewModel::onAgeChange,
-                    label = "Idade",
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next,
-                    enabled = !state.isSubmitting,
-                )
-                Spacer(Modifier.height(12.dp))
-                CurrencyField(
-                    value = state.monthlySalary,
-                    onValueChange = viewModel::onMonthlySalaryChange,
-                    label = "Salário mensal (R$)",
-                    enabled = !state.isSubmitting,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text("Tipo de vínculo", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
-                EmploymentTypeChips(
-                    selected = state.employmentType,
-                    onSelect = viewModel::onEmploymentTypeChange,
-                    enabled = !state.isSubmitting,
-                )
-                Spacer(Modifier.height(12.dp))
-                LifeForgeTextField(
-                    value = state.retirementAge,
-                    onValueChange = viewModel::onRetirementAgeChange,
-                    label = "Idade desejada de aposentadoria",
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next,
-                    enabled = !state.isSubmitting,
-                )
-                Spacer(Modifier.height(12.dp))
-                CurrencyField(
-                    value = state.monthlyContribution,
-                    onValueChange = viewModel::onMonthlyContributionChange,
-                    label = "Aporte mensal (R$)",
-                    enabled = !state.isSubmitting,
-                )
-
-                Spacer(Modifier.height(32.dp))
-                Button(
-                    onClick = viewModel::submit,
-                    enabled = state.canSubmit,
-                    modifier = Modifier.fillMaxWidth(),
+                FormSection(
+                    title = "Perfil de risco",
+                    supporting = "Opcional. Define o ponto de partida da carteira sugerida; dá para mudar depois.",
                 ) {
-                    Text("Criar conta")
+                    ConnectedChoice<RiskProfile?>(
+                        options = RiskProfile.entries,
+                        selected = state.riskProfile,
+                        // Tocar na opção marcada volta a "não informado".
+                        onSelect = { p -> viewModel.onRiskProfileChange(if (p == state.riskProfile) null else p) },
+                        label = { it?.label().orEmpty() },
+                        enabled = enabled,
+                    )
                 }
-                Spacer(Modifier.height(16.dp))
+
+                FormSection(
+                    title = "Dados para projeções",
+                    supporting = "Opcional. Personaliza as simulações; dá para completar depois no Perfil.",
+                ) {
+                    LifeForgeTextField(
+                        value = state.age,
+                        onValueChange = viewModel::onAgeChange,
+                        label = "Idade",
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Next,
+                        enabled = enabled,
+                        suffix = "anos",
+                    )
+                    MoneyField(
+                        value = state.monthlySalary,
+                        onValueChange = viewModel::onMonthlySalaryChange,
+                        label = "Salário mensal",
+                        enabled = enabled,
+                    )
+                    Text("Tipo de vínculo")
+                    EmploymentTypeChips(
+                        selected = state.employmentType,
+                        onSelect = viewModel::onEmploymentTypeChange,
+                        enabled = enabled,
+                    )
+                    LifeForgeTextField(
+                        value = state.retirementAge,
+                        onValueChange = viewModel::onRetirementAgeChange,
+                        label = "Idade desejada de aposentadoria",
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Next,
+                        enabled = enabled,
+                        suffix = "anos",
+                    )
+                    MoneyField(
+                        value = state.monthlyContribution,
+                        onValueChange = viewModel::onMonthlyContributionChange,
+                        label = "Aporte mensal",
+                        imeAction = ImeAction.Done,
+                        enabled = enabled,
+                    )
+                }
             }
 
             LoadingOverlay(visible = state.isSubmitting)
@@ -202,38 +205,6 @@ fun RegisterScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
-private fun RiskProfileChips(
-    selected: RiskProfile?,
-    onSelect: (RiskProfile?) -> Unit,
-    enabled: Boolean,
-) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        RiskProfile.entries.forEach { profile ->
-            FilterChip(
-                selected = selected == profile,
-                onClick = {
-                    // Tocar no chip selecionado desfaz a seleção (volta a opcional).
-                    onSelect(if (selected == profile) null else profile)
-                },
-                label = { Text(profile.label()) },
-                enabled = enabled,
-            )
-        }
-    }
-}
-
-private fun RiskProfile.label(): String = when (this) {
-    RiskProfile.CONSERVATIVE -> "Conservador"
-    RiskProfile.MODERATE -> "Moderado"
-    RiskProfile.AGGRESSIVE -> "Arrojado"
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun EmploymentTypeChips(
     selected: EmploymentType?,
@@ -245,10 +216,17 @@ private fun EmploymentTypeChips(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         EmploymentType.entries.forEach { type ->
+            val isSelected = selected == type
             FilterChip(
-                selected = selected == type,
-                onClick = { onSelect(if (selected == type) null else type) },
+                selected = isSelected,
+                // Tocar no selecionado desfaz a escolha (campo opcional).
+                onClick = { onSelect(if (isSelected) null else type) },
                 label = { Text(type.label) },
+                leadingIcon = if (isSelected) {
+                    { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                } else {
+                    null
+                },
                 enabled = enabled,
             )
         }

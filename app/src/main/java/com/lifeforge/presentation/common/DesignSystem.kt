@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -445,6 +446,7 @@ fun <T> ConnectedChoice(
     enabled: Boolean = true,
     icon: ((T) -> ImageVector)? = null,
     colors: ToggleButtonColors = ToggleButtonDefaults.toggleButtonColors(),
+    description: ((T) -> String)? = null,
 ) {
     Row(
         modifier = modifier
@@ -467,7 +469,11 @@ fun <T> ConnectedChoice(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 48.dp)
-                    .semantics { role = Role.RadioButton },
+                    .semantics {
+                        role = Role.RadioButton
+                        // Rótulo curto na tela, descrição completa para o TalkBack.
+                        if (description != null) contentDescription = description(option)
+                    },
             ) {
                 if (icon != null) {
                     Icon(icon(option), contentDescription = null, modifier = Modifier.size(ToggleButtonDefaults.IconSize))
