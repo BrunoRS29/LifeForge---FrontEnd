@@ -7,119 +7,115 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.CalibrationSource
 import com.lifeforge.domain.model.CalibrationSummary
 import com.lifeforge.domain.model.RiskProfile
-import com.lifeforge.presentation.common.CurrencyField
+import com.lifeforge.presentation.common.ContentCard
+import com.lifeforge.presentation.common.DetailTopAppBar
 import com.lifeforge.presentation.common.ErrorBanner
+import com.lifeforge.presentation.common.FormSection
+import com.lifeforge.presentation.common.MoneyField
+import com.lifeforge.presentation.common.ScreenPadding
+import com.lifeforge.presentation.common.SectionHeader
+import com.lifeforge.presentation.common.ShapeIcon
 import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
-import com.lifeforge.presentation.common.formatCount
 import com.lifeforge.presentation.common.formatProbability
+import com.lifeforge.presentation.common.readableWidth
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
 
 /**
- * Tela de Simulacao Calibrada por IA (Sprint 5).
+ * Simulação calibrada pela IA: um toque.
  *
- * Diferencas vs SimulationScreen (Sprint 2):
- *  - Subtitulo e descricao explicam o que muda
- *  - Form sem `monthlyContribution` (sera derivado)
- *  - Indicador de progresso mais detalhado (loading de 3-6s)
- *  - Apos sucesso, mostra primeiro o CalibrationSummaryCard explicando
- *    a derivacao do aporte, DEPOIS os graficos do Monte Carlo
- *
- * Reutiliza o [ResultSection] da SimulationScreen (mesmo pacote
- * `com.lifeforge.presentation.screen.simulation`) para nao duplicar o
- * codigo pesado de Vico. Importante: a visibilidade do `ResultSection`
- * em SimulationScreen.kt precisa ser `internal` (nao `private`) para
- * que esta tela consiga referencia-lo. Mudanca de UMA linha la.
- *
- * IMPORTANTE: NAO definimos um wrapper `private fun ResultSection` aqui -
- * isso geraria ambiguidade com o ResultSection do SimulationScreen.kt
- * (mesmo pacote, mesma assinatura, Kotlin nao consegue resolver).
- * Chamamos direto a funcao do mesmo pacote.
+ * Diferenças para a [SimulationScreen]:
+ *  - o formulário não pede o aporte mensal (derivado da renda e da despesa
+ *    previstas) nem as premissas de mercado (vêm da base de referência,
+ *    calibradas pelo perfil de risco e pelo vínculo);
+ *  - depois do resultado, primeiro o [CalibrationSummaryCard] explica de onde
+ *    veio cada premissa (modelo, perfil ou base de referência), depois o mesmo
+ *    [ResultSection] da simulação manual (medidor, cenários e gráficos).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SimulationCalibratedScreen(
     onNavigateBack: () -> Unit,
     viewModel: SimulationCalibratedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val scrollState = rememberScrollState()
+    var resultTop by remember { mutableIntStateOf(0) }
+
+    ScrollToResult(resultId = state.result?.simulation?.id, scrollState = scrollState, resultTop = { resultTop })
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = state.goalName?.let { "IA — $it" } ?: "Simular com IA",
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack, enabled = !state.isRunning) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
+            DetailTopAppBar(
+                title = "Simular com IA",
+                subtitle = state.goalName,
+                onNavigateBack = onNavigateBack,
+                scrollBehavior = scrollBehavior,
+                navigationEnabled = !state.isRunning,
+            )
+        },
+        bottomBar = {
+            RunBar(
+                isRunning = state.isRunning,
+                runningText = state.progressMessage ?: "Calibrando…",
+                idleText = "Simular com IA",
+                enabled = state.form.canRun,
+                onRun = viewModel::runCalibrated,
+                icon = Icons.Outlined.AutoAwesome,
             )
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isRunning) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .imePadding()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                    .verticalScroll(scrollState)
+                    .readableWidth()
+                    .padding(horizontal = ScreenPadding)
+                    .padding(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 if (state.errorBanner != null) {
-                    ErrorBanner(
-                        message = state.errorBanner!!,
-                        onDismiss = viewModel::onErrorBannerDismiss,
-                    )
+                    ErrorBanner(message = state.errorBanner!!, onDismiss = viewModel::onErrorBannerDismiss)
                 }
 
-                AiCalloutCard()
-
-                state.premises?.let { PremisesNote(it) }
+                AiCalloutCard(premises = state.premises)
 
                 CalibratedParameterForm(
                     form = state.form,
@@ -129,30 +125,15 @@ fun SimulationCalibratedScreen(
                     onUseTotalAssets = viewModel::useTotalAssetsAsInitialCapital,
                 )
 
-                Button(
-                    onClick = viewModel::runCalibrated,
-                    enabled = !state.isRunning && state.form.canRun,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        if (state.isRunning) {
-                            state.progressMessage ?: "Calibrando..."
-                        } else "Simular com IA"
-                    )
-                }
-
-                // Entrada animada do resultado (mesmo motion da SimulationScreen).
                 AnimatedVisibility(
                     visible = state.result != null,
-                    enter = fadeIn() + expandVertically(),
+                    enter = fadeIn() + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    modifier = Modifier.onPlaced { resultTop = it.positionInParent().y.toInt() },
                 ) {
                     state.result?.let { result ->
-                        Column {
-                            Spacer(Modifier.height(8.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            SectionHeader(title = "Resultado")
                             CalibrationSummaryCard(summary = result.calibration)
-                            Spacer(Modifier.height(8.dp))
-                            // Chamada DIRETA ao ResultSection do SimulationScreen.kt
-                            // (mesmo pacote). Requer visibilidade `internal` la.
                             ResultSection(result = result.simulation)
                         }
                     }
@@ -163,69 +144,55 @@ fun SimulationCalibratedScreen(
 }
 
 // ============================================================================
-// AI callout
+// Explicação da IA
 // ============================================================================
 
 @Composable
-private fun AiCalloutCard() {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
+private fun AiCalloutCard(premises: SimulationPremises?) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                Icons.Outlined.AutoAwesome,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            ShapeIcon(
+                icon = Icons.Outlined.AutoAwesome,
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+                shape = MaterialShapes.Sunny.toShape(),
+                size = 48.dp,
             )
-            Column {
-                Text(
-                    text = "Tudo calibrado pelo seu perfil",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Você não estima nada de mercado: a IA prevê sua renda e " +
-                        "despesas pelo seu histórico (e calcula o aporte mensal), e o " +
-                        "retorno, a volatilidade, a inflação e o risco de desemprego vêm " +
-                        "da base de referência calibrada ao seu perfil de risco e vínculo.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
+            Text("Tudo calibrado pelo seu perfil", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Você não estima nada de mercado: a IA prevê sua renda e despesas pelo seu histórico " +
+                    "(e calcula o aporte mensal), e o retorno, a volatilidade, a inflação e o risco de " +
+                    "desemprego vêm da base de referência calibrada ao seu perfil de risco e vínculo.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (premises != null) {
+                Text(premisesText(premises), style = MaterialTheme.typography.labelLarge)
             }
         }
     }
 }
 
-// ============================================================================
-// Premissas (transparencia)
-// ============================================================================
-
-@Composable
-private fun PremisesNote(premises: SimulationPremises) {
-    val perfil = when (premises.riskProfile) {
+/** "Seu perfil (moderado): retorno ~10,6% a.a. e inflação ~4,2% a.a." */
+private fun premisesText(premises: SimulationPremises): String {
+    val profile = when (premises.riskProfile) {
         RiskProfile.CONSERVATIVE -> "conservador"
         RiskProfile.AGGRESSIVE -> "arrojado"
         else -> "moderado"
     }
-    Text(
-        text = "Premissas do seu perfil ($perfil): retorno ~${formatProbability(premises.expectedReturnAnnual)} a.a. " +
-            "e inflação ~${formatProbability(premises.inflationAnnual)} a.a., calibradas automaticamente.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    return "Seu perfil ($profile): retorno ~${formatProbability(premises.expectedReturnAnnual)} a.a. e " +
+        "inflação ~${formatProbability(premises.inflationAnnual)} a.a."
 }
 
 // ============================================================================
-// Form
+// Formulário
 // ============================================================================
 
 @Composable
@@ -236,75 +203,42 @@ private fun CalibratedParameterForm(
     totalAssets: java.math.BigDecimal? = null,
     onUseTotalAssets: () -> Unit = {},
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("Parâmetros da simulação", style = MaterialTheme.typography.titleMedium)
-
-            CurrencyField(
-                value = form.initialCapitalInput,
-                onValueChange = { v ->
-                    onChange { it.copy(initialCapitalInput = sanitizeCurrencyInput(v)) }
-                },
-                label = "Capital inicial (R$)",
-                enabled = !isRunning,
-            )
-            if (totalAssets != null && totalAssets.signum() > 0) {
-                TextButton(
-                    onClick = onUseTotalAssets,
-                    enabled = !isRunning,
-                ) {
-                    Text("Usar patrimônio total (${formatBrl(totalAssets.toDouble())})")
-                }
-            }
-
-            // monthlyContribution AUSENTE intencionalmente (derivado pela IA).
-            // Premissas de mercado (retorno, volatilidade, inflacao, desemprego)
-            // tambem NAO sao digitadas: o backend as calibra pelo seu perfil.
-
-            CurrencyField(
+    val enabled = !isRunning
+    // Sem aporte mensal (derivado pela IA) e sem premissas de mercado (o backend
+    // as calibra pelo perfil): só o que é do usuário.
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        FormSection(title = "Meta e prazo") {
+            MoneyField(
                 value = form.targetAmountInput,
-                onValueChange = { v ->
-                    onChange { it.copy(targetAmountInput = sanitizeCurrencyInput(v)) }
-                },
-                label = "Valor alvo (R$)",
-                enabled = !isRunning,
+                onValueChange = { v -> onChange { it.copy(targetAmountInput = sanitizeCurrencyInput(v)) } },
+                label = "Valor da meta",
+                enabled = enabled,
             )
-
-            CurrencyField(
+            MonthsField(
                 value = form.horizonMonthsInput,
-                onValueChange = { v ->
-                    onChange { it.copy(horizonMonthsInput = v.filter(Char::isDigit)) }
-                },
-                label = "Horizonte (meses)",
-                enabled = !isRunning,
+                onValueChange = { v -> onChange { it.copy(horizonMonthsInput = v) } },
+                label = "Horizonte",
+                enabled = enabled,
             )
-
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Cenários simulados: ${formatCount(form.numSimulations)}",
-                style = MaterialTheme.typography.titleSmall,
+        }
+        FormSection(title = "Seu dinheiro hoje") {
+            MoneyField(
+                value = form.initialCapitalInput,
+                onValueChange = { v -> onChange { it.copy(initialCapitalInput = sanitizeCurrencyInput(v)) } },
+                label = "Capital inicial",
+                imeAction = ImeAction.Done,
+                enabled = enabled,
             )
-            Text(
-                "Mínimo 10.000 (especificação do TCC). " +
-                    "Mais cenários = resultado mais estável, mais tempo.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Slider(
-                value = form.numSimulations.toFloat(),
-                onValueChange = { v ->
-                    // Múltiplos de 1000 para o slider ficar discreto.
-                    val rounded = (v.toInt() / 1000) * 1000
-                    onChange { it.copy(numSimulations = rounded.coerceAtLeast(10_000)) }
-                },
-                valueRange = 10_000f..50_000f,
-                steps = 39,  // 40 valores: 10k, 11k, ..., 50k
-                enabled = !isRunning,
+            UseTotalAssetsChip(totalAssets = totalAssets, enabled = enabled, onClick = onUseTotalAssets)
+        }
+        FormSection(
+            title = "Cenários simulados",
+            supporting = "Mínimo de 10 mil. Mais cenários deixam o resultado mais estável e levam mais tempo.",
+        ) {
+            IterationsChoice(
+                selected = form.numSimulations,
+                onSelect = { n -> onChange { it.copy(numSimulations = n) } },
+                enabled = enabled,
             )
         }
     }
@@ -315,115 +249,79 @@ private fun CalibratedParameterForm(
 // ============================================================================
 
 /**
- * Cartao que explica COMO a IA derivou os parametros calibrados.
- * Requisito direto do TCC: transparencia em decisoes assistidas por ML.
- *
- * Estrutura:
- *  - Renda projetada (verde)
- *  - (-) Despesa projetada (vermelha)
- *  - = Aporte derivado (destaque)
- *  - Aviso quando capping zerou a contribuicao
+ * Cartão que explica COMO os parâmetros foram calibrados — transparência em
+ * decisões assistidas por modelos (requisito do TCC): renda projetada, menos a
+ * despesa projetada, igual ao aporte aplicado, com a origem de cada número e o
+ * aviso quando o aporte foi zerado.
  */
 @Composable
 fun CalibrationSummaryCard(summary: CalibrationSummary) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-        modifier = Modifier.fillMaxWidth(),
+    ContentCard(
+        title = if (summary.usedFallback) "Como os parâmetros foram calibrados" else "Como a IA calibrou os parâmetros",
+        action = {
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+        },
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        // Partida a frio: sem histórico para os modelos, o servidor recua para o
+        // perfil, médias simples e a base de referência — e explica o porquê.
+        if (summary.usedFallback) {
+            FallbackNotice(summary)
+        }
+
+        if (summary.contributionFromProfile) {
+            CalibrationLine(
+                label = "Aporte mensal (do seu perfil)",
+                value = formatBrl(summary.appliedMonthlyContribution),
+                highlight = true,
+            )
+        } else {
+            CalibrationLine(
+                label = "Renda mensal" + summary.incomeSource.sourceSuffix(),
+                value = formatBrl(summary.predictedMonthlyIncome),
+            )
+            CalibrationLine(
+                label = "(−) Despesa mensal" + summary.expenseSource.sourceSuffix(),
+                value = formatBrl(summary.predictedMonthlyExpense),
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            CalibrationLine(
+                label = "(=) Aporte derivado",
+                value = formatBrl(summary.appliedMonthlyContribution),
+                highlight = true,
+            )
+        }
+
+        if (summary.cappedToZero) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    Icons.Outlined.AutoAwesome,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                 Text(
-                    text = if (summary.usedFallback) "Como os parâmetros foram calibrados"
-                    else "Como a IA calibrou os parâmetros",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "Despesa maior que renda: aporte zerado " +
+                        "(${formatBrl(summary.rawMonthlyContribution)} antes do ajuste).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
+        }
 
-            // Partida a frio: sem histórico para os modelos, o servidor recua para o
-            // perfil, médias simples e a base de referência — e explica o porquê.
-            if (summary.usedFallback) {
-                FallbackNotice(summary)
-            }
+        Text(
+            text = calibrationRiskText(summary),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-            HorizontalDivider()
-
-            if (summary.contributionFromProfile) {
-                CalibrationLine(
-                    label = "Aporte mensal (do seu perfil)",
-                    value = formatBrl(summary.appliedMonthlyContribution),
-                    highlight = true,
-                )
-            } else {
-                CalibrationLine(
-                    label = "Renda mensal" + summary.incomeSource.sourceSuffix(),
-                    value = formatBrl(summary.predictedMonthlyIncome),
-                )
-                CalibrationLine(
-                    label = "(−) Despesa mensal" + summary.expenseSource.sourceSuffix(),
-                    value = formatBrl(summary.predictedMonthlyExpense),
-                )
-
-                HorizontalDivider()
-
-                CalibrationLine(
-                    label = "(=) Aporte derivado",
-                    value = formatBrl(summary.appliedMonthlyContribution),
-                    highlight = true,
-                )
-            }
-
-            if (summary.cappedToZero) {
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        Icons.Outlined.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                    Text(
-                        text = "Despesa maior que renda: aporte zerado " +
-                            "(${formatBrl(summary.rawMonthlyContribution)} antes do " +
-                            "ajuste).",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
+        val predictionIds = listOfNotNull(
+            summary.incomePredictionId?.let { "Predição de renda #$it" },
+            summary.expensePredictionId?.let { "Predição de despesa #$it" },
+        )
+        if (predictionIds.isNotEmpty()) {
             Text(
-                text = calibrationRiskText(summary),
-                style = MaterialTheme.typography.bodySmall,
+                text = predictionIds.joinToString(" • "),
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-
-            val predictionIds = listOfNotNull(
-                summary.incomePredictionId?.let { "Predição de renda #$it" },
-                summary.expensePredictionId?.let { "Predição de despesa #$it" },
-            )
-            if (predictionIds.isNotEmpty()) {
-                Text(
-                    text = predictionIds.joinToString(" • "),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
     }
 }
@@ -431,29 +329,28 @@ fun CalibrationSummaryCard(summary: CalibrationSummary) {
 /** Aviso de recuo: o que não veio dos modelos de IA e por quê. */
 @Composable
 private fun FallbackNotice(summary: CalibrationSummary) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Top,
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.large,
     ) {
-        Icon(
-            Icons.Outlined.Info,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.secondary,
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "Nem tudo veio dos modelos de IA: sem histórico suficiente (6 receitas e 12 " +
-                    "despesas) ou com o serviço indisponível, usamos os dados do seu perfil e as " +
-                    "médias dos seus lançamentos; a variação de renda vem da base de referência " +
-                    "para o seu vínculo de trabalho.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            summary.fallbackNotes.forEach { note ->
+        Row(
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(Icons.Outlined.Info, contentDescription = null)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    "• $note",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    "Nem tudo veio dos modelos de IA: sem histórico suficiente (6 receitas e 12 " +
+                        "despesas) ou com o serviço indisponível, usamos os dados do seu perfil e as " +
+                        "médias dos seus lançamentos; a variação de renda vem da base de referência " +
+                        "para o seu vínculo de trabalho.",
+                    style = MaterialTheme.typography.bodySmall,
                 )
+                summary.fallbackNotes.forEach { note ->
+                    Text("• $note", style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }
@@ -472,19 +369,26 @@ private fun CalibrationLine(
     highlight: Boolean = false,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
+            color = if (highlight) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
-            style = if (highlight) MaterialTheme.typography.titleMedium
-            else MaterialTheme.typography.bodyMedium,
-            fontWeight = if (highlight) FontWeight.Bold else FontWeight.Normal,
+            style = if (highlight) {
+                MaterialTheme.typography.titleLargeEmphasized
+            } else {
+                MaterialTheme.typography.titleSmall
+            },
+            color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
         )
     }
 }

@@ -4,9 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.lifeforge.domain.model.GoalHorizon
 import com.lifeforge.domain.model.AppError
 import com.lifeforge.domain.model.DataResult
+import com.lifeforge.domain.model.GoalHorizon
 import com.lifeforge.domain.model.SimulationParameters
 import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.SimulationSummary
@@ -18,7 +18,9 @@ import com.lifeforge.domain.usecase.ObserveGoalUseCase
 import com.lifeforge.domain.usecase.ObserveSimulationsByGoalUseCase
 import com.lifeforge.domain.usecase.RefreshSimulationsByGoalUseCase
 import com.lifeforge.domain.usecase.RunSimulationUseCase
+import com.lifeforge.presentation.common.fractionToPercentInput
 import com.lifeforge.presentation.common.parseCurrencyInputAsDouble
+import com.lifeforge.presentation.common.parsePercentInputAsDouble
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
 import com.lifeforge.presentation.common.toUserMessage
 import com.lifeforge.presentation.navigation.Simulation
@@ -115,14 +117,14 @@ class SimulationViewModel @Inject constructor(
                 current.copy(
                     form = f.copy(
                         expectedReturnInput = f.expectedReturnInput
-                            .ifDefault(defaults.expectedReturnInput, fraction(ref.cdiAnnual)),
+                            .ifDefault(defaults.expectedReturnInput, fractionToPercentInput(ref.cdiAnnual)),
                         volatilityInput = f.volatilityInput
-                            .ifDefault(defaults.volatilityInput, fraction(ref.cdiVolatilityAnnual)),
+                            .ifDefault(defaults.volatilityInput, fractionToPercentInput(ref.cdiVolatilityAnnual)),
                         inflationInput = f.inflationInput
-                            .ifDefault(defaults.inflationInput, fraction(ref.inflationAnnualMean)),
+                            .ifDefault(defaults.inflationInput, fractionToPercentInput(ref.inflationAnnualMean)),
                         unemploymentProbInput = f.unemploymentProbInput.ifDefault(
                             defaults.unemploymentProbInput,
-                            fraction(ref.unemploymentProbFor(employmentType)),
+                            fractionToPercentInput(ref.unemploymentProbFor(employmentType)),
                         ),
                         unemploymentDurationMonths = ref.unemploymentDurationMonths,
                     ),
@@ -265,12 +267,13 @@ class SimulationViewModel @Inject constructor(
     private fun parseForm(form: SimulationForm): SimulationParameters? {
         val initialCapital = parseCurrencyInputAsDouble(form.initialCapitalInput)
         val monthly = parseCurrencyInputAsDouble(form.monthlyContributionInput)
-        val expectedReturn = parseCurrencyInputAsDouble(form.expectedReturnInput)
-        val volatility = parseCurrencyInputAsDouble(form.volatilityInput)
+        // Taxas digitadas em porcentagem ("8" = 8% a.a.); o motor recebe a fração.
+        val expectedReturn = parsePercentInputAsDouble(form.expectedReturnInput)
+        val volatility = parsePercentInputAsDouble(form.volatilityInput)
         val targetAmount = parseCurrencyInputAsDouble(form.targetAmountInput)
         val horizon = form.horizonMonthsInput.toIntOrNull()
-        val unemploymentProb = parseCurrencyInputAsDouble(form.unemploymentProbInput) ?: 0.0
-        val inflation = parseCurrencyInputAsDouble(form.inflationInput) ?: 0.0
+        val unemploymentProb = parsePercentInputAsDouble(form.unemploymentProbInput) ?: 0.0
+        val inflation = parsePercentInputAsDouble(form.inflationInput) ?: 0.0
 
         if (initialCapital == null || monthly == null || expectedReturn == null
             || volatility == null || targetAmount == null || horizon == null) {
@@ -318,24 +321,20 @@ class SimulationViewModel @Inject constructor(
          * razoável: poupador com R$ 10k, aportando R$ 1k/mês, esperando
          * 8% a.a. (próximo da Selic) com 15% de volatilidade. Inflação
          * 4% e probabilidade de desemprego 5% a.a. cobrem eventos
-         * adversos realistas.
+         * adversos realistas. Taxas em porcentagem, como o usuário as digita.
          */
         private fun defaultForm() = SimulationForm(
             initialCapitalInput = "10000",
             monthlyContributionInput = "1000",
-            expectedReturnInput = "0,08",
-            volatilityInput = "0,15",
+            expectedReturnInput = "8",
+            volatilityInput = "15",
             targetAmountInput = "100000",
             horizonMonthsInput = "120",
-            unemploymentProbInput = "0,05",
+            unemploymentProbInput = "5",
             unemploymentDurationMonths = 6,
-            inflationInput = "0,04",
+            inflationInput = "4",
             numSimulations = 10_000,
         )
-
-        /** Fração anual → input com vírgula decimal (0.005 → "0,005"). */
-        private fun fraction(value: Double): String =
-            BigDecimal.valueOf(value).stripTrailingZeros().toPlainString().replace('.', ',')
 
         /** BigDecimal → input monetário com vírgula decimal. */
         private fun BigDecimal.toInputString(): String = toPlainString().replace('.', ',')

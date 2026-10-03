@@ -15,19 +15,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -49,9 +49,17 @@ import com.lifeforge.domain.model.SimulationResult
 import com.lifeforge.domain.model.StrategyComparison
 import com.lifeforge.domain.model.StrategyMetric
 import com.lifeforge.domain.model.StrategySide
-import com.lifeforge.presentation.common.ScreenLoading
+import com.lifeforge.presentation.common.ActionButton
+import com.lifeforge.presentation.common.ActionEmphasis
 import com.lifeforge.presentation.common.AutoSizeText
 import com.lifeforge.presentation.common.BrlAxisFormatter
+import com.lifeforge.presentation.common.ChartLegend
+import com.lifeforge.presentation.common.ContentCard
+import com.lifeforge.presentation.common.DetailTopAppBar
+import com.lifeforge.presentation.common.EmptyState
+import com.lifeforge.presentation.common.ScreenLoading
+import com.lifeforge.presentation.common.ScreenPadding
+import com.lifeforge.presentation.common.ShapeIcon
 import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
 import com.lifeforge.presentation.common.formatBrlCompact
@@ -59,7 +67,9 @@ import com.lifeforge.presentation.common.formatDateTime
 import com.lifeforge.presentation.common.formatProbability
 import com.lifeforge.presentation.common.monthAxisSpacing
 import com.lifeforge.presentation.common.monthItemPlacer
+import com.lifeforge.presentation.common.readableWidth
 import com.lifeforge.presentation.common.rememberFitToWidthZoom
+import com.lifeforge.presentation.common.rememberSolidLine
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -69,6 +79,7 @@ import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import java.util.Locale
 import kotlin.math.abs
 
@@ -84,15 +95,14 @@ fun SimulationCompareScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text("Comparar estratégias") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
+            DetailTopAppBar(
+                title = "Comparar estratégias",
+                onNavigateBack = onNavigateBack,
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
@@ -101,18 +111,20 @@ fun SimulationCompareScreen(
             when {
                 state.isLoading -> ScreenLoading()
                 comparison != null -> CompareContent(comparison)
-                else -> Column(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        state.errorMessage ?: "Não foi possível carregar as simulações.",
-                        textAlign = TextAlign.Center,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = viewModel::load) { Text("Tentar de novo") }
-                }
+                else -> EmptyState(
+                    title = "Não deu para comparar",
+                    description = state.errorMessage ?: "Não foi possível carregar as simulações.",
+                    icon = Icons.AutoMirrored.Outlined.CompareArrows,
+                    action = {
+                        ActionButton(
+                            text = "Tentar de novo",
+                            icon = Icons.Rounded.Refresh,
+                            onClick = viewModel::load,
+                            emphasis = ActionEmphasis.Tonal,
+                        )
+                    },
+                    modifier = Modifier.align(Alignment.Center),
+                )
             }
         }
     }
@@ -124,8 +136,10 @@ private fun CompareContent(comparison: StrategyComparison) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .readableWidth()
+            .padding(horizontal = ScreenPadding)
+            .padding(top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         VerdictCard(comparison)
         StrategyHeaders(comparison.a, comparison.b)
@@ -151,25 +165,25 @@ private fun CompareContent(comparison: StrategyComparison) {
 
 @Composable
 private fun VerdictCard(comparison: StrategyComparison) {
-    Card(
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = MaterialTheme.shapes.extraLargeIncreased,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                Icons.AutoMirrored.Outlined.CompareArrows,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            ShapeIcon(
+                icon = Icons.AutoMirrored.Outlined.CompareArrows,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialShapes.Cookie9Sided.toShape(),
+                size = 48.dp,
             )
-            Text(
-                verdictText(comparison),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+            Text("Veredito", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+            Text(verdictText(comparison), style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
@@ -217,13 +231,14 @@ private fun StrategyHeaders(a: SimulationResult, b: SimulationResult) {
 
 @Composable
 private fun StrategyHeader(label: String, result: SimulationResult, color: Color, modifier: Modifier) {
-    Card(
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.extraLarge,
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.size(12.dp).clip(CircleShape).background(color))
                 Text("Estratégia $label", style = MaterialTheme.typography.titleSmall)
             }
             Text(
@@ -233,8 +248,13 @@ private fun StrategyHeader(label: String, result: SimulationResult, color: Color
             )
             Text(
                 formatProbability(result.successProbability),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineMediumEmphasized,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                "de chance de sucesso",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -246,21 +266,16 @@ private fun StrategyHeader(label: String, result: SimulationResult, color: Color
 
 @Composable
 private fun ComparisonCard(title: String, subtitle: String, rows: List<MetricComparison>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            // Mesmo espaçamento das linhas: os rótulos A/B ficam sobre os valores.
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Spacer(Modifier.weight(1.2f))
-                Text("A", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-                Text("B", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
-            }
+    ContentCard(title = title, supporting = subtitle) {
+        // Mesmo espaçamento das linhas: os rótulos A/B ficam sobre os valores.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.weight(1.2f))
+            Text("A", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Text("B", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+        }
+        Column {
             rows.forEachIndexed { index, row ->
-                if (index > 0) HorizontalDivider()
+                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 ComparisonRow(row)
             }
         }
@@ -280,7 +295,7 @@ private fun ComparisonRow(row: MetricComparison) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 10.dp)
             .semantics(mergeDescendants = true) { contentDescription = "$label: A $a, B $b$better" },
         // Folga entre as colunas: sem ela, o valor de A encostava no ícone de B.
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -363,37 +378,29 @@ private fun MedianTrajectoriesCard(a: SimulationResult, b: SimulationResult) {
     val description = "Mediana do patrimônio ao longo do tempo: estratégia A termina em " +
         "${formatBrlCompact(a.trajectory.last().p50.toBigDecimal())}, estratégia B em " +
         formatBrlCompact(b.trajectory.last().p50.toBigDecimal())
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    val colorA = MaterialTheme.colorScheme.primary
+    val colorB = MaterialTheme.colorScheme.secondary
+    val lineA = rememberSolidLine(colorA)
+    val lineB = rememberSolidLine(colorB)
+    ContentCard(
+        title = "Mediana do patrimônio ao longo do tempo",
+        supporting = "Eixo horizontal em meses, vertical em R$.",
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Mediana do patrimônio ao longo do tempo",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                "Eixo X em meses, eixo Y em R$. Linha na cor de cada estratégia (A e B).",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            val months = maxOf(a.trajectory.last().monthIndex, b.trajectory.last().monthIndex)
-            val itemPlacer = remember(months) { monthItemPlacer(monthAxisSpacing(months)) }
-            CartesianChartHost(
-                chart = rememberCartesianChart(
-                    rememberLineCartesianLayer(),
-                    startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
-                    bottomAxis = HorizontalAxis.rememberBottom(itemPlacer = itemPlacer),
-                ),
-                modelProducer = modelProducer,
-                zoomState = rememberFitToWidthZoom(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .semantics { contentDescription = description },
-            )
-        }
+        val months = maxOf(a.trajectory.last().monthIndex, b.trajectory.last().monthIndex)
+        val itemPlacer = remember(months) { monthItemPlacer(monthAxisSpacing(months)) }
+        CartesianChartHost(
+            chart = rememberCartesianChart(
+                rememberLineCartesianLayer(lineProvider = LineCartesianLayer.LineProvider.series(lineA, lineB)),
+                startAxis = VerticalAxis.rememberStart(valueFormatter = BrlAxisFormatter),
+                bottomAxis = HorizontalAxis.rememberBottom(itemPlacer = itemPlacer, guideline = null),
+            ),
+            modelProducer = modelProducer,
+            zoomState = rememberFitToWidthZoom(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .semantics { contentDescription = description },
+        )
+        ChartLegend(entries = listOf("Estratégia A" to colorA, "Estratégia B" to colorB))
     }
 }
