@@ -17,6 +17,7 @@ import com.lifeforge.domain.usecase.RefreshIncomesUseCase
 import com.lifeforge.domain.usecase.UpdateIncomeUseCase
 import com.lifeforge.presentation.common.parseCurrencyInput
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
+import com.lifeforge.presentation.common.toMoneyInput
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,7 +97,7 @@ class IncomeViewModel @Inject constructor(
                 form = IncomeFormState(
                     editingId = income.id,
                     source = income.source,
-                    amountInput = income.amount.toPlainString(),
+                    amountInput = income.amount.toMoneyInput(),
                     incomeType = income.incomeType,
                     recurring = income.recurring,
                     isRecurrent = false,

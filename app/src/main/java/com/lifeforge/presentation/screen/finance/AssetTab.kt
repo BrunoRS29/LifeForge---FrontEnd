@@ -1,56 +1,60 @@
 package com.lifeforge.presentation.screen.finance
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeforge.domain.model.Asset
 import com.lifeforge.domain.model.AssetType
-import com.lifeforge.presentation.common.CurrencyField
+import com.lifeforge.presentation.common.AutoSizeText
+import com.lifeforge.presentation.common.ChartLegend
 import com.lifeforge.presentation.common.EnumDropdown
 import com.lifeforge.presentation.common.LifeForgeTextField
-import com.lifeforge.presentation.common.LoadingOverlay
-import com.lifeforge.presentation.common.PendingSyncLabel
+import com.lifeforge.presentation.common.MoneyField
+import com.lifeforge.presentation.common.PercentField
+import com.lifeforge.presentation.common.formatAnnualRate
 import com.lifeforge.presentation.common.formatBrl
+import com.lifeforge.presentation.common.icon
 import com.lifeforge.presentation.common.label
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 /**
- * Sub-aba de Ativos. Cards mostram nome, tipo e valor atual; toque
- * abre o form em modo edição, ícone de lixeira deleta.
+ * Sub-aba de Ativos: o patrimônio total com a alocação por tipo de ativo
+ * (barra proporcional + legenda com as porcentagens) e a lista dos ativos.
+ * Tocar abre o editor; deslizar para a esquerda exclui.
  *
- * Form tem 5 campos (vs 4 do Income/Expense): nome, tipo, valor atual,
- * retorno esperado anual, volatilidade anual. Os dois últimos são
- * percentuais em decimal (ex.: 0.08 = 8% a.a.) — convenção do backend.
+ * Retorno esperado e volatilidade são digitados em porcentagem ao ano; o
+ * domínio guarda a fração (convenção do backend).
  */
 @Composable
 fun AssetTab(viewModel: AssetViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
+    val assets = remember(state.assets) { state.assets.sortedByDescending { it.currentValue } }
+    val entries = remember(assets) { assets.map(::assetEntry) }
 
     FinanceListScaffold(
         isRefreshing = state.isRefreshing,
@@ -61,22 +65,21 @@ fun AssetTab(viewModel: AssetViewModel = hiltViewModel()) {
         addLabel = "Novo ativo",
         isEmpty = state.assets.isEmpty(),
         emptyTitle = "Sem ativos cadastrados",
-        emptyDescription = "Adicione seus ativos para alimentar a otimização de carteira e o cálculo de patrimônio.",
+        emptyDescription = "Adicione seus ativos para alimentar a otimização da carteira e o cálculo do patrimônio.",
         emptyIcon = Icons.Outlined.AccountBalanceWallet,
+        header = { AllocationCard(assets = assets, modifier = Modifier.padding(bottom = 16.dp)) },
     ) {
-        items(items = state.assets, key = { it.id }) { asset ->
-            AssetCard(
-                asset = asset,
-                onClick = { viewModel.openEditForm(asset) },
-                onDelete = { viewModel.delete(asset.id) },
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
-        }
+        financeEntries(
+            entries = entries,
+            deleteNoun = "ativo",
+            onClick = { entry -> assets.firstOrNull { it.id == entry.id }?.let(viewModel::openEditForm) },
+            onDelete = { entry -> viewModel.delete(entry.id) },
+        )
     }
 
-    if (state.form != null) {
+    state.form?.let { form ->
         AssetFormSheet(
-            form = state.form!!,
+            form = form,
             isSubmitting = state.isSubmitting,
             onNameChange = viewModel::onFormNameChange,
             onTypeChange = viewModel::onFormTypeChange,
@@ -85,55 +88,112 @@ fun AssetTab(viewModel: AssetViewModel = hiltViewModel()) {
             onVolatilityChange = viewModel::onFormVolatilityChange,
             onSubmit = viewModel::submitForm,
             onDismiss = viewModel::closeForm,
+            onDelete = form.editingId?.let { id ->
+                {
+                    viewModel.closeForm()
+                    viewModel.delete(id)
+                }
+            },
         )
     }
 }
 
+/** Ativo → linha da lista: tipo, retorno e volatilidade na segunda linha. */
+private fun assetEntry(asset: Asset) = FinanceEntryUi(
+    id = asset.id,
+    title = asset.name,
+    supporting = "${asset.assetType.label()} · ${formatAnnualRate(asset.expectedReturn.toDouble())} a.a. · " +
+        "vol. ${formatAnnualRate(asset.volatility.toDouble())}",
+    value = asset.currentValue,
+    date = asset.createdAt,
+    icon = asset.assetType.icon(),
+    kind = EntryKind.ASSET,
+    pendingSync = asset.pendingSync,
+)
+
+/** Fatia da carteira de um tipo de ativo. */
+internal data class AllocationSlice(val type: AssetType, val value: BigDecimal, val share: Double)
+
+/** Soma por tipo de ativo, do maior para o menor, com a participação de cada um. */
+internal fun assetAllocation(assets: List<Asset>): List<AllocationSlice> {
+    val total = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
+    if (total.signum() <= 0) return emptyList()
+    return assets.groupBy { it.assetType }
+        .map { (type, items) ->
+            val value = items.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
+            AllocationSlice(type, value, value.divide(total, 6, RoundingMode.HALF_UP).toDouble())
+        }
+        .sortedByDescending { it.value }
+}
+
 @Composable
-private fun AssetCard(
-    asset: Asset,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        onClick = onClick,
+private fun AllocationCard(assets: List<Asset>, modifier: Modifier = Modifier) {
+    val total = assets.fold(BigDecimal.ZERO) { acc, a -> acc + a.currentValue }
+    val slices = remember(assets) { assetAllocation(assets) }
+    val colors = MaterialTheme.colorScheme
+    val palette = listOf(
+        colors.primary,
+        colors.tertiary,
+        colors.secondary,
+        colors.primary.copy(alpha = 0.5f),
+        colors.tertiary.copy(alpha = 0.5f),
+        colors.outline,
+    )
+    val sliceColors: List<Color> = slices.indices.map { palette[it % palette.size] }
+    val description = "Alocação: " + slices.joinToString { "${it.type.label()} ${percentText(it.share)}" }
+
+    Surface(
+        color = colors.surfaceContainerLow,
+        shape = MaterialTheme.shapes.extraLarge,
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(asset.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    asset.assetType.label(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Patrimônio total", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+                AutoSizeText(
+                    text = formatBrl(total),
+                    style = MaterialTheme.typography.headlineMediumEmphasized,
+                    color = colors.onSurface,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(Modifier.height(4.dp))
                 Text(
-                    formatBrl(asset.currentValue),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    if (assets.size == 1) "1 ativo" else "${assets.size} ativos",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.onSurfaceVariant,
                 )
-                if (asset.pendingSync) PendingSyncLabel()
             }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Outlined.Delete,
-                    contentDescription = "Apagar",
-                    tint = MaterialTheme.colorScheme.error,
+            if (slices.isNotEmpty()) {
+                // Barra de alocação: cada tipo ocupa a largura proporcional ao seu valor.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(CircleShape)
+                        .semantics { contentDescription = description },
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    slices.forEachIndexed { index, slice ->
+                        Box(
+                            Modifier
+                                .weight(slice.share.toFloat().coerceAtLeast(0.01f))
+                                .fillMaxHeight()
+                                .background(sliceColors[index]),
+                        )
+                    }
+                }
+                ChartLegend(
+                    entries = slices.mapIndexed { index, slice ->
+                        "${slice.type.label()} ${percentText(slice.share)}" to sliceColors[index]
+                    },
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Participação com uma casa: 0.4567 → "45,7%". */
+internal fun percentText(share: Double): String = formatAnnualRate(share)
+
 @Composable
 private fun AssetFormSheet(
     form: AssetFormState,
@@ -145,82 +205,60 @@ private fun AssetFormSheet(
     onVolatilityChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onDismiss: () -> Unit,
+    onDelete: (() -> Unit)?,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
+    val enabled = !isSubmitting
+    FinanceFormSheet(
+        title = if (form.isEditing) "Editar ativo" else "Novo ativo",
+        isSubmitting = isSubmitting,
+        canSubmit = form.canSubmit,
+        submitLabel = if (form.isEditing) "Salvar" else "Adicionar",
+        onSubmit = onSubmit,
+        onDismiss = onDismiss,
+        deleteNoun = "ativo",
+        onDelete = onDelete,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                if (form.isEditing) "Editar ativo" else "Novo ativo",
-                style = MaterialTheme.typography.titleLarge,
-            )
-
-            LifeForgeTextField(
-                value = form.name,
-                onValueChange = onNameChange,
-                label = "Nome (ex.: Tesouro IPCA+ 2035)",
-                error = form.nameError,
-                imeAction = ImeAction.Next,
-                enabled = !isSubmitting,
-            )
-            EnumDropdown(
-                label = "Tipo",
-                options = AssetType.entries,
-                selected = form.assetType,
-                onSelect = onTypeChange,
-                labelOf = AssetType::label,
-                enabled = !isSubmitting,
-            )
-            CurrencyField(
-                value = form.currentValueInput,
-                onValueChange = onCurrentValueChange,
-                label = "Valor atual (R$)",
-                error = form.currentValueError,
-                enabled = !isSubmitting,
-            )
-            CurrencyField(
-                value = form.expectedReturnInput,
-                onValueChange = onExpectedReturnChange,
-                label = "Retorno esperado anual (ex.: 0,08 = 8%)",
-                error = form.expectedReturnError,
-                enabled = !isSubmitting,
-            )
-            CurrencyField(
-                value = form.volatilityInput,
-                onValueChange = onVolatilityChange,
-                label = "Volatilidade anual (ex.: 0,15 = 15%)",
-                error = form.volatilityError,
-                imeAction = ImeAction.Done,
-                enabled = !isSubmitting,
-            )
-
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                TextButton(
-                    onClick = onDismiss,
-                    enabled = !isSubmitting,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Cancelar")
-                }
-                Button(
-                    onClick = onSubmit,
-                    enabled = !isSubmitting && form.canSubmit,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (form.isEditing) "Salvar" else "Adicionar")
-                }
-            }
-        }
-        LoadingOverlay(visible = isSubmitting)
+        LifeForgeTextField(
+            value = form.name,
+            onValueChange = onNameChange,
+            label = "Nome (ex.: Tesouro IPCA+ 2035)",
+            error = form.nameError,
+            imeAction = ImeAction.Next,
+            enabled = enabled,
+        )
+        EnumDropdown(
+            label = "Tipo",
+            options = AssetType.entries,
+            selected = form.assetType,
+            onSelect = onTypeChange,
+            labelOf = AssetType::label,
+            iconOf = AssetType::icon,
+            enabled = enabled,
+        )
+        MoneyField(
+            value = form.currentValueInput,
+            onValueChange = onCurrentValueChange,
+            label = "Valor atual",
+            error = form.currentValueError,
+            enabled = enabled,
+        )
+        PercentField(
+            value = form.expectedReturnInput,
+            onValueChange = onExpectedReturnChange,
+            label = "Retorno esperado",
+            suffix = "% a.a.",
+            error = form.expectedReturnError,
+            enabled = enabled,
+        )
+        PercentField(
+            value = form.volatilityInput,
+            onValueChange = onVolatilityChange,
+            label = "Volatilidade",
+            suffix = "% a.a.",
+            supportingText = "Quanto o retorno oscila de um ano para o outro.",
+            error = form.volatilityError,
+            imeAction = ImeAction.Done,
+            enabled = enabled,
+        )
     }
 }

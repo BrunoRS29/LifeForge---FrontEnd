@@ -4,22 +4,23 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,18 +31,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lifeforge.presentation.common.TabTopAppBar
+import com.lifeforge.presentation.common.formatMonthYear
 import java.time.YearMonth
 
 /**
- * Tela host de Finanças. TabRow alterna entre Receitas, Despesas e Ativos.
+ * Tela de Finanças: abas Receitas, Despesas e Ativos sob a barra grande, que
+ * recolhe ao rolar e mostra o mês em uso no subtítulo.
  *
  * Ações no topo:
  *  - Importar extrato (ícone de upload) → tela de importação.
  *  - Menu "⋮" → excluir todas as receitas / todas as despesas (útil ao
  *    reimportar extratos). Cada ação pede confirmação.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinanceScreen(
     onNavigateToImport: () -> Unit = {},
@@ -60,6 +64,8 @@ fun FinanceScreen(
     val onMonthChange: (YearMonth) -> Unit = { selectedMonthRaw = it.toString() }
     val state by viewModel.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val tab = FinanceTab.entries[selectedTab]
 
     LaunchedEffect(state.message, state.error) {
         val msg = state.message ?: state.error
@@ -70,9 +76,12 @@ fun FinanceScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text("Finanças") },
+            TabTopAppBar(
+                title = "Finanças",
+                subtitle = if (tab == FinanceTab.ASSETS) "Patrimônio e alocação" else formatMonthYear(selectedMonth),
+                scrollBehavior = scrollBehavior,
                 actions = {
                     IconButton(onClick = onNavigateToImport) {
                         Icon(Icons.Outlined.UploadFile, contentDescription = "Importar extrato")
@@ -83,6 +92,7 @@ fun FinanceScreen(
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text("Excluir todas as receitas") },
+                            leadingIcon = { Icon(Icons.Outlined.DeleteSweep, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
                                 confirm = ConfirmAction.INCOMES
@@ -90,6 +100,7 @@ fun FinanceScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("Excluir todas as despesas") },
+                            leadingIcon = { Icon(Icons.Outlined.DeleteSweep, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
                                 confirm = ConfirmAction.EXPENSES
@@ -102,25 +113,20 @@ fun FinanceScreen(
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = selectedTab) {
-                FinanceTab.entries.forEachIndexed { index, tab ->
+            PrimaryTabRow(selectedTabIndex = selectedTab, containerColor = MaterialTheme.colorScheme.surface) {
+                FinanceTab.entries.forEachIndexed { index, financeTab ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(tab.label) },
+                        text = { Text(financeTab.label) },
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            when (FinanceTab.entries[selectedTab]) {
-                FinanceTab.INCOMES -> IncomeTab(
-                    selectedMonth = selectedMonth,
-                    onMonthChange = onMonthChange,
-                )
-                FinanceTab.EXPENSES -> ExpenseTab(
-                    selectedMonth = selectedMonth,
-                    onMonthChange = onMonthChange,
-                )
+            when (tab) {
+                FinanceTab.INCOMES -> IncomeTab(selectedMonth = selectedMonth, onMonthChange = onMonthChange)
+                FinanceTab.EXPENSES -> ExpenseTab(selectedMonth = selectedMonth, onMonthChange = onMonthChange)
                 FinanceTab.ASSETS -> AssetTab()
             }
         }
@@ -130,11 +136,12 @@ fun FinanceScreen(
         val label = if (action == ConfirmAction.INCOMES) "receitas" else "despesas"
         AlertDialog(
             onDismissRequest = { confirm = null },
+            icon = { Icon(Icons.Outlined.DeleteSweep, contentDescription = null) },
             title = { Text("Excluir todas as $label?") },
             text = {
                 Text(
                     "Isso remove TODAS as suas $label, inclusive as importadas dos extratos. " +
-                        "Essa ação não pode ser desfeita."
+                        "Essa ação não pode ser desfeita.",
                 )
             },
             confirmButton = {
@@ -144,7 +151,7 @@ fun FinanceScreen(
                         ConfirmAction.INCOMES -> viewModel.deleteAllIncomes()
                         ConfirmAction.EXPENSES -> viewModel.deleteAllExpenses()
                     }
-                }) { Text("Excluir") }
+                }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { confirm = null }) { Text("Cancelar") }

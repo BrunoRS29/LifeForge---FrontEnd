@@ -12,8 +12,11 @@ import com.lifeforge.domain.usecase.DeleteAssetUseCase
 import com.lifeforge.domain.usecase.ObserveAssetsUseCase
 import com.lifeforge.domain.usecase.RefreshAssetsUseCase
 import com.lifeforge.domain.usecase.UpdateAssetUseCase
+import com.lifeforge.presentation.common.fractionToPercentInput
 import com.lifeforge.presentation.common.parseCurrencyInput
+import com.lifeforge.presentation.common.parsePercentInput
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
+import com.lifeforge.presentation.common.toMoneyInput
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,9 +92,9 @@ class AssetViewModel @Inject constructor(
                     editingId = asset.id,
                     name = asset.name,
                     assetType = asset.assetType,
-                    currentValueInput = asset.currentValue.toPlainString(),
-                    expectedReturnInput = asset.expectedReturn.toPlainString(),
-                    volatilityInput = asset.volatility.toPlainString(),
+                    currentValueInput = asset.currentValue.toMoneyInput(),
+                    expectedReturnInput = fractionToPercentInput(asset.expectedReturn),
+                    volatilityInput = fractionToPercentInput(asset.volatility),
                 ),
             )
         }
@@ -124,8 +127,9 @@ class AssetViewModel @Inject constructor(
         if (localState.value.isSubmitting) return
 
         val currentValue = parseCurrencyInput(form.currentValueInput)
-        val expectedReturn = parseCurrencyInput(form.expectedReturnInput)
-        val volatility = parseCurrencyInput(form.volatilityInput)
+        // Retorno e volatilidade digitados em porcentagem; o domínio guarda a fração.
+        val expectedReturn = parsePercentInput(form.expectedReturnInput)
+        val volatility = parsePercentInput(form.volatilityInput)
 
         // Valida os três valores antes de submeter; mostra todos os erros.
         if (currentValue == null || expectedReturn == null || volatility == null) {

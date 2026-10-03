@@ -17,6 +17,7 @@ import com.lifeforge.domain.usecase.RefreshExpensesUseCase
 import com.lifeforge.domain.usecase.UpdateExpenseUseCase
 import com.lifeforge.presentation.common.parseCurrencyInput
 import com.lifeforge.presentation.common.sanitizeCurrencyInput
+import com.lifeforge.presentation.common.toMoneyInput
 import com.lifeforge.presentation.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,7 +86,7 @@ class ExpenseViewModel @Inject constructor(
                 form = ExpenseFormState(
                     editingId = expense.id,
                     description = expense.description,
-                    amountInput = expense.amount.toPlainString(),
+                    amountInput = expense.amount.toMoneyInput(),
                     category = expense.category,
                     recurring = expense.recurring,
                     isRecurrent = false,
