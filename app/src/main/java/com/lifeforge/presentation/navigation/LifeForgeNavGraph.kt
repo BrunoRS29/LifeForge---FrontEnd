@@ -2,10 +2,12 @@ package com.lifeforge.presentation.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
@@ -26,9 +28,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.lifeforge.presentation.common.SyncStatusBar
 import com.lifeforge.presentation.common.UsabilityTaskBar
-import com.lifeforge.presentation.screen.usability.UsabilityBarViewModel
-import com.lifeforge.presentation.screen.usability.UsabilityQuestionnaireScreen
-import com.lifeforge.presentation.screen.usability.UsabilityScreen
 import com.lifeforge.presentation.screen.auth.LoginScreen
 import com.lifeforge.presentation.screen.auth.RegisterScreen
 import com.lifeforge.presentation.screen.dashboard.DashboardScreen
@@ -38,12 +37,15 @@ import com.lifeforge.presentation.screen.goal.GoalEditScreen
 import com.lifeforge.presentation.screen.goal.GoalsListScreen
 import com.lifeforge.presentation.screen.imports.ImportScreen
 import com.lifeforge.presentation.screen.optimization.OptimizationScreen
+import com.lifeforge.presentation.screen.prediction.PredictionScreen
 import com.lifeforge.presentation.screen.profile.ProfileParamsScreen
 import com.lifeforge.presentation.screen.profile.ProfileScreen
-import com.lifeforge.presentation.screen.simulation.SimulationScreen
-import com.lifeforge.presentation.screen.prediction.PredictionScreen
 import com.lifeforge.presentation.screen.simulation.SimulationCalibratedScreen
 import com.lifeforge.presentation.screen.simulation.SimulationCompareScreen
+import com.lifeforge.presentation.screen.simulation.SimulationScreen
+import com.lifeforge.presentation.screen.usability.UsabilityBarViewModel
+import com.lifeforge.presentation.screen.usability.UsabilityQuestionnaireScreen
+import com.lifeforge.presentation.screen.usability.UsabilityScreen
 
 /**
  * Grafo de navegação raiz do LifeForge.
@@ -64,6 +66,7 @@ import com.lifeforge.presentation.screen.simulation.SimulationCompareScreen
  *   usuário nunca consegue voltar com o gesto "back" para uma tela
  *   autenticada após sair.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LifeForgeNavGraph(
     rootViewModel: RootSessionViewModel = hiltViewModel(),
@@ -105,7 +108,10 @@ fun LifeForgeNavGraph(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val authenticated = sessionState is SessionUiState.Authenticated
-    val showNavigation = authenticated && currentDestination.isTopLevel()
+    // Com o teclado aberto, a navegação e as faixas globais saem de cena: o
+    // formulário ganha a altura toda e a ação fixa encosta no teclado.
+    val imeVisible = WindowInsets.isImeVisible
+    val showNavigation = authenticated && currentDestination.isTopLevel() && !imeVisible
 
     // Enquanto a sessão é lida (DataStore), a splash nativa continua na tela
     // (setKeepOnScreenCondition na MainActivity) — nada a desenhar aqui.
@@ -131,7 +137,7 @@ fun LifeForgeNavGraph(
     // Faixas globais abaixo do conteúdo: tarefa da avaliação de usabilidade em
     // andamento e estado da sincronização offline-first.
     val syncBarVisible = authenticated && (!syncStatus.isOnline || syncStatus.pendingOperations > 0)
-    val barsBelowContent = syncBarVisible || (authenticated && usabilitySession != null)
+    val barsBelowContent = !imeVisible && (syncBarVisible || (authenticated && usabilitySession != null))
 
     NavigationSuiteScaffold(
         navigationItems = {
@@ -275,7 +281,7 @@ fun LifeForgeNavGraph(
                     }
                 }
             }
-            if (authenticated) {
+            if (authenticated && !imeVisible) {
                 // Avaliação de usabilidade: tarefa cronometrada visível em qualquer tela.
                 UsabilityTaskBar(
                     active = usabilitySession,
