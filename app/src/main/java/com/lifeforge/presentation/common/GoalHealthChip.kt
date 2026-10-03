@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,8 +31,13 @@ import com.lifeforge.domain.model.GoalHealthStatus
  * da simulação: ≥ 80% no caminho, 50–80% atenção, < 50% em risco.
  */
 @Composable
-fun GoalHealthChip(health: GoalHealth, modifier: Modifier = Modifier) {
-    val style = healthStyle(health.status)
+fun GoalHealthChip(health: GoalHealth, modifier: Modifier = Modifier) =
+    HealthStatusPill(status = health.status, text = goalHealthLabel(health), modifier = modifier)
+
+/** Pílula com a cor, o ícone e o [text] de um estado de saúde — o mesmo semáforo do selo. */
+@Composable
+fun HealthStatusPill(status: GoalHealthStatus, text: String, modifier: Modifier = Modifier) {
+    val style = healthStyle(status)
     Row(
         modifier = modifier
             .clip(CircleShape)
@@ -43,22 +48,29 @@ fun GoalHealthChip(health: GoalHealth, modifier: Modifier = Modifier) {
     ) {
         Icon(style.icon, contentDescription = null, tint = style.content, modifier = Modifier.size(16.dp))
         Text(
-            text = goalHealthLabel(health),
+            text = text,
             style = MaterialTheme.typography.labelMedium,
             color = style.content,
         )
     }
 }
 
+/** Rótulo curto do estado: "No caminho", "Atenção", "Em risco"… */
+fun healthStatusLabel(status: GoalHealthStatus): String = when (status) {
+    GoalHealthStatus.ON_TRACK -> "No caminho"
+    GoalHealthStatus.ATTENTION -> "Atenção"
+    GoalHealthStatus.AT_RISK -> "Em risco"
+    GoalHealthStatus.NOT_SIMULATED -> "Ainda não simulada"
+    GoalHealthStatus.PENDING_SYNC -> "Aguardando sincronização"
+}
+
 /** Texto do selo de saúde (separado para teste e para descrições de acessibilidade). */
 fun goalHealthLabel(health: GoalHealth): String {
+    val label = healthStatusLabel(health.status)
     val probability = health.latest?.successProbability?.let(::formatProbability)
     return when (health.status) {
-        GoalHealthStatus.ON_TRACK -> "No caminho · $probability"
-        GoalHealthStatus.ATTENTION -> "Atenção · $probability"
-        GoalHealthStatus.AT_RISK -> "Em risco · $probability"
-        GoalHealthStatus.NOT_SIMULATED -> "Ainda não simulada"
-        GoalHealthStatus.PENDING_SYNC -> "Aguardando sincronização"
+        GoalHealthStatus.ON_TRACK, GoalHealthStatus.ATTENTION, GoalHealthStatus.AT_RISK -> "$label · $probability"
+        GoalHealthStatus.NOT_SIMULATED, GoalHealthStatus.PENDING_SYNC -> label
     }
 }
 

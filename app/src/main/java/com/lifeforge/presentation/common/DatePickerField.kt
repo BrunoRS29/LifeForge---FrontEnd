@@ -1,5 +1,7 @@
 package com.lifeforge.presentation.common
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -13,13 +15,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import java.time.Instant
 
 /**
- * Campo de data readonly que dispara um DatePicker ao toque do ícone.
- * Compartilhado pelas telas de finanças (schedules recorrentes) para não
- * duplicar o boilerplate do Material3 DatePicker.
+ * Campo de data somente leitura que abre o seletor de data ao toque — no campo
+ * inteiro, não só no ícone (alvo de toque maior). Compartilhado pelos formulários
+ * de metas e de lançamentos recorrentes.
  */
 @Composable
 fun DateField(
@@ -28,20 +34,34 @@ fun DateField(
     onClick: () -> Unit,
     enabled: Boolean = true,
     placeholder: String = "",
+    error: String? = null,
+    modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentEnabled by rememberUpdatedState(enabled)
+    val interactionSource = remember { MutableInteractionSource() }
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Release && currentEnabled) currentOnClick()
+        }
+    }
     OutlinedTextField(
         value = date?.let(::formatDate) ?: "",
         onValueChange = {},
         readOnly = true,
         label = { Text(label) },
         placeholder = { if (placeholder.isNotEmpty()) Text(placeholder) },
+        isError = error != null,
+        supportingText = error?.let { { Text(it) } },
         trailingIcon = {
             IconButton(onClick = onClick, enabled = enabled) {
                 Icon(Icons.Outlined.CalendarMonth, contentDescription = "Selecionar data")
             }
         },
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        interactionSource = interactionSource,
+        modifier = modifier,
     )
 }
 

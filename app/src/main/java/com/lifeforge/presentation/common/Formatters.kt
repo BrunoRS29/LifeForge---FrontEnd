@@ -4,6 +4,8 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
 import java.time.Instant
+import java.time.LocalDate
+import java.time.Month
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -134,3 +136,29 @@ fun instantToPickerMillis(instant: Instant): Long =
 /** Instante representando o dia 1 do mês (meio-dia SP) — default de data ao criar no mês. */
 fun firstInstantOfMonth(yearMonth: YearMonth): Instant =
     yearMonth.atDay(1).atTime(12, 0).atZone(zoneBR).toInstant()
+
+/** Dia (no fuso de SP) de um instante — para agrupar lançamentos por dia. */
+fun localDateOf(instant: Instant): LocalDate = instant.atZone(zoneBR).toLocalDate()
+
+/**
+ * Cabeçalho de um dia numa lista de lançamentos: "Hoje", "Ontem" ou
+ * "Sexta, 2 de outubro" — com o ano só quando não é o ano de [today].
+ */
+fun formatDayHeader(day: LocalDate, today: LocalDate): String = when (day) {
+    today -> "Hoje"
+    today.minusDays(1) -> "Ontem"
+    else -> {
+        val weekday = day.dayOfWeek.getDisplayName(TextStyle.FULL, ptBR)
+            .substringBefore('-') // "sexta-feira" → "sexta"
+            .replaceFirstChar { it.titlecase(ptBR) }
+        val month = day.month.getDisplayName(TextStyle.FULL, ptBR)
+        val year = if (day.year != today.year) " de ${day.year}" else ""
+        "$weekday, ${day.dayOfMonth} de $month$year"
+    }
+}
+
+/** Nome curto do mês para seletores: "Jan", "Fev"… */
+fun formatMonthShort(month: Month): String =
+    month.getDisplayName(TextStyle.SHORT, ptBR)
+        .removeSuffix(".")
+        .replaceFirstChar { it.titlecase(ptBR) }

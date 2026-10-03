@@ -1,25 +1,42 @@
 package com.lifeforge.presentation.common
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,7 +46,10 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -38,13 +58,18 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -58,11 +83,17 @@ import androidx.compose.ui.unit.dp
  * - cabeçalho de seção ([SectionHeader]);
  * - listas segmentadas, no estilo das configurações do Android ([ListGroup]);
  * - puxar para atualizar com o indicador expressivo ([RefreshableBox]);
- * - ícone em contêiner com forma do Material ([ShapeIcon]).
+ * - ícone em contêiner com forma do Material ([ShapeIcon]);
+ * - seções de formulário ([FormSection]) e ações fixas na base ([BottomActionBar]);
+ * - escolha única com botões conectados ([ConnectedChoice]);
+ * - cartões de conteúdo ([ContentCard]) e seções recolhíveis ([ExpandableSection]).
  */
 
 /** Margem lateral padrão em telas compactas (diretriz de layout: 16 dp). */
 val ScreenPadding: Dp = 16.dp
+
+/** Largura máxima de formulários: campos longos demais atrapalham a leitura. */
+val FormMaxWidth: Dp = 640.dp
 
 /**
  * Largura máxima do conteúdo. Em tablets e paisagem o conteúdo não se estica
@@ -107,6 +138,7 @@ fun DetailTopAppBar(
     onNavigateBack: () -> Unit,
     subtitle: String? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    navigationEnabled: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = TopAppBarDefaults.topAppBarColors(
@@ -114,7 +146,7 @@ fun DetailTopAppBar(
         scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
     )
     val navigationIcon: @Composable () -> Unit = {
-        IconButton(onClick = onNavigateBack) {
+        IconButton(onClick = onNavigateBack, enabled = navigationEnabled) {
             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar")
         }
     }
@@ -351,5 +383,190 @@ fun ActionButton(
             contentPadding = padding,
             content = content,
         )
+    }
+}
+
+/**
+ * Seção de formulário: cabeçalho (com explicação opcional) e os campos logo
+ * abaixo. Agrupar os campos por assunto encurta a leitura de formulários longos.
+ */
+@Composable
+fun FormSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    supporting: String? = null,
+    action: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionHeader(title = title, supporting = supporting, action = action)
+        content()
+    }
+}
+
+/**
+ * Barra de ações fixa na base da tela, na zona de alcance do polegar. Fica acima
+ * da barra de navegação do sistema e do teclado, para que "Salvar" continue
+ * visível enquanto o formulário é preenchido.
+ */
+@Composable
+fun BottomActionBar(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                .readableWidth()
+                .padding(horizontal = ScreenPadding, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content,
+        )
+    }
+}
+
+/**
+ * Escolha única entre poucas opções (2 a 4) com os botões conectados do Material 3
+ * Expressive: a opção marcada vira pílula com a cor de destaque, e a forma reage
+ * ao toque. Usado quando todas as opções cabem lado a lado (tema, perfil de risco,
+ * quantidade de cenários, modo da otimização).
+ */
+@Composable
+fun <T> ConnectedChoice(
+    options: List<T>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    label: (T) -> String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ((T) -> ImageVector)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+    ) {
+        options.forEachIndexed { index, option ->
+            ToggleButton(
+                checked = option == selected,
+                onCheckedChange = { onSelect(option) },
+                enabled = enabled,
+                shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .semantics { role = Role.RadioButton },
+            ) {
+                if (icon != null) {
+                    Icon(icon(option), contentDescription = null, modifier = Modifier.size(ToggleButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
+                }
+                Text(label(option), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/**
+ * Cartão de conteúdo (gráficos, resumos, explicações): contêiner tonal baixo e
+ * cantos extragrandes, com cabeçalho de seção opcional.
+ */
+@Composable
+fun ContentCard(
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    supporting: String? = null,
+    action: (@Composable () -> Unit)? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        color = containerColor,
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (title != null) SectionHeader(title = title, supporting = supporting, action = action)
+            content()
+        }
+    }
+}
+
+/**
+ * Seção recolhível (divulgação progressiva): fechada, mostra só o resumo — para
+ * opções avançadas que já vêm bem preenchidas e raramente precisam de ajuste.
+ */
+@Composable
+fun ExpandableSection(
+    title: String,
+    summary: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "expand-chevron",
+    )
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.extraLarge,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClickLabel = if (expanded) "Recolher" else "Expandir") {
+                        onExpandedChange(!expanded)
+                    }
+                    .semantics { stateDescription = if (expanded) "Aberta" else "Fechada" }
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    Text(
+                        text = summary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    Icons.Rounded.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.rotate(rotation),
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    content = content,
+                )
+            }
+        }
     }
 }

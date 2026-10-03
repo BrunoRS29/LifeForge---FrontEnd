@@ -59,3 +59,17 @@ fun rememberDashedLine(color: Color, thickness: Dp = 2.dp): LineCartesianLayer.L
             gapLength = 5.dp,
         ),
     )
+
+/**
+ * Borda de faixa do fan chart: linha fina com a área abaixo dela pintada em
+ * [areaColor] opaca. Desenhadas de cima para baixo (P90, P75, P25, P10), cada
+ * área cobre a anterior e sobram as faixas P10–P90 e P25–P75; a borda do P10
+ * usa a cor do fundo do cartão e "apaga" o que fica abaixo dela.
+ */
+@Composable
+fun rememberBandEdgeLine(lineColor: Color, areaColor: Color, thickness: Dp = 1.dp): LineCartesianLayer.Line =
+    LineCartesianLayer.rememberLine(
+        fill = remember(lineColor) { LineCartesianLayer.LineFill.single(fill(lineColor)) },
+        stroke = LineCartesianLayer.LineStroke.continuous(thickness = thickness, cap = StrokeCap.Round),
+        areaFill = remember(areaColor) { LineCartesianLayer.AreaFill.single(fill(areaColor)) },
+    )
