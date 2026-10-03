@@ -10,8 +10,8 @@ otimização e IA preditiva. Consome a API REST do backend Ktor (repositório
 | Camada | Tecnologia |
 | --- | --- |
 | Linguagem / Build | Kotlin 2.1 (K2) · AGP 8.7 · Gradle 9.8 · JVM 17 |
-| UI | Jetpack Compose (BOM 2025.01) · Material 3 (claro/escuro, cores dinâmicas) |
-| Gráficos | Vico 2 (histograma, *fan chart*, linhas) + Canvas (gauge de probabilidade) |
+| UI | Jetpack Compose (BOM 2025.10) · **Material 3 Expressive** (`material3` 1.5.0-alpha14) · navegação adaptativa (barra / trilho) · tema da marca gerado pelo Material Color Utilities (claro/escuro, contraste padrão/médio/alto, cores dinâmicas opcionais) |
+| Gráficos | Vico 2 (*fan chart* em faixas, histograma, linhas com área) + Canvas (gauge de probabilidade) |
 | Injeção de dependência | Hilt 2.54 (+ KSP) |
 | Rede | Retrofit + OkHttp (interceptador JWT) + kotlinx.serialization |
 | Persistência local | Room 2.6 (fonte única de verdade, esquema exportado em `app/schemas/`) |
@@ -68,21 +68,55 @@ app/src/main/java/com/lifeforge/
   (12 meses reconstruídos pelo fluxo de caixa + projeção personalizada pelo perfil),
   índice de independência financeira (FI/RE), recorrências e atalho para as
   predições.
-- **Finanças** — receitas, despesas e ativos por mês, lançamentos recorrentes,
-  importação de extratos/faturas e marca de itens aguardando envio.
+- **Finanças** — receitas e despesas do mês agrupadas por dia (seletor de mês e
+  ano, filtro por categoria, deslizar para excluir), ativos com a alocação por tipo,
+  lançamentos recorrentes, importação de extratos/faturas e marca de itens
+  aguardando envio.
 - **Metas** — lista com selo de saúde, detalhe com a última simulação, edição.
-- **Simulação** — Monte Carlo com gauge de probabilidade, histograma, *fan chart*
-  P10–P90, cenários pessimista/realista/otimista, histórico e **comparação lado a
-  lado de estratégias** (veredito, resultados e premissas).
+- **Simulação** — Monte Carlo com gauge de probabilidade, cenários
+  pessimista/realista/otimista (dizendo se atingem a meta), *fan chart* com as
+  faixas P10–P90 e P25–P75, histograma destacando o que atinge a meta,
+  estatísticas, percentis, histórico e **comparação lado a lado de estratégias**
+  (veredito, resultados e premissas).
 - **Simular com IA** — um toque; aporte calibrado pelas predições, com a origem de
   cada premissa (modelo, perfil ou média do histórico).
-- **Otimizar** — aporte ideal, prazo ajustado (busca binária, passo a passo) e
-  rebalanceamento.
+- **Otimizar** — aporte ideal e prazo ajustado (busca binária, com o passo a
+  passo em gráfico e tabela) e carteira sugerida para o perfil de risco.
 - **Predições** — renda, despesas e patrimônio (realizado × projetado), com MAE,
   RMSE e R².
 - **Perfil** — dados para projeções, tema, cores dinâmicas, sincronização (estado,
   pendências, última sincronização) e **avaliação de usabilidade (SUS)**: tarefas
   cronometradas, questionário de 10 itens, resultados agregados e exportação CSV.
+
+## Interface (Material 3 Expressive)
+
+A interface segue as diretrizes do Material 3 Expressive e do *Core App Quality*
+do Android. As peças compartilhadas ficam em `presentation/common` e todas as
+telas as reutilizam:
+
+| Peça | Arquivo | Uso |
+| --- | --- | --- |
+| Tema, formas, tipografia (algarismos tabulares) e movimento expressivo | `theme/` | `MaterialExpressiveTheme` com os esquemas gerados pelo MCU |
+| Barras superiores que recolhem com a rolagem | `DesignSystem.kt` | `TabTopAppBar` (abas) e `DetailTopAppBar` (detalhes e formulários) |
+| Listas segmentadas, seções, cartões e seção recolhível | `DesignSystem.kt` | `ListGroup`, `FormSection`, `ContentCard`, `ExpandableSection` |
+| Ações fixas na base, acima do teclado | `DesignSystem.kt` | `BottomActionBar`, `ProgressActionBar` (com indicador ondulado) |
+| Escolha única em botões conectados | `DesignSystem.kt` | `ConnectedChoice` (tema, perfil de risco, modos, horizontes) |
+| Campos | `CurrencyField.kt`, `FormFields.kt`, `DatePickerField.kt`, `EnumDropdown.kt` | `MoneyField` (R$ fixo e milhares ao digitar), `PercentField`, `MonthsField`, `DateField`, menu com ícones, `ToggleRow` |
+| Gráficos | `ChartStyles.kt`, `ChartLegend.kt`, `AllocationBar.kt` | linhas sólida/tracejada/com área, bordas de faixa do *fan chart*, barra de alocação |
+
+Princípios aplicados: margens de 16 dp e conteúdo limitado a 840 dp em telas
+largas; uma ação principal por tela, ao alcance do polegar; divulgação
+progressiva (premissas já preenchidas ficam recolhidas, com resumo); taxas
+digitadas em porcentagem; alvos de toque ≥ 48 dp e contraste ≥ 4,5:1; resumo
+textual (`contentDescription`) em cada gráfico; tipos de conteúdo para o
+preenchimento automático no login e no cadastro; estados de carregamento, vazio
+e erro em toda tela. A navegação e as faixas globais se recolhem com o teclado
+aberto.
+
+Por que `material3` 1.5.0-alpha14: é a versão mais recente com os componentes
+expressivos (botões conectados, listas segmentadas, indicadores ondulados, barras
+flexíveis) que compila com o `compileSdk 35` e o AGP 8.7 do projeto; as versões
+seguintes exigem um `compileSdk` e um AGP mais novos.
 
 ## Como rodar
 
