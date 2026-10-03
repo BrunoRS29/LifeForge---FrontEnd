@@ -53,6 +53,7 @@ import com.lifeforge.domain.model.GoalHealth
 import com.lifeforge.domain.model.isLocalOnly
 import com.lifeforge.presentation.common.ActionButton
 import com.lifeforge.presentation.common.ActionEmphasis
+import com.lifeforge.presentation.common.BottomActionBar
 import com.lifeforge.presentation.common.DetailTopAppBar
 import com.lifeforge.presentation.common.ErrorBanner
 import com.lifeforge.presentation.common.GoalHealthChip
@@ -178,38 +179,30 @@ fun GoalDetailScreen(
 /** Ações de simulação fixas na base: a primária (IA, um toque) e a com parâmetros. */
 @Composable
 private fun SimulateActions(canSimulate: Boolean, onSimulate: () -> Unit, onSimulateWithAi: () -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-        Column(
-            modifier = Modifier
-                .navigationBarsPadding()
-                .readableWidth()
-                .padding(horizontal = ScreenPadding, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (!canSimulate) {
-                Text(
-                    "Meta salva neste aparelho: a simulação fica disponível depois que ela for enviada ao servidor.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionButton(
-                    text = "Simular",
-                    icon = Icons.Outlined.AutoGraph,
-                    onClick = onSimulate,
-                    enabled = canSimulate,
-                    emphasis = ActionEmphasis.Tonal,
-                    modifier = Modifier.weight(1f),
-                )
-                ActionButton(
-                    text = "Simular com IA",
-                    icon = Icons.Outlined.AutoAwesome,
-                    onClick = onSimulateWithAi,
-                    enabled = canSimulate,
-                    modifier = Modifier.weight(1.3f),
-                )
-            }
+    BottomActionBar {
+        if (!canSimulate) {
+            Text(
+                "Meta salva neste aparelho: a simulação fica disponível depois que ela for enviada ao servidor.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionButton(
+                text = "Simular",
+                icon = Icons.Outlined.AutoGraph,
+                onClick = onSimulate,
+                enabled = canSimulate,
+                emphasis = ActionEmphasis.Tonal,
+                modifier = Modifier.weight(1f),
+            )
+            ActionButton(
+                text = "Simular com IA",
+                icon = Icons.Outlined.AutoAwesome,
+                onClick = onSimulateWithAi,
+                enabled = canSimulate,
+                modifier = Modifier.weight(1.3f),
+            )
         }
     }
 }
