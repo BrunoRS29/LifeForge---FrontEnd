@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -175,7 +176,11 @@ fun RegisterScreen(
                         label = "Salário mensal",
                         enabled = enabled,
                     )
-                    Text("Tipo de vínculo")
+                    Text(
+                        "Tipo de vínculo",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     EmploymentTypeChips(
                         selected = state.employmentType,
                         onSelect = viewModel::onEmploymentTypeChange,
